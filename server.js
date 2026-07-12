@@ -27,7 +27,7 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
         "img-src 'self' data: blob:; " +
         "font-src 'self' https://cdnjs.cloudflare.com; " +
-        "connect-src 'self' http://localhost:* https://localhost:*;"
+        "connect-src 'self' http://localhost:* https://localhost:* https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;"
     );
     next();
 });
@@ -61,6 +61,9 @@ app.use('/api/estadisticas', require('./routes/estadisticas'));
 
 // RUTA: Actividades Pendientes
 app.use('/api/actividades', require('./routes/actividades'));
+
+// RUTA: Reportes Tienda Caracas
+app.use('/api/reportes', require('./routes/reportes'));
 
 // ============================================================
 // HELPERS

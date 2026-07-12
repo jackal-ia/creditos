@@ -32,7 +32,7 @@ async function sincronizarPerfilUsuario() {
                 }
                 // Actualizar variable global
                 usuario = userData;
-                console.log('[DEBUG] Perfil sincronizado desde backend:', userData);
+                // Perfil sincronizado desde backend
 
                 // Actualizar UI
                 document.getElementById('userName').textContent = usuario.nombre || 'Usuario';
@@ -45,7 +45,7 @@ async function sincronizarPerfilUsuario() {
             }
         }
     } catch (err) {
-        console.warn('[DEBUG] Error sincronizando perfil:', err);
+        console.warn('Error sincronizando perfil:', err);
     }
 }
 
@@ -57,9 +57,9 @@ try {
     if (usuarioRaw && usuarioRaw !== 'undefined' && usuarioRaw !== 'null') {
         usuario = JSON.parse(usuarioRaw);
     }
-    console.log('[DEBUG] Usuario cargado desde localStorage:', usuario);
-    console.log('[DEBUG] Rol detectado:', usuario.rol);
-    console.log('[DEBUG] Tienda en localStorage:', usuario.tienda);
+    // Usuario cargado desde localStorage
+    // Rol detectado
+    // Tienda en localStorage
 } catch (e) {
     console.warn('Error parseando usuario de localStorage:', e);
     usuario = {};
@@ -85,7 +85,7 @@ if (!token && !window.location.pathname.includes('login.html') && window.locatio
 document.getElementById('userName').textContent = usuario.nombre || 'Usuario';
 // Detectar rol de múltiples fuentes posibles
 const rolDetectado = usuario.rol || usuario.role || usuario.tipo || 'usuario';
-console.log('[DEBUG] Rol detectado:', rolDetectado, '| Objeto usuario:', usuario);
+// Rol detectado
 document.getElementById('userRole').textContent = rolDetectado.charAt(0).toUpperCase() + rolDetectado.slice(1);
 document.getElementById('userInitials').textContent = (usuario.nombre || 'U').charAt(0).toUpperCase();
 
@@ -201,9 +201,11 @@ function mostrarSeccion(seccion) {
         const menu = document.getElementById('tc-menu-principal');
         const baseDatos = document.getElementById('tc-base-datos');
         const conciliaciones = document.getElementById('tc-conciliaciones');
+        const busqueda = document.getElementById('tc-busqueda');
         if (menu) menu.style.display = 'grid';
         if (baseDatos) baseDatos.style.display = 'none';
         if (conciliaciones) conciliaciones.style.display = 'none';
+        if (busqueda) busqueda.style.display = 'none';
     }
 
     if (seccion === 'tasas') cargarHistorial();
@@ -953,13 +955,13 @@ async function cargarDatosEstadisticasReales() {
         const anio = parseInt(document.getElementById('filtro-anio')?.value || new Date().getFullYear());
         const tipo = document.getElementById('filtro-tipo')?.value || 'todos';
 
-        console.log('[DEBUG] Cargando estadisticas para mes:', mes, 'anio:', anio, 'tipo:', tipo);
+        // Cargando estadisticas
 
         const response = await fetch('/api/tienda-caracas');
         if (!response.ok) throw new Error('Error HTTP: ' + response.status);
 
         const clientes = await response.json();
-        console.log('[DEBUG] Clientes cargados:', clientes.length);
+        // Clientes cargados
 
         const estadisticas = procesarDatosEstadisticas(clientes, mes, anio, tipo);
         datosEstadisticasCache = estadisticas;
@@ -1215,6 +1217,15 @@ function formatearMoneda(valor) {
     return '$ ' + valor.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Formatear fecha para reportes
+function formatearFecha(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+
 function getBadgeClass(estado) {
     switch(estado) {
         case 'Al dia': return 'badge-success';
@@ -1314,7 +1325,7 @@ async function cargarActividadesAPI() {
         const hoy = new Date().toISOString().split('T')[0];
         const tiendaUsuario = getTiendaUsuario();
 
-        console.log('[DEBUG] cargarActividadesAPI - tienda:', tiendaUsuario, '| isAdmin:', isAdmin());
+        // cargarActividadesAPI
 
         let url = '/api/actividades?fecha=' + hoy;
         if (tiendaUsuario && !isAdmin()) {
@@ -1333,13 +1344,13 @@ async function cargarActividadesAPI() {
 
         if (data.exito) {
             actividades = data.actividades || [];
-            console.log('[DEBUG] Actividades cargadas desde API:', actividades.length);
+            // Actividades cargadas desde API
         } else {
             actividades = [];
-            console.log('[DEBUG] No hay actividades en la API');
+            // No hay actividades en la API
         }
     } catch (e) {
-        console.warn('[DEBUG] Error cargando actividades desde API:', e);
+        console.warn('Error cargando actividades desde API:', e);
         // Fallback a localStorage si la API falla
         cargarActividadesLocalStorageFallback();
     }
@@ -1400,11 +1411,10 @@ function getTiendaUsuario() {
         try {
             const user = JSON.parse(userData);
             if (user.tienda) {
-                console.log('[DEBUG] Tienda desde usuario:', user.tienda);
                 return user.tienda;
             }
         } catch (e) {
-            console.warn('[DEBUG] Error parseando usuario:', e);
+            console.warn('Error parseando usuario:', e);
         }
     }
     // Fallback: leer del token JWT
@@ -1412,13 +1422,13 @@ function getTiendaUsuario() {
     if (token) {
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            console.log('[DEBUG] Tienda desde token:', payload.tienda);
-            return payload.tienda || null;
+            if (payload.tienda) {
+                return payload.tienda;
+            }
         } catch (e) {
-            console.warn('[DEBUG] Error parseando token:', e);
+            console.warn('Error parseando token:', e);
         }
     }
-    console.log('[DEBUG] No se encontró tienda');
     return null;
 }
 
@@ -1440,13 +1450,13 @@ async function guardarActividadAPI(actividad) {
         const data = await response.json();
 
         if (data.exito) {
-            console.log('[DEBUG] Actividad guardada en API:', data.actividad);
+            // Actividad guardada en API
             return data.actividad;
         } else {
             throw new Error(data.error || 'Error al guardar actividad');
         }
     } catch (e) {
-        console.warn('[DEBUG] Error guardando actividad en API:', e);
+        console.warn('Error guardando actividad en API:', e);
         // Fallback a localStorage
         guardarActividadLocalStorageFallback(actividad);
         return null;
@@ -2139,7 +2149,7 @@ function ajustarVistaMovil() {
             mainContent.style.width = '100%';
         }
 
-        console.log('[DEBUG] Vista móvil activada');
+        // Vista móvil activada
     } else {
         // En desktop: aplicar reglas normales de rol/tienda
         ocultarMenuSegunRol();
@@ -2271,7 +2281,7 @@ async function actualizarWidgetActividades() {
             }
         }
     } catch (e) {
-        console.warn('[DEBUG] Error cargando actividades para widget desde API:', e);
+        console.warn('Error cargando actividades para widget:', e);
         // Fallback a localStorage
         try {
             const guardadas = localStorage.getItem('agenda_actividades_' + hoy);
@@ -2285,16 +2295,16 @@ async function actualizarWidgetActividades() {
 
     // Filtrar por tienda del usuario si es operador (doble verificación)
     const tiendaUsuario = getTiendaUsuario();
-    console.log('[DEBUG] Widget - Tienda usuario:', tiendaUsuario, '| isAdmin:', isAdmin(), '| Total actividades:', actividadesHoy.length);
+    // Widget actividades actualizado
 
     if (tiendaUsuario && !isAdmin()) {
         const antes = actividadesHoy.length;
         actividadesHoy = actividadesHoy.filter(a => {
             const match = !a.tienda || a.tienda === tiendaUsuario;
-            console.log('[DEBUG] Actividad:', a.descripcion, '| tienda:', a.tienda, '| match:', match);
+            // Filtrando actividad por tienda
             return match;
         });
-        console.log('[DEBUG] Filtradas:', antes, '→', actividadesHoy.length);
+        // Actividades filtradas
     }
 
     // Filtrar solo pendientes
@@ -2643,16 +2653,16 @@ async function mostrarModalTodasActividadesOperador() {
 
     // Filtrar por tienda del usuario si es operador
     const tiendaUsuario = getTiendaUsuario();
-    console.log('[DEBUG] Widget - Tienda usuario:', tiendaUsuario, '| isAdmin:', isAdmin(), '| Total actividades:', actividadesHoy.length);
+    // Widget actividades actualizado
 
     if (tiendaUsuario && !isAdmin()) {
         const antes = actividadesHoy.length;
         actividadesHoy = actividadesHoy.filter(a => {
             const match = !a.tienda || a.tienda === tiendaUsuario;
-            console.log('[DEBUG] Actividad:', a.descripcion, '| tienda:', a.tienda, '| match:', match);
+            // Filtrando actividad por tienda
             return match;
         });
-        console.log('[DEBUG] Filtradas:', antes, '→', actividadesHoy.length);
+        // Actividades filtradas
     }
 
     const pendientes = actividadesHoy.filter(a => a.estado === 'pendiente');
@@ -2726,5 +2736,604 @@ async function completarActividadDesdeModalOperador(id) {
     setTimeout(() => {
         mostrarModalTodasActividadesOperador();
     }, 300);
+}
+
+// ============================================
+// EXPORTAR A PDF
+// ============================================
+function exportToPDF() {
+    // Detectar qué sección está activa para exportar los datos correctos
+    const seccionActual = localStorage.getItem('seccion_actual') || 'dashboard';
+
+    let titulo = 'Reporte';
+    let headers = [];
+    let rows = [];
+    let filename = 'reporte_' + new Date().toISOString().split('T')[0] + '.pdf';
+
+    // Según la sección activa, obtener los datos
+    if (seccionActual === 'clientes' || document.getElementById('contentClientes')?.classList.contains('active')) {
+        titulo = 'Busqueda Tienda Caracas';
+        headers = [['Nro', 'Factura', 'Nombre', 'Cédula', 'Monto Factura', 'Cuotas', 'Deuda', 'Estado']];
+
+        const tabla = document.querySelector('#contentClientes table, .tienda-caracas-table');
+        if (tabla) {
+            const filas = tabla.querySelectorAll('tbody tr');
+            filas.forEach(fila => {
+                const celdas = fila.querySelectorAll('td');
+                if (celdas.length > 0) {
+                    rows.push(Array.from(celdas).slice(0, 8).map(c => c.textContent.trim()));
+                }
+            });
+        }
+
+        filename = 'busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.pdf';
+
+    } else if (seccionActual === 'creditos' || document.getElementById('contentCreditos')?.classList.contains('active')) {
+        titulo = 'Reporte Tienda Maracay';
+        headers = [['Nro', 'Factura', 'Nombre', 'Cédula', 'Monto', 'Cuotas', 'Deuda', 'Estado']];
+
+        const tabla = document.querySelector('#contentCreditos table, .tienda-maracay-table');
+        if (tabla) {
+            const filas = tabla.querySelectorAll('tbody tr');
+            filas.forEach(fila => {
+                const celdas = fila.querySelectorAll('td');
+                if (celdas.length > 0) {
+                    rows.push(Array.from(celdas).slice(0, 8).map(c => c.textContent.trim()));
+                }
+            });
+        }
+
+        filename = 'reporte_maracay_' + new Date().toISOString().split('T')[0] + '.pdf';
+
+    } else if (seccionActual === 'pagos' || document.getElementById('contentPagos')?.classList.contains('active')) {
+        titulo = 'Reporte Tienda Maracaibo';
+        headers = [['Nro', 'Factura', 'Nombre', 'Cédula', 'Monto', 'Cuotas', 'Deuda', 'Estado']];
+
+        const tabla = document.querySelector('#contentPagos table, .tienda-maracaibo-table');
+        if (tabla) {
+            const filas = tabla.querySelectorAll('tbody tr');
+            filas.forEach(fila => {
+                const celdas = fila.querySelectorAll('td');
+                if (celdas.length > 0) {
+                    rows.push(Array.from(celdas).slice(0, 8).map(c => c.textContent.trim()));
+                }
+            });
+        }
+
+        filename = 'reporte_maracaibo_' + new Date().toISOString().split('T')[0] + '.pdf';
+
+    } else if (seccionActual === 'reportes' || document.getElementById('contentReportes')?.classList.contains('active')) {
+        titulo = 'Reporte de Actividades';
+        headers = [['Descripción', 'Hora', 'Prioridad', 'Tienda', 'Estado', 'Fecha']];
+
+        const filtro = filtroActividades || 'todas';
+        let actividadesExportar = actividades || [];
+
+        if (filtro === 'pendientes') {
+            actividadesExportar = actividadesExportar.filter(a => a.estado === 'pendiente');
+            titulo = 'Actividades Pendientes';
+        } else if (filtro === 'completadas') {
+            actividadesExportar = actividadesExportar.filter(a => a.estado === 'completada');
+            titulo = 'Actividades Completadas';
+        }
+
+        rows = actividadesExportar.map(a => [
+            a.descripcion || '',
+            a.hora || '',
+            (a.prioridad || '').toUpperCase(),
+            a.tienda || '',
+            a.estado === 'completada' ? 'Completada' : 'Pendiente',
+            a.fecha || new Date().toISOString().split('T')[0]
+        ]);
+
+        filename = 'actividades_' + new Date().toISOString().split('T')[0] + '.pdf';
+
+    } else {
+        titulo = 'Resumen del Sistema';
+        headers = [['Concepto', 'Valor']];
+        rows = [
+            ['Fecha', new Date().toLocaleDateString('es-VE')],
+            ['Hora', new Date().toLocaleTimeString('es-VE')],
+            ['Total Actividades Hoy', (actividades || []).length.toString()],
+            ['Pendientes', (actividades || []).filter(a => a.estado === 'pendiente').length.toString()],
+            ['Completadas', (actividades || []).filter(a => a.estado === 'completada').length.toString()],
+        ];
+        filename = 'resumen_' + new Date().toISOString().split('T')[0] + '.pdf';
+    }
+
+    // Generar PDF con jsPDF
+    if (typeof jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+        mostrarAlerta('Error: Librería PDF no cargada. Recarga la página.', 'error');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf || { jsPDF: window.jsPDF };
+    const doc = new jsPDF('l', 'mm', 'a4');
+
+    // Encabezado
+    doc.setFontSize(18);
+    doc.setTextColor(26, 54, 93);
+    doc.text(titulo, 14, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Generado: ' + new Date().toLocaleString('es-VE'), 14, 28);
+    doc.text('Usuario: ' + (usuarioActual?.nombre || 'Administrador'), 14, 33);
+
+    doc.setDrawColor(26, 54, 93);
+    doc.setLineWidth(0.5);
+    doc.line(14, 36, 280, 36);
+
+    // Tabla
+    if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+            head: headers,
+            body: rows,
+            startY: 42,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [26, 54, 93],
+                textColor: [255, 255, 255],
+                fontSize: 10,
+                fontStyle: 'bold'
+            },
+            bodyStyles: {
+                fontSize: 9,
+                textColor: [50, 50, 50]
+            },
+            alternateRowStyles: {
+                fillColor: [240, 248, 255]
+            },
+            margin: { top: 42, left: 14, right: 14 },
+            styles: {
+                overflow: 'linebreak',
+                cellWidth: 'wrap'
+            },
+            didDrawPage: function(data) {
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Inversora IPSFA - Sistema de Créditos', 14, doc.internal.pageSize.height - 10);
+                doc.text('Página ' + data.pageNumber, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+            }
+        });
+    } else {
+        doc.setFontSize(10);
+        doc.setTextColor(50, 50, 50);
+        let y = 45;
+        rows.forEach(row => {
+            doc.text(row.join(' | '), 14, y);
+            y += 7;
+        });
+    }
+
+    doc.save(filename);
+    mostrarAlerta('PDF exportado correctamente', 'success');
+}
+
+
+// ============================================
+// REPORTES TIENDA CARACAS (INTEGRADO EN PANEL)
+// ============================================
+
+let datosBusquedaCaracas = [];
+let resumenBusquedaCaracas = {};
+let paginaBusqueda = 1;
+let registrosPorPaginaBusqueda = 10;
+let totalPaginasBusqueda = 1;
+
+function mostrarBusqueda() {
+    document.getElementById('tc-menu-principal').style.display = 'none';
+    document.getElementById('tc-base-datos').style.display = 'none';
+    document.getElementById('tc-conciliaciones').style.display = 'none';
+    document.getElementById('tc-busqueda').style.display = 'block';
+
+    // Set fechas por defecto
+    const hoy = new Date();
+    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    document.getElementById('busq-fecha-desde').value = primerDia.toISOString().split('T')[0];
+    document.getElementById('busq-fecha-hasta').value = hoy.toISOString().split('T')[0];
+}
+
+async function generarBusquedaCaracas() {
+    showLoading(true);
+
+    try {
+        const filtros = {
+            fecha_desde: document.getElementById('busq-fecha-desde').value || null,
+            fecha_hasta: document.getElementById('busq-fecha-hasta').value || null,
+            estado: document.getElementById('busq-estado').value,
+            monto_min: document.getElementById('busq-monto-min').value || null,
+            monto_max: document.getElementById('busq-monto-max').value || null,
+            nombre_cliente: document.getElementById('busq-nombre').value || null
+        };
+
+        const response = await fetch('/api/reportes/caracas', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(filtros)
+        });
+
+        const data = await response.json();
+
+        if (!data.exito) {
+            throw new Error(data.error || 'Error al generar reporte');
+        }
+
+        datosBusquedaCaracas = data.datos || [];
+        resumenBusquedaCaracas = data.resumen || {};
+
+        // Mostrar resumen
+        document.getElementById('busq-resumen').style.display = 'grid';
+        document.getElementById('busq-res-total').textContent = formatNumber(resumenBusquedaCaracas.total_clientes || 0);
+        document.getElementById('busq-res-deuda').textContent = formatCurrency(resumenBusquedaCaracas.total_deuda || 0);
+        document.getElementById('busq-res-pagado').textContent = formatCurrency(resumenBusquedaCaracas.total_depositado || 0);
+        document.getElementById('busq-res-mora').textContent = formatNumber(resumenBusquedaCaracas.clientes_mora || 0);
+        document.getElementById('busq-res-promedio').textContent = formatCurrency(resumenBusquedaCaracas.promedio_deuda || 0);
+
+        // Mostrar tabla
+        document.getElementById('busq-tabla-container').style.display = 'block';
+        document.getElementById('busq-contador').textContent = datosBusquedaCaracas.length + ' registros';
+
+        const tbody = document.getElementById('busq-tbody');
+        // Inicializar paginación
+        paginaBusqueda = 1;
+        registrosPorPaginaBusqueda = 10;
+        totalPaginasBusqueda = Math.ceil(datosBusquedaCaracas.length / registrosPorPaginaBusqueda) || 1;
+
+        // Renderizar tabla paginada
+        renderizarTablaBusqueda();
+
+        // Mostrar gráficos
+        document.getElementById('busq-graficos').style.display = 'grid';
+        renderizarGraficosBusqueda();
+
+        // Mostrar exportar
+        document.getElementById('busq-exportar').style.display = 'block';
+
+        mostrarAlerta('Busqueda generada: ' + data.total + ' registros', 'success');
+
+    } catch (e) {
+        console.error('Error:', e);
+        mostrarAlerta('Error: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function calcularEstadoBusqueda(row) {
+    const deuda = parseFloat(row.deuda) || 0;
+    const depositado = parseFloat(row.monto_depositados) || 0;
+    const total = parseFloat(row.monto_factura) || 0;
+    const fecha = new Date(row.fecha_factura);
+    const dias = (new Date() - fecha) / (1000 * 60 * 60 * 24);
+
+    if (deuda <= 0 || depositado >= total) {
+        return { texto: 'Pagado', style: 'background:#d1fae5;color:#059669;' };
+    }
+    if (dias > 30 && deuda > 0) {
+        return { texto: 'En Mora', style: 'background:#fee2e2;color:#dc2626;' };
+    }
+    return { texto: 'Pendiente', style: 'background:#fef3c7;color:#d97706;' };
+}
+
+function renderizarGraficosBusqueda() {
+    const porEstado = {
+        pendiente: datosBusquedaCaracas.filter(r => calcularEstadoBusqueda(r).texto === 'Pendiente').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0),
+        pagado: datosBusquedaCaracas.filter(r => calcularEstadoBusqueda(r).texto === 'Pagado').reduce((s, r) => s + (parseFloat(r.monto_depositados) || 0), 0),
+        mora: datosBusquedaCaracas.filter(r => calcularEstadoBusqueda(r).texto === 'En Mora').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0)
+    };
+
+    const maxValor = Math.max(porEstado.pendiente, porEstado.pagado, porEstado.mora, 1);
+
+    document.getElementById('busq-graf-barras').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pendiente</div>
+                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${(porEstado.pendiente/maxValor*100)}%;background:linear-gradient(90deg,#f6e05e,#d69e2e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
+                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pendiente)}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pagado</div>
+                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${(porEstado.pagado/maxValor*100)}%;background:linear-gradient(90deg,#68d391,#38a169);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
+                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pagado)}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">En Mora</div>
+                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${(porEstado.mora/maxValor*100)}%;background:linear-gradient(90deg,#fc8181,#e53e3e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
+                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.mora)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const total = resumenBusquedaCaracas.total_facturado || 1;
+    const pagadoPct = ((resumenBusquedaCaracas.total_depositado || 0) / total * 100).toFixed(1);
+    const pendientePct = ((resumenBusquedaCaracas.total_deuda || 0) / total * 100).toFixed(1);
+
+    document.getElementById('busq-graf-pastel').innerHTML = `
+        <div style="position:relative;width:180px;height:180px;">
+            <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg);">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="20"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#48bb78" stroke-width="20" 
+                    stroke-dasharray="${pagadoPct * 2.51} 251" stroke-linecap="round"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#f56565" stroke-width="20" 
+                    stroke-dasharray="${pendientePct * 2.51} 251" 
+                    stroke-dashoffset="${-pagadoPct * 2.51}" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                <div style="width:16px;height:16px;border-radius:4px;background:#48bb78;"></div>
+                <span style="color:#4a5568;">Pagado</span>
+                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pagadoPct}%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                <div style="width:16px;height:16px;border-radius:4px;background:#f56565;"></div>
+                <span style="color:#4a5568;">Pendiente</span>
+                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pendientePct}%</span>
+            </div>
+        </div>
+    `;
+}
+
+
+// ============================================
+// RENDERIZAR TABLA DE BÚSQUEDA CON PAGINACIÓN
+// ============================================
+function renderizarTablaBusqueda() {
+    const tbody = document.getElementById('busq-tbody');
+    const contador = document.getElementById('busq-contador');
+    if (!tbody) return;
+
+    // Calcular índices para la página actual
+    const inicio = (paginaBusqueda - 1) * registrosPorPaginaBusqueda;
+    const fin = inicio + registrosPorPaginaBusqueda;
+    const datosPagina = datosBusquedaCaracas.slice(inicio, fin);
+    totalPaginasBusqueda = Math.ceil(datosBusquedaCaracas.length / registrosPorPaginaBusqueda) || 1;
+
+    if (contador) {
+        contador.textContent = datosBusquedaCaracas.length + ' registros (Página ' + paginaBusqueda + ' de ' + totalPaginasBusqueda + ')';
+    }
+
+    if (datosPagina.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#718096;">No hay registros que coincidan con los filtros</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = datosPagina.map((row, i) => {
+        const estado = calcularEstadoBusqueda(row);
+        const numeroReal = inicio + i + 1;
+        return `<tr>
+            <td>${numeroReal}</td>
+            <td>${row.nro_factura || '-'}</td>
+            <td>${row.nombre_apellido || '-'}</td>
+            <td>${row.cedula || '-'}</td>
+            <td style="text-align:right;font-family:monospace;font-weight:600;">${formatCurrency(row.monto_factura || 0)}</td>
+            <td>${row.cuotas || '-'}</td>
+            <td style="text-align:right;font-family:monospace;color:#38a169;">${formatCurrency(row.monto_depositados || 0)}</td>
+            <td style="text-align:right;font-family:monospace;color:#e53e3e;">${formatCurrency(row.deuda || 0)}</td>
+            <td><span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;${estado.style}">${estado.texto}</span></td>
+            <td>${formatearFecha(row.fecha_factura)}</td>
+        </tr>`;
+    }).join('');
+
+    // Actualizar controles de paginación
+    actualizarControlesPaginacionBusqueda();
+}
+
+function actualizarControlesPaginacionBusqueda() {
+    // Eliminar paginación anterior si existe
+    const paginacionAnterior = document.getElementById('busq-paginacion');
+    if (paginacionAnterior) paginacionAnterior.remove();
+
+    if (totalPaginasBusqueda <= 1) return;
+
+    const tablaContainer = document.getElementById('busq-tabla-container');
+    if (!tablaContainer) return;
+
+    const paginacionDiv = document.createElement('div');
+    paginacionDiv.id = 'busq-paginacion';
+    paginacionDiv.style.cssText = 'display:flex;justify-content:center;align-items:center;gap:8px;padding:15px;border-top:1px solid #e2e8f0;';
+
+    // Botón Primera
+    const btnPrimera = crearBotonPaginacion('|<', () => irAPaginaBusqueda(1), paginaBusqueda === 1);
+    paginacionDiv.appendChild(btnPrimera);
+
+    // Botón Anterior
+    const btnAnterior = crearBotonPaginacion('<', () => irAPaginaBusqueda(paginaBusqueda - 1), paginaBusqueda === 1);
+    paginacionDiv.appendChild(btnAnterior);
+
+    // Info de página
+    const infoPagina = document.createElement('span');
+    infoPagina.style.cssText = 'font-size:13px;color:#64748b;font-weight:500;margin:0 10px;';
+    infoPagina.textContent = 'Página ' + paginaBusqueda + ' de ' + totalPaginasBusqueda;
+    paginacionDiv.appendChild(infoPagina);
+
+    // Botón Siguiente
+    const btnSiguiente = crearBotonPaginacion('>', () => irAPaginaBusqueda(paginaBusqueda + 1), paginaBusqueda >= totalPaginasBusqueda);
+    paginacionDiv.appendChild(btnSiguiente);
+
+    // Botón Última
+    const btnUltima = crearBotonPaginacion('>|', () => irAPaginaBusqueda(totalPaginasBusqueda), paginaBusqueda >= totalPaginasBusqueda);
+    paginacionDiv.appendChild(btnUltima);
+
+    // Select de registros por página
+    const selectLabel = document.createElement('span');
+    selectLabel.style.cssText = 'font-size:12px;color:#718096;margin-left:15px;';
+    selectLabel.textContent = 'Mostrar:';
+    paginacionDiv.appendChild(selectLabel);
+
+    const selectRegistros = document.createElement('select');
+    selectRegistros.style.cssText = 'padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;';
+    [10, 25, 50, 100].forEach(num => {
+        const option = document.createElement('option');
+        option.value = num;
+        option.textContent = num;
+        if (num === registrosPorPaginaBusqueda) option.selected = true;
+        selectRegistros.appendChild(option);
+    });
+    selectRegistros.onchange = function() {
+        registrosPorPaginaBusqueda = parseInt(this.value);
+        paginaBusqueda = 1;
+        totalPaginasBusqueda = Math.ceil(datosBusquedaCaracas.length / registrosPorPaginaBusqueda) || 1;
+        renderizarTablaBusqueda();
+    };
+    paginacionDiv.appendChild(selectRegistros);
+
+    tablaContainer.appendChild(paginacionDiv);
+}
+
+function crearBotonPaginacion(texto, onClick, disabled) {
+    const btn = document.createElement('button');
+    btn.textContent = texto;
+    btn.style.cssText = 'padding:8px 14px;border:1px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:#4a5568;transition:all 0.2s;';
+    if (disabled) {
+        btn.style.opacity = '0.4';
+        btn.style.cursor = 'not-allowed';
+        btn.disabled = true;
+    } else {
+        btn.onmouseover = function() { this.style.background = '#1a365d'; this.style.color = 'white'; this.style.borderColor = '#1a365d'; };
+        btn.onmouseout = function() { this.style.background = 'white'; this.style.color = '#4a5568'; this.style.borderColor = '#e2e8f0'; };
+        btn.onclick = onClick;
+    }
+    return btn;
+}
+
+function irAPaginaBusqueda(pagina) {
+    if (pagina < 1 || pagina > totalPaginasBusqueda) return;
+    paginaBusqueda = pagina;
+    renderizarTablaBusqueda();
+    // Scroll suave al inicio de la tabla
+    const tablaContainer = document.getElementById('busq-tabla-container');
+    if (tablaContainer) tablaContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function limpiarFiltrosBusqueda() {
+    document.getElementById('busq-fecha-desde').value = '';
+    document.getElementById('busq-fecha-hasta').value = '';
+    document.getElementById('busq-estado').value = 'todos';
+    document.getElementById('busq-monto-min').value = '';
+    document.getElementById('busq-monto-max').value = '';
+    document.getElementById('busq-nombre').value = '';
+
+    document.getElementById('busq-resumen').style.display = 'none';
+    document.getElementById('busq-tabla-container').style.display = 'none';
+    document.getElementById('busq-graficos').style.display = 'none';
+    document.getElementById('busq-exportar').style.display = 'none';
+
+    // Limpiar paginación
+    const paginacionAnterior = document.getElementById('busq-paginacion');
+    if (paginacionAnterior) paginacionAnterior.remove();
+    paginaBusqueda = 1;
+    totalPaginasBusqueda = 1;
+}
+
+function exportarBusquedaExcel() {
+    if (datosBusquedaCaracas.length === 0) {
+        mostrarAlerta('No hay datos para exportar', 'error');
+        return;
+    }
+
+    const datosExcel = datosBusquedaCaracas.map(row => ({
+        'Nro Factura': row.nro_factura || '',
+        'Cliente': row.nombre_apellido || '',
+        'Cédula': row.cedula || '',
+        'Monto Factura': parseFloat(row.monto_factura) || 0,
+        'Cuotas': row.cuotas || '',
+        'Depositado': parseFloat(row.monto_depositados) || 0,
+        'Deuda': parseFloat(row.deuda) || 0,
+        'Estado': calcularEstadoBusqueda(row).texto,
+        'Fecha Factura': row.fecha_factura || ''
+    }));
+
+    datosExcel.push({});
+    datosExcel.push({
+        'Nro Factura': 'RESUMEN',
+        'Cliente': 'Total Clientes: ' + resumenBusquedaCaracas.total_clientes,
+        'Monto Factura': resumenBusquedaCaracas.total_facturado,
+        'Depositado': resumenBusquedaCaracas.total_depositado,
+        'Deuda': resumenBusquedaCaracas.total_deuda,
+        'Estado': 'Clientes Mora: ' + resumenBusquedaCaracas.clientes_mora
+    });
+
+    const ws = XLSX.utils.json_to_sheet(datosExcel);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte Caracas');
+    ws['!cols'] = [{wch:12},{wch:30},{wch:15},{wch:15},{wch:10},{wch:15},{wch:15},{wch:12},{wch:15}];
+    XLSX.writeFile(wb, 'busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    mostrarAlerta('Excel exportado correctamente', 'success');
+}
+
+function exportarBusquedaPDF() {
+    if (datosBusquedaCaracas.length === 0) {
+        mostrarAlerta('No hay datos para exportar', 'error');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+
+    doc.setFontSize(20);
+    doc.setTextColor(26, 54, 93);
+    doc.text('Busqueda Tienda Caracas', 14, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Generado: ' + new Date().toLocaleString('es-VE'), 14, 28);
+    doc.text('Total Registros: ' + datosBusquedaCaracas.length, 14, 33);
+
+    doc.setDrawColor(26, 54, 93);
+    doc.setLineWidth(0.5);
+    doc.line(14, 36, 280, 36);
+
+    const headers = [['Nro', 'Factura', 'Cliente', 'Cédula', 'Monto', 'Cuotas', 'Depositado', 'Deuda', 'Estado', 'Fecha']];
+    const rows = datosBusquedaCaracas.map((row, i) => [
+        i + 1, row.nro_factura || '-', row.nombre_apellido || '-', row.cedula || '-',
+        formatCurrency(row.monto_factura || 0), row.cuotas || '-',
+        formatCurrency(row.monto_depositados || 0), formatCurrency(row.deuda || 0),
+        calcularEstadoBusqueda(row).texto, formatearFecha(row.fecha_factura)
+    ]);
+
+    doc.autoTable({
+        head: headers, body: rows, startY: 42, theme: 'striped',
+        headStyles: { fillColor: [26, 54, 93], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+        alternateRowStyles: { fillColor: [240, 248, 255] },
+        margin: { top: 42, left: 14, right: 14 },
+        styles: { overflow: 'linebreak', cellWidth: 'wrap' },
+        columnStyles: { 0: {cellWidth: 10}, 1: {cellWidth: 20}, 2: {cellWidth: 35}, 3: {cellWidth: 20}, 4: {cellWidth: 25}, 5: {cellWidth: 15}, 6: {cellWidth: 25}, 7: {cellWidth: 25}, 8: {cellWidth: 20}, 9: {cellWidth: 20} },
+        didDrawPage: function(data) {
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text('Inversora IPSFA - Sistema de Créditos', 14, doc.internal.pageSize.height - 10);
+            doc.text('Página ' + data.pageNumber, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+        }
+    });
+
+    doc.save('busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.pdf');
+    mostrarAlerta('PDF exportado correctamente', 'success');
+}
+
+
+
+// ============================================
+// VOLVER AL MENU PRINCIPAL DE CARACAS
+// ============================================
+function volverMenuPrincipalCaracas() {
+    document.getElementById('tc-base-datos').style.display = 'none';
+    document.getElementById('tc-conciliaciones').style.display = 'none';
+    document.getElementById('tc-busqueda').style.display = 'none';
+    document.getElementById('tc-menu-principal').style.display = 'grid';
 }
 

@@ -168,6 +168,7 @@
                     </svg>
                     <span>Actividades Pendientes</span>
                 </a>
+                
             </div>
             <div class="nav-section">
                 <span class="nav-title">CONFIGURACION</span>
@@ -331,15 +332,9 @@
                         <p>Espacio reservado para futuros modulos del sistema.</p>
                     </div>
                 </div>
-                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
-                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        <i class="fas fa-chevron-left"></i> Anterior
-                    </button>
-                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
-                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        Siguiente <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
+                
+                
+            
             </div>
         </div>
 
@@ -492,7 +487,7 @@
                     <button onclick="mostrarBaseDatos()" class="tc-menu-btn">Base de Datos</button>
                     <button onclick="mostrarConciliaciones()" class="tc-menu-btn">Conciliaciones Bancarias</button>
                     <button onclick="mostrarSeccion('estadisticas')" class="tc-menu-btn">Estadisticas</button>
-                    <button disabled class="tc-menu-btn-disabled">En Construccion</button>
+                    <button onclick="mostrarBusqueda()" class="tc-menu-btn"><i class="fas fa-chart-bar"></i> Reportes</button>
                 </div>
                 <div id="tc-base-datos" style="display: none;">
                     <button onclick="mostrarMenuPrincipal()" class="btn-volver">&#8592; Volver al Menu</button>
@@ -643,16 +638,67 @@
                         </div>
                     </div>
                 </div>
-                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
-                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        <i class="fas fa-chevron-left"></i> Anterior
-                    </button>
-                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
-                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        Siguiente <i class="fas fa-chevron-right"></i>
-                    </button>
+                <!-- REPORTES TIENDA CARACAS -->
+                <div id="tc-busqueda" style="display: none;">
+                    <button onclick="volverMenuPrincipalCaracas()" class="btn-volver">&#8592; Volver al Menu</button>
+                    <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white; border-radius: 12px;">
+                        <h2><i class="fas fa-chart-bar"></i> Reportes Tienda Caracas</h2>
+                        <p style="opacity: 0.9; margin-top: 5px;">Genera reportes personalizados con filtros avanzados</p>
+                    </div>
+
+                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
+                        <h4 style="margin-bottom: 15px; color: #1a365d;"><i class="fas fa-filter"></i> Filtros del Reporte</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                            <div class="form-group"><label>Fecha Desde</label><input type="date" id="busq-fecha-desde"></div>
+                            <div class="form-group"><label>Fecha Hasta</label><input type="date" id="busq-fecha-hasta"></div>
+                            <div class="form-group"><label>Estado</label><select id="busq-estado"><option value="todos">Todos</option><option value="pendiente">Pendiente</option><option value="pagado">Pagado</option><option value="mora">En Mora</option></select></div>
+                            <div class="form-group"><label>Monto Deuda Min</label><input type="number" id="busq-monto-min" placeholder="0.00"></div>
+                            <div class="form-group"><label>Monto Deuda Max</label><input type="number" id="busq-monto-max" placeholder="9999999"></div>
+                            <div class="form-group"><label>Nombre Cliente</label><input type="text" id="busq-nombre" placeholder="Buscar cliente..."></div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="limpiarFiltrosBusqueda()" style="padding: 10px 20px; background: #edf2f7; color: #4a5568; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"><i class="fas fa-eraser"></i> Limpiar</button>
+                            <button onclick="generarBusquedaCaracas()" style="padding: 10px 24px; background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);"><i class="fas fa-sync-alt"></i> Generar Reporte</button>
+                        </div>
+                    </div>
+
+                    <div id="busq-resumen" style="display: none; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                            <div class="card" style="border-left: 4px solid #4299e1; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-total">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Clientes</div></div>
+                            <div class="card" style="border-left: 4px solid #f56565; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-deuda">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Deuda Total</div></div>
+                            <div class="card" style="border-left: 4px solid #48bb78; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-pagado">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Pagado</div></div>
+                            <div class="card" style="border-left: 4px solid #ed8936; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-mora">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Clientes en Mora</div></div>
+                            <div class="card" style="border-left: 4px solid #9f7aea; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-promedio">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Promedio Deuda</div></div>
+                        </div>
+                    </div>
+
+                    <div class="card" id="busq-tabla-container" style="display: none; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
+                            <h4 style="color: #1a365d;"><i class="fas fa-list"></i> Resultados</h4>
+                            <span style="font-size: 13px; color: #718096; background: #edf2f7; padding: 6px 14px; border-radius: 20px;" id="busq-contador">0 registros</span>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" id="busq-tabla">
+                                <thead><tr style="background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white;"><th>Nro</th><th>Factura</th><th>Cliente</th><th>Cédula</th><th>Monto</th><th>Cuotas</th><th>Depositado</th><th>Deuda</th><th>Estado</th><th>Fecha</th></tr></thead>
+                                <tbody id="busq-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="busq-graficos" style="display: none; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-bar"></i> Deuda por Estado</h4><div id="busq-graf-barras"></div></div>
+                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-pie"></i> Distribución de Pagos</h4><div id="busq-graf-pastel" style="display: flex; align-items: center; justify-content: center; gap: 30px;"></div></div>
+                    </div>
+
+                    <div id="busq-exportar" style="display: none; text-align: center; padding: 20px; border-top: 1px solid #e2e8f0;">
+                        <div style="display: inline-flex; gap: 20px;">
+                            <button onclick="exportarBusquedaExcel()" style="padding: 15px 30px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; color: #15803d; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-excel" style="font-size: 32px; color: #22c55e;"></i><span>Exportar Excel</span><small style="font-size: 11px; opacity: 0.7;">.xlsx</small></button>
+                            <button onclick="exportarBusquedaPDF()" style="padding: 15px 30px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; color: #b91c1c; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-pdf" style="font-size: 32px; color: #ef4444;"></i><span>Exportar PDF</span><small style="font-size: 11px; opacity: 0.7;">.pdf</small></button>
+                        </div>
+                    </div>
                 </div>
-            </div>
+
+    </div>
         </div>
 
         <!-- TIENDA MARACAY -->
@@ -763,7 +809,6 @@
                             <p>No hay actividades en el historial</p>
                         </div>
                     </div>
-                </div>
                 <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
                     <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
                         <i class="fas fa-chevron-left"></i> Anterior
@@ -773,6 +818,9 @@
                         Siguiente <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
+
+                </div>
+                
             </div>
         </div>
 
@@ -909,15 +957,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
-                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        <i class="fas fa-chevron-left"></i> Anterior
-                    </button>
-                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
-                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        Siguiente <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
+                
             </div>
         </div>
     </main>
@@ -994,5 +1034,12 @@
 
 <script src="js/panel.js"></script>
 <script src="js/tienda-caracas-spa.js"></script>
+
+    <!-- jsPDF para exportar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
 </body>
 </html>
+                
+

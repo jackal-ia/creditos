@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes - Tienda Caracas | IPSFA</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/reportes.css">
+</head>
+<body>
+    <div class="reportes-container">
+        <!-- Header -->
+        <header class="reportes-header">
+            <div class="header-left">
+                <button class="btn-volver" onclick="window.location.href='panel'">
+                    <i class="fas fa-arrow-left"></i> Volver al Panel
+                </button>
+                <h1><i class="fas fa-chart-bar"></i> Reportes Tienda Caracas</h1>
+            </div>
+            <div class="header-right">
+                <span class="fecha-actual" id="fechaActual"></span>
+            </div>
+        </header>
+
+        <!-- Filtros -->
+        <section class="filtros-section">
+            <h2><i class="fas fa-filter"></i> Filtros del Reporte</h2>
+            <div class="filtros-grid">
+                <div class="filtro-group">
+                    <label>Fecha Desde</label>
+                    <input type="date" id="filtroFechaDesde">
+                </div>
+                <div class="filtro-group">
+                    <label>Fecha Hasta</label>
+                    <input type="date" id="filtroFechaHasta">
+                </div>
+                <div class="filtro-group">
+                    <label>Estado</label>
+                    <select id="filtroEstado">
+                        <option value="todos">Todos</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="pagado">Pagado</option>
+                        <option value="mora">En Mora</option>
+                    </select>
+                </div>
+                <div class="filtro-group">
+                    <label>Monto Deuda Mín</label>
+                    <input type="number" id="filtroMontoMin" placeholder="0.00">
+                </div>
+                <div class="filtro-group">
+                    <label>Monto Deuda Máx</label>
+                    <input type="number" id="filtroMontoMax" placeholder="9999999">
+                </div>
+                <div class="filtro-group">
+                    <label>Nombre Cliente</label>
+                    <input type="text" id="filtroNombre" placeholder="Buscar cliente...">
+                </div>
+                <div class="filtro-group">
+                    <label>Cédula</label>
+                    <input type="text" id="filtroCedula" placeholder="V-12345678">
+                </div>
+            </div>
+            <div class="filtros-actions">
+                <button class="btn-limpiar" onclick="limpiarFiltros()">
+                    <i class="fas fa-eraser"></i> Limpiar
+                </button>
+                <button class="btn-generar" onclick="generarReporte()">
+                    <i class="fas fa-sync-alt"></i> Generar Reporte
+                </button>
+            </div>
+        </section>
+
+        <!-- Cards Resumen -->
+        <section class="resumen-section" id="resumenSection" style="display:none;">
+            <div class="cards-resumen">
+                <div class="card-resumen card-total">
+                    <i class="fas fa-users"></i>
+                    <div class="card-info">
+                        <span class="card-valor" id="resTotalClientes">0</span>
+                        <span class="card-label">Total Clientes</span>
+                    </div>
+                </div>
+                <div class="card-resumen card-deuda">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <div class="card-info">
+                        <span class="card-valor" id="resDeudaTotal">0</span>
+                        <span class="card-label">Deuda Total</span>
+                    </div>
+                </div>
+                <div class="card-resumen card-pagado">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="card-info">
+                        <span class="card-valor" id="resTotalPagado">0</span>
+                        <span class="card-label">Total Pagado</span>
+                    </div>
+                </div>
+                <div class="card-resumen card-mora">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div class="card-info">
+                        <span class="card-valor" id="resClientesMora">0</span>
+                        <span class="card-label">Clientes en Mora</span>
+                    </div>
+                </div>
+                <div class="card-resumen card-promedio">
+                    <i class="fas fa-calculator"></i>
+                    <div class="card-info">
+                        <span class="card-valor" id="resPromedioDeuda">0</span>
+                        <span class="card-label">Promedio Deuda</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabla de Resultados -->
+        <section class="tabla-section" id="tablaSection" style="display:none;">
+            <div class="tabla-header">
+                <h3><i class="fas fa-list"></i> Resultados del Reporte</h3>
+                <span class="tabla-contador" id="tablaContador">0 registros</span>
+            </div>
+            <div class="tabla-wrapper">
+                <table class="tabla-reporte" id="tablaReporte">
+                    <thead>
+                        <tr>
+                            <th>Nro</th>
+                            <th>Factura</th>
+                            <th>Cliente</th>
+                            <th>Cédula</th>
+                            <th>Monto Factura</th>
+                            <th>Cuotas</th>
+                            <th>Depositado</th>
+                            <th>Deuda</th>
+                            <th>Estado</th>
+                            <th>Fecha Factura</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        <!-- Se llena dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Gráficos -->
+        <section class="graficos-section" id="graficosSection" style="display:none;">
+            <div class="grafico-container">
+                <h3><i class="fas fa-chart-pie"></i> Deuda por Estado</h3>
+                <div class="grafico-barras" id="graficoBarras">
+                    <!-- Barras se generan dinámicamente -->
+                </div>
+            </div>
+            <div class="grafico-container">
+                <h3><i class="fas fa-chart-pie"></i> Distribución de Pagos</h3>
+                <div class="grafico-pastel" id="graficoPastel">
+                    <!-- Pastel se genera dinámicamente -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Botones Exportar -->
+        <section class="exportar-section" id="exportarSection" style="display:none;">
+            <div class="exportar-divider"></div>
+            <div class="exportar-botones">
+                <button class="btn-exportar btn-excel" onclick="exportarExcel()">
+                    <i class="fas fa-file-excel"></i>
+                    <span>Exportar Excel</span>
+                    <small>.xlsx</small>
+                </button>
+                <button class="btn-exportar btn-pdf" onclick="exportarPDF()">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>Exportar PDF</span>
+                    <small>.pdf</small>
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Librerías -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="js/reportes-caracas.js"></script>
+</body>
+</html>
