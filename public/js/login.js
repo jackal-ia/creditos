@@ -91,8 +91,18 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             if (response.ok) {
                 localStorage.setItem('token', data.token);
-                localStorage.setItem('usuario', JSON.stringify(data.user));
-                showAlert('¡Inicio de sesión exitoso!', 'success');
+                // Extraer rol del token JWT si no viene en data.user
+let userData = data.user || {};
+if (!userData.rol && data.token) {
+    try {
+        const payload = JSON.parse(atob(data.token.split('.')[1]));
+        userData.rol = payload.rol || payload.role || 'operador';
+    } catch (e) {
+        console.warn('No se pudo extraer rol del token:', e);
+    }
+}
+localStorage.setItem('usuario', JSON.stringify(userData));
+              showAlert('¡Inicio de sesión exitoso!', 'success');
                 setTimeout(() => {
                     window.location.href = 'panel';
                 }, 1000);
