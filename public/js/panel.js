@@ -30,7 +30,10 @@ if (!token && !window.location.pathname.includes('login.html') && window.locatio
 }
 
 document.getElementById('userName').textContent = usuario.nombre || 'Usuario';
-document.getElementById('userRole').textContent = (usuario.rol || 'operador').charAt(0).toUpperCase() + (usuario.rol || 'operador').slice(1);
+// Detectar rol de múltiples fuentes posibles
+const rolDetectado = usuario.rol || usuario.role || usuario.tipo || 'usuario';
+console.log('[DEBUG] Rol detectado:', rolDetectado, '| Objeto usuario:', usuario);
+document.getElementById('userRole').textContent = rolDetectado.charAt(0).toUpperCase() + rolDetectado.slice(1);
 document.getElementById('userInitials').textContent = (usuario.nombre || 'U').charAt(0).toUpperCase();
 
 function cerrarSesion() {
