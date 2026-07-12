@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel - Sistema de Creditos</title>
+<link rel="stylesheet" href="css/panel.css">
+<!-- ApexCharts CDN -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                    <circle cx="30" cy="30" r="28" stroke="white" stroke-width="2" fill="none"/>
+                    <path d="M20 30 L30 20 L40 30 L30 40 Z" fill="white" opacity="0.8"/>
+                    <circle cx="30" cy="30" r="6" fill="#1a365d"/>
+                </svg>
+                <div class="brand-text">
+                    <h3>CREDITOS</h3>
+                    <span>Sistema Financiero</span>
+                </div>
+            </div>
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <span class="nav-title">PRINCIPAL</span>
+                <a href="#" class="nav-item active" onclick="mostrarSeccion('dashboard')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-title">MODULOS</span>
+                <a href="#" class="nav-item" onclick="mostrarSeccion('clientes')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Tienda Caracas</span>
+                </a>
+                <a href="#" class="nav-item" onclick="mostrarSeccion('creditos')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <span>Tienda Maracay</span>
+                </a>
+                <a href="#" class="nav-item" onclick="mostrarSeccion('pagos')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                    <span>Tienda Maracaibo</span>
+                </a>
+                <a href="#" class="nav-item" onclick="mostrarSeccion('reportes')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Reportes</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-title">CONFIGURACION</span>
+                <a href="#" class="nav-item" onclick="mostrarSeccion('tasas')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        <polyline points="17 6 23 6 23 12"></polyline>
+                    </svg>
+                    <span>Tasas BCV</span>
+                </a>
+                <a href="#" class="nav-item" onclick="mostrarSeccion('usuarios')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Usuarios</span>
+                </a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info" onclick="mostrarSeccion('perfil')" style="cursor:pointer;">
+                <div class="user-avatar">
+                    <span id="userInitials">A</span>
+                </div>
+                <div class="user-details">
+                    <span class="user-name" id="userName">Admin</span>
+                    <span class="user-role" id="userRole">Administrador</span>
+                </div>
+            </div>
+            <button class="btn-logout" onclick="cerrarSesion()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Cerrar Sesion</span>
+            </button>
+        </div>
+    </aside>
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <h2 id="pageTitle">Dashboard</h2>
+                <p id="pageSubtitle">Bienvenido al sistema</p>
+            </div>
+            <div class="header-right">
+                <div class="clock-widget">
+                    <div class="clock-time" id="clockTime">--:--:--</div>
+                    <div class="clock-date" id="clockDate">---, -- de --- ----</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- DASHBOARD -->
+        <div class="content-area" id="contentDashboard">
+            <div class="dashboard-grid">
+                <div class="card card-tasa">
+                    <div class="card-header">
+                        <div class="card-icon tasa-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="1" x2="12" y2="23"></line>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <h3>Tasa BCV Oficial</h3>
+                            <span class="card-subtitle">Banco Central de Venezuela</span>
+                        </div>
+                    </div>
+                    <div class="tasa-content">
+                        <div class="tasa-principal">
+                            <span class="tasa-moneda">USD/VES</span>
+                            <span class="tasa-valor" id="tasaActual">---</span>
+                            <span class="tasa-fecha" id="tasaFecha">---</span>
+                        </div>
+                        <div class="tasa-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Anterior</span>
+                                <span class="stat-value" id="tasaAnterior">---</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Variacion</span>
+                                <span class="stat-value" id="tasaVariacion">---</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">EUR/VES</span>
+                                <span class="stat-value" id="tasaEUR">---</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-action" onclick="consultarTasaFecha()">Consultar fecha</button>
+                        <button class="btn-action" onclick="verHistorial()">Historial</button>
+                    </div>
+                </div>
+                <div class="card card-reloj">
+                    <div class="card-header">
+                        <div class="card-icon reloj-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <h3>Fecha y Hora</h3>
+                            <span class="card-subtitle">Hora local Venezuela</span>
+                        </div>
+                    </div>
+                    <div class="reloj-content">
+                        <div class="reloj-big" id="relojBig">--:--</div>
+                        <div class="reloj-date" id="relojDate">---, -- de --- ----</div>
+                        <div class="reloj-semana">
+                            <div class="dia-item" id="dia0">D</div>
+                            <div class="dia-item" id="dia1">L</div>
+                            <div class="dia-item" id="dia2">M</div>
+                            <div class="dia-item" id="dia3">M</div>
+                            <div class="dia-item" id="dia4">J</div>
+                            <div class="dia-item" id="dia5">V</div>
+                            <div class="dia-item" id="dia6">S</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card card-placeholder">
+                    <div class="card-header">
+                        <div class="card-icon placeholder-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="12" y1="8" x2="12" y2="16"></line>
+                                <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <h3>Proximo Modulo</h3>
+                            <span class="card-subtitle">En desarrollo</span>
+                        </div>
+                    </div>
+                    <div class="placeholder-content">
+                        <p>Espacio reservado para futuros modulos del sistema.</p>
+                    </div>
+                </div>
+                <div class="card card-placeholder">
+                    <div class="card-header">
+                        <div class="card-icon placeholder-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="12" y1="8" x2="12" y2="16"></line>
+                                <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <h3>Proximo Modulo</h3>
+                            <span class="card-subtitle">En desarrollo</span>
+                        </div>
+                    </div>
+                    <div class="placeholder-content">
+                        <p>Espacio reservado para futuros modulos del sistema.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TASAS BCV -->
+        <div class="content-area hidden" id="contentTasas">
+            <div class="section-header">
+                <h3>Consulta de Tasas BCV</h3>
+                <p>Consulta la tasa oficial del Banco Central de Venezuela por fecha</p>
+            </div>
+            <div class="card">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha a consultar</label>
+                        <input type="date" id="fechaConsulta">
+                    </div>
+                    <button class="btn-primary" onclick="consultarTasa()">Consultar</button>
+                </div>
+                <div class="resultado-tasa" id="resultadoTasa" style="display:none;">
+                    <div class="tasa-resultado-card">
+                        <div class="tasa-resultado-header">
+                            <h4>Tasa del <span id="resultadoFecha">---</span></h4>
+                        </div>
+                        <div class="tasa-resultado-body">
+                            <div class="tasa-resultado-item">
+                                <span class="tasa-label">USD/VES</span>
+                                <span class="tasa-valor-big" id="resultadoUSD">---</span>
+                            </div>
+                            <div class="tasa-resultado-item">
+                                <span class="tasa-label">EUR/VES</span>
+                                <span class="tasa-valor-big" id="resultadoEUR">---</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <div class="section-header">
+                    <h3>Historial de Tasas</h3>
+                    <p>Ultimas 30 tasas publicadas por el BCV</p>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="tablaHistorial">
+                        <thead><tr><th>Fecha</th><th>USD/VES</th><th>EUR/VES</th><th>Variacion USD</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- USUARIOS -->
+        <div class="content-area hidden" id="contentUsuarios">
+            <div class="section-header">
+                <h3>Gestion de Usuarios</h3>
+                <p>Administracion de usuarios del sistema</p>
+            </div>
+            <div class="stats-grid" id="statsUsuarios">
+                <div class="stat-card">
+                    <div class="stat-icon total">&#128100;</div>
+                    <div class="stat-info"><span class="stat-number" id="statTotal">0</span><span class="stat-label">Total Usuarios</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon activos">&#9989;</div>
+                    <div class="stat-info"><span class="stat-number" id="statActivos">0</span><span class="stat-label">Activos</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon inactivos">&#10060;</div>
+                    <div class="stat-info"><span class="stat-number" id="statInactivos">0</span><span class="stat-label">Inactivos</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon admins">&#11088;</div>
+                    <div class="stat-info"><span class="stat-number" id="statAdmins">0</span><span class="stat-label">Administradores</span></div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <div class="input-group search-group">
+                            <input type="text" id="buscarUsuario" placeholder="Buscar por nombre o email..." oninput="filtrarUsuarios()">
+                        </div>
+                        <select id="filtroRol" onchange="filtrarUsuarios()">
+                            <option value="">Todos los roles</option>
+                            <option value="administrador">Administrador</option>
+                            <option value="operador">Operador</option>
+                        </select>
+                        <select id="filtroEstado" onchange="filtrarUsuarios()">
+                            <option value="">Todos los estados</option>
+                            <option value="true">Activos</option>
+                            <option value="false">Inactivos</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-right">
+                        <button class="btn-primary" onclick="abrirModalUsuario()">Nuevo Usuario</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table" id="tablaUsuarios">
+                        <thead><tr><th>ID</th><th>Nombre / IP</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="table-empty" id="tablaUsuariosEmpty" style="display:none;">
+                    <p>No se encontraron usuarios</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PERFIL -->
+        <div class="content-area hidden" id="contentPerfil">
+            <div class="section-header">
+                <h3>Mi Perfil</h3>
+                <p>Gestion de tu cuenta y seguridad</p>
+            </div>
+            <div class="perfil-grid">
+                <div class="card perfil-card">
+                    <div class="perfil-header">
+                        <div class="perfil-avatar"><span id="perfilInicial">A</span></div>
+                        <div class="perfil-info">
+                            <h3 id="perfilNombre">---</h3>
+                            <span class="badge" id="perfilRol">---</span>
+                            <p id="perfilEmail">---</p>
+                        </div>
+                    </div>
+                    <div class="perfil-detalles">
+                        <div class="perfil-item"><span class="perfil-label">Miembro desde</span><span class="perfil-value" id="perfilFecha">---</span></div>
+                        <div class="perfil-item"><span class="perfil-label">Ultima actualizacion</span><span class="perfil-value" id="perfilActualizado">---</span></div>
+                        <div class="perfil-item"><span class="perfil-label">Estado</span><span class="perfil-value" id="perfilEstado">---</span></div>
+                        <div class="perfil-item"><span class="perfil-label">IP Asignada</span><span class="perfil-value" id="perfilIp">---</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4 style="margin-bottom:20px;color:var(--primary);">Cambiar Contrasena</h4>
+                    <form id="formCambiarPassword">
+                        <div class="form-group"><label>Contrasena actual</label><input type="password" id="passwordActual" required></div>
+                        <div class="form-group"><label>Nueva contrasena</label><input type="password" id="passwordNuevo" required minlength="6"></div>
+                        <div class="form-group"><label>Confirmar nueva contrasena</label><input type="password" id="passwordConfirmar" required minlength="6"></div>
+                        <button type="submit" class="btn-primary">Actualizar Contrasena</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIENDA CARACAS -->
+        <div class="content-area hidden" id="contentClientes">
+            <div class="tienda-caracas-container">
+                <div class="module-header">
+                    <h3>Tienda Caracas</h3>
+                    <p>Gestion de clientes y creditos</p>
+                </div>
+
+
+                <div id="tc-menu-principal" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; padding: 40px; max-width: 700px; margin: 0 auto;">
+                    <button onclick="mostrarBaseDatos()" class="tc-menu-btn">Base de Datos</button>
+                    <button onclick="mostrarConciliaciones()" class="tc-menu-btn">Conciliaciones Bancarias</button>
+                    <button onclick="mostrarSeccion('estadisticas')" class="tc-menu-btn">Estadisticas</button>
+                    <button disabled class="tc-menu-btn-disabled">En Construccion</button>
+                </div>
+                <div id="tc-base-datos" style="display: none;">
+                    <button onclick="mostrarMenuPrincipal()" class="btn-volver">&#8592; Volver al Menu</button>
+                    <div class="quick-filters">
+                        <button class="filter-btn active" data-filter="all" onclick="applyQuickFilter('all')">Todos <span class="badge" id="count-all">130</span></button>
+                        <button class="filter-btn" data-filter="deudores" onclick="applyQuickFilter('deudores')">Deudores <span class="badge badge-danger" id="count-deudores">0</span></button>
+                        <button class="filter-btn" data-filter="incompletos" onclick="applyQuickFilter('incompletos')">Cuotas Incompletas <span class="badge badge-warning" id="count-incompletos">0</span></button>
+                        <button class="filter-btn" data-filter="aldia" onclick="applyQuickFilter('aldia')">Al Dia <span class="badge badge-success" id="count-aldia">0</span></button>
+                        <button class="filter-btn" data-filter="abiertas" onclick="applyQuickFilter('abiertas')">Facturas Abiertas <span class="badge badge-info" id="count-abiertas">0</span></button>
+                        <button class="filter-btn" data-filter="canceladas" onclick="applyQuickFilter('canceladas')">Facturas Canceladas <span class="badge badge-secondary" id="count-canceladas">0</span></button>
+                    </div>
+                    <div class="advanced-search">
+                        <div class="search-row">
+                            <div class="search-field"><input type="text" id="search-general" placeholder="Buscar por nombre..." oninput="debouncedFilter()"></div>
+                            <div class="search-field"><input type="text" id="search-factura" placeholder="N Factura" oninput="debouncedFilter()"></div>
+                            <div class="search-field"><input type="text" id="search-cedula" placeholder="Cedula" oninput="debouncedFilter()"></div>
+                        </div>
+                        <div class="search-row">
+                            <div class="search-field date-field">
+                                <input type="date" id="fecha-desde" onchange="applyFilters()">
+                                <span>a</span>
+                                <input type="date" id="fecha-hasta" onchange="applyFilters()">
+                            </div>
+                            <div class="search-field">
+                                <input type="number" id="monto-min" placeholder="Monto minimo" oninput="debouncedFilter()">
+                                <span>-</span>
+                                <input type="number" id="monto-max" placeholder="Monto maximo" oninput="debouncedFilter()">
+                            </div>
+                            <button class="btn-search" onclick="applyFilters()">&#128269; Buscar</button>
+                            <button class="btn-clear" onclick="clearFilters()">&#10060; Limpiar</button>
+                        </div>
+                    </div>
+                    <div class="summary-cards">
+                        <div class="summary-card"><span class="number" id="total-clientes">130</span><span class="label">Total Clientes</span></div>
+                        <div class="summary-card"><span class="number" id="total-facturado">$0</span><span class="label">Total Facturado</span></div>
+                        <div class="summary-card danger"><span class="number" id="total-deuda">$0</span><span class="label">Total Deuda</span></div>
+                        <div class="summary-card success"><span class="number" id="total-recaudado">$0</span><span class="label">Total Recaudado</span></div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tabla-clientes">
+                            <thead><tr><th>N</th><th>Fact.</th><th>Cliente</th><th>Monto (Bs)</th><th>Fecha</th><th>Cedula</th><th>Cuotas</th><th>Depositado (Bs)</th><th>Deuda (Bs)</th><th>Estado</th><th>Acc.</th></tr></thead>
+                            <tbody id="tabla-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination">
+                        <button id="btn-primero" onclick="goToPage(1)" disabled>|&lt;</button>
+                        <button id="btn-anterior" onclick="goToPage(currentPage - 1)" disabled>&lt;</button>
+                        <span id="pagina-info">Pagina 1 de 1</span>
+                        <button id="btn-siguiente" onclick="goToPage(currentPage + 1)">&gt;</button>
+                        <button id="btn-ultimo" onclick="goToPage(getTotalPages())">&gt;|</button>
+                        <select id="registros-por-pagina" onchange="changeItemsPerPage()">
+                            <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
+                        </select>
+                    </div>
+                    <div class="export-buttons">
+                        <button class="btn-export excel" onclick="exportToExcel()">&#128190; Exportar Excel</button>
+                        <button class="btn-export pdf" onclick="exportToPDF()">&#128196; Exportar PDF</button>
+                        <button class="btn-export print" onclick="printTable()">&#128424; Imprimir</button>
+                    </div>
+                </div>
+                <div id="tc-conciliaciones" style="display: none;">
+                    <button onclick="mostrarMenuPrincipal()" class="btn-volver">&#8592; Volver al Menu</button>
+                    <div class="section-header"><h3>Conciliaciones Bancarias</h3><p>Registro de depositos bancarios por numero de factura</p></div>
+                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
+                        <input type="text" id="conc-factura-buscar" placeholder="Ingrese N de factura..." onkeypress="if(event.key==='Enter')buscarFacturaConciliacion()">
+                        <button onclick="buscarFacturaConciliacion()">&#128269; Buscar Factura</button>
+                    </div>
+                    <div id="conc-mensaje-inicial" class="card" style="padding: 40px; text-align: center;">
+                        <p>Ingrese un numero de factura para buscar</p>
+                    </div>
+                    <div id="conc-no-encontrada" class="card" style="display: none; padding: 40px; text-align: center; background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-left: 4px solid #ed8936;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">&#128269;</div>
+                        <h4 style="color: #ed8936; margin-bottom: 10px;">Factura No Encontrada</h4>
+                        <p style="color: #666; margin-bottom: 20px;">La factura <strong id="conc-no-encontrada-numero" style="color: #1a3a5c;"></strong> no existe en la base de datos.</p>
+                        <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Puede registrarla como un nuevo cliente usando el formulario a continuacion.</p>
+                        <button onclick="mostrarFormularioNuevoRegistro()" style="padding: 12px 28px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128221; Registrar Nuevo Cliente</button>
+                        <button onclick="volverABuscarFactura()" style="padding: 12px 28px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
+                    </div>
+                    <div id="conc-resultado-encontrada" style="display: none;">
+                        <div class="card">
+                            <h4>&#128196; Informacion de la Factura</h4>
+                            <div class="info-row"><span class="info-label">N° Factura:</span><span class="info-value" id="conc-info-factura">-</span></div>
+                            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value" id="conc-info-nombre">-</span></div>
+                            <div class="info-row"><span class="info-label">Cedula:</span><span class="info-value" id="conc-info-cedula">-</span></div>
+                            <div class="info-row"><span class="info-label">Monto Factura:</span><span class="info-value" id="conc-info-monto">-</span></div>
+                            <div class="info-row"><span class="info-label">Deuda:</span><span class="info-value" id="conc-info-deuda">-</span></div>
+                            <div class="info-row"><span class="info-label">Cuotas:</span><span class="info-value" id="conc-info-cuotas">-</span></div>
+                        </div>
+                        <div class="card">
+                            <h4>&#128178; Historial de Cuotas</h4>
+                            <div class="table-container">
+                                <table class="data-table" id="conc-tabla-cuotas">
+                                    <thead><tr><th>Cuota</th><th>Monto (Bs)</th><th>Referencia</th><th>Fecha</th><th>Tasa</th><th>Dolar</th></tr></thead>
+                                    <tbody id="conc-tabla-cuotas-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h4>&#128181; Registrar Nueva Cuota</h4>
+                            <div class="form-row">
+                                <div class="form-group"><label>N° Cuota</label><input type="number" id="conc-cuota-numero" readonly></div>
+                                <div class="form-group"><label>Monto (Bs)</label><input type="number" step="0.01" id="conc-cuota-monto" oninput="calcularDolarConciliacion()"></div>
+                                <div class="form-group"><label>Referencia</label><input type="text" id="conc-cuota-ref"></div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label>Fecha Deposito</label><input type="date" id="conc-cuota-fecha" onchange="obtenerTasaPorFechaConciliacion()"></div>
+                                <div class="form-group"><label>Tasa BCV</label><input type="number" step="0.0001" id="conc-cuota-tasa" oninput="calcularDolarConciliacion()"></div>
+                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="conc-cuota-dolar" readonly></div>
+                            </div>
+                            <div id="conc-tasa-mensaje"></div>
+                            <div style="margin-top: 15px;">
+                                <button onclick="guardarCuotaConciliacion()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Cuota</button>
+                                <button onclick="volverABuscarFactura()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="conc-resultado-nueva" style="display: none;">
+                        <div class="card">
+                            <h4>&#128221; Nuevo Registro</h4>
+                            <div class="form-row">
+                                <div class="form-group"><label>N° Factura *</label><input type="text" id="conc-nueva-factura" readonly></div>
+                                <div class="form-group"><label>Fecha Factura *</label><input type="date" id="conc-nueva-fecha-factura"></div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label>Nombre y Apellido *</label><input type="text" id="conc-nueva-nombre"></div>
+                                <div class="form-group"><label>Cedula</label><input type="text" id="conc-nueva-cedula"></div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label>Monto Factura (Bs) *</label><input type="number" step="0.01" id="conc-nueva-monto"></div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h4>&#128181; Primera Cuota</h4>
+                            <div class="form-row">
+                                <div class="form-group"><label>Monto (Bs) *</label><input type="number" step="0.01" id="conc-nueva-cuota-monto" oninput="calcularDolarNuevaConciliacion()"></div>
+                                <div class="form-group"><label>Referencia *</label><input type="text" id="conc-nueva-cuota-ref"></div>
+                                <div class="form-group"><label>Fecha Deposito *</label><input type="date" id="conc-nueva-cuota-fecha" onchange="obtenerTasaNuevaConciliacion()"></div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label>Tasa BCV *</label><input type="number" step="0.0001" id="conc-nueva-cuota-tasa" oninput="calcularDolarNuevaConciliacion()"></div>
+                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="conc-nueva-cuota-dolar" readonly></div>
+                            </div>
+                            <div id="conc-nueva-tasa-mensaje"></div>
+                            <div style="margin-top: 15px;">
+                                <button onclick="guardarNuevaConciliacion()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Registro</button>
+                                <button onclick="volverABuscarFactura()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIENDA MARACAY -->
+        <div class="content-area hidden" id="contentCreditos">
+            <div class="section-header"><h3>Tienda Maracay</h3><p>Gestion de tienda Maracay - En desarrollo</p></div>
+            <div class="card placeholder-card"><p>Este modulo estara disponible proximamente.</p></div>
+        </div>
+
+        <!-- TIENDA MARACAIBO -->
+        <div class="content-area hidden" id="contentPagos">
+            <div class="section-header"><h3>Tienda Maracaibo</h3><p>Gestion de tienda Maracaibo - En desarrollo</p></div>
+            <div class="card placeholder-card"><p>Este modulo estara disponible proximamente.</p></div>
+        </div>
+
+        <!-- REPORTES -->
+        <div class="content-area hidden" id="contentReportes">
+            <div class="section-header"><h3>Modulo Reportes</h3><p>Reportes y estadisticas - En desarrollo</p></div>
+            <div class="card placeholder-card"><p>Este modulo estara disponible proximamente.</p></div>
+        </div>
+
+        <!-- ESTADISTICAS (INTEGRADO EN PANEL) -->
+        <div class="content-area hidden" id="contentEstadisticas">
+            <div class="estadisticas-container">
+                <div class="modulo-header">
+                    <div>
+                        <h1>Estadisticas</h1>
+                        <p>Analisis de cuotas, pagos y deudores</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn-export" onclick="exportarReporte()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Exportar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filtros-bar">
+                    <div class="filtro-group">
+                        <label>Tienda</label>
+                        <select id="filtro-tienda" onchange="aplicarFiltros()">
+                            <option value="caracas" selected>Tienda Caracas</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Mes</label>
+                        <select id="filtro-mes" onchange="aplicarFiltros()">
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7" selected>Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Anio</label>
+                        <select id="filtro-anio" onchange="aplicarFiltros()">
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Tipo</label>
+                        <select id="filtro-tipo" onchange="aplicarFiltros()">
+                            <option value="todos" selected>Todos</option>
+                            <option value="contado">Contado</option>
+                            <option value="credito">Credito</option>
+                        </select>
+                    </div>
+                    <button class="btn-filtrar" onclick="aplicarFiltros()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        Actualizar
+                    </button>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card success" id="kpi-cuotas-canceladas">
+                        <div class="kpi-icon">&#128176;</div>
+                        <div class="kpi-label">Cuotas Canceladas</div>
+                        <div class="kpi-value" id="valor-cuotas-canceladas">--</div>
+                        <div class="kpi-monto" id="monto-cuotas-canceladas">$ --</div>
+                        <div class="kpi-trend up" id="trend-cuotas-canceladas"><span>Cargando...</span></div>
+                    </div>
+                    <div class="kpi-card warning" id="kpi-cuotas-incompletas">
+                        <div class="kpi-icon">&#9888;&#65039;</div>
+                        <div class="kpi-label">Cuotas Incompletas</div>
+                        <div class="kpi-value" id="valor-cuotas-incompletas">--</div>
+                        <div class="kpi-monto" id="monto-cuotas-incompletas">$ --</div>
+                        <div class="kpi-trend down" id="trend-cuotas-incompletas"><span>Cargando...</span></div>
+                    </div>
+                    <div class="kpi-card danger" id="kpi-deudores">
+                        <div class="kpi-icon">&#128101;</div>
+                        <div class="kpi-label">Deudores del Mes</div>
+                        <div class="kpi-value" id="valor-deudores">--</div>
+                        <div class="kpi-monto" id="monto-deudores">$ --</div>
+                        <div class="kpi-trend" id="trend-deudores"><span>Cargando...</span></div>
+                    </div>
+                    <div class="kpi-card info" id="kpi-creditos">
+                        <div class="kpi-icon">&#128200;</div>
+                        <div class="kpi-label">Creditos Activos</div>
+                        <div class="kpi-value" id="valor-creditos">--</div>
+                        <div class="kpi-monto" id="monto-creditos">$ --</div>
+                        <div class="kpi-trend up" id="trend-creditos"><span>Cargando...</span></div>
+                    </div>
+                </div>
+
+                <div class="charts-area">
+                    <div class="chart-card chart-large">
+                        <div class="chart-header">
+                            <h3>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                </svg>
+                                Evolucion de Pagos por Mes
+                            </h3>
+                            <div class="chart-legend">
+                                <span class="legend-item"><span class="dot" style="background:#10b981"></span> Canceladas</span>
+                                <span class="legend-item"><span class="dot" style="background:#f59e0b"></span> Incompletas</span>
+                            </div>
+                        </div>
+                        <div id="chart-evolucion"></div>
+                    </div>
+                    <div class="chart-card chart-medium">
+                        <div class="chart-header">
+                            <h3>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                                    <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                                </svg>
+                                Distribucion de Pagos
+                            </h3>
+                        </div>
+                        <div id="chart-distribucion"></div>
+                    </div>
+                </div>
+
+                <div class="table-area">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3>&#128101; Deudores del Mes</h3>
+                            <div class="table-actions">
+                                <input type="text" id="buscar-deudor" placeholder="Buscar cliente..." onkeyup="filtrarDeudores()">
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tabla-deudores">
+                                <thead>
+                                    <tr><th>Cliente</th><th>Cedula</th><th class="text-right">Cuota Mensual</th><th class="text-right">Pagado</th><th class="text-right">Deuda</th><th>Estado</th><th>Acciones</th></tr>
+                                </thead>
+                                <tbody id="tbody-deudores">
+                                    <tr><td colspan="7" class="text-center">Cargando datos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- MODALES -->
+<div class="modal" id="modalUsuario">
+    <div class="modal-content modal-lg">
+        <div class="modal-header"><h3 id="modalUsuarioTitulo">Nuevo Usuario</h3><button class="modal-close" onclick="cerrarModalUsuario()">&times;</button></div>
+        <form id="formUsuario" onsubmit="guardarUsuario(event)">
+            <input type="hidden" id="usuarioId">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group"><label>Nombre completo *</label><input type="text" id="usuarioNombre" required maxlength="100"></div>
+                    <div class="form-group"><label>Email *</label><input type="email" id="usuarioEmail" required></div>
+                    <div class="form-group" id="grupoPassword"><label>Contrasena *</label><input type="password" id="usuarioPassword" required minlength="6"></div>
+                    <div class="form-group"><label>Rol *</label><select id="usuarioRol" required><option value="operador">Operador</option><option value="administrador">Administrador</option></select></div>
+                    <div class="form-group" id="grupoIp"><label id="ipLabel">IP Asignada <span style="color:#e53e3e;">*</span></label><input type="text" id="usuarioIp" required placeholder="Ej: 192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$"><small id="ipHelp">Obligatorio para operadores</small></div>
+                    <div class="form-group" id="grupoEstado" style="display:none;"><label>Estado</label><select id="usuarioActivo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="cerrarModalUsuario()">Cancelar</button>
+                <button type="submit" class="btn-primary" id="btnGuardarUsuario">Guardar Usuario</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="modalConfirmar">
+    <div class="modal-content modal-sm">
+        <div class="modal-header"><h3>Confirmar accion</h3><button class="modal-close" onclick="cerrarModalConfirmar()">&times;</button></div>
+        <div class="modal-body text-center"><p id="mensajeConfirmar">Estas seguro de realizar esta accion?</p></div>
+        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="cerrarModalConfirmar()">Cancelar</button><button type="button" class="btn-danger" id="btnConfirmarAccion">Confirmar</button></div>
+    </div>
+</div>
+<div class="modal" id="modalAuditoria">
+    <div class="modal-content modal-lg">
+        <div class="modal-header"><h3>Historial de Auditoria</h3><button class="modal-close" onclick="cerrarModalAuditoria()">&times;</button></div>
+        <div class="modal-body">
+            <div class="table-responsive">
+                <table class="data-table" id="tablaAuditoria"><thead><tr><th>Fecha</th><th>Accion</th><th>Usuario</th><th>Detalles</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="cerrarModalAuditoria()">Cerrar</button></div>
+    </div>
+</div>
+<div class="modal" id="modalFecha">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Consultar Tasa por Fecha</h3><button class="modal-close" onclick="cerrarModalFecha()">&times;</button></div>
+        <div class="modal-body">
+            <div class="form-group"><label>Selecciona una fecha</label><input type="date" id="modalFechaInput"></div>
+            <div class="modal-resultado" id="modalResultado"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="cerrarModalFecha()">Cerrar</button><button type="button" class="btn-primary" onclick="buscarTasaModal()">Consultar</button></div>
+    </div>
+</div>
+
+<!-- MODAL CORPORATIVO -->
+<div class="modal" id="modal-corporativo">
+    <div class="modal-content">
+        <div id="modal-corp-icon"></div>
+        <h3 id="modal-corp-titulo"></h3>
+        <p id="modal-corp-mensaje"></p>
+        <div id="modal-corp-botones"></div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+</div>
+
+<script src="js/panel.js"></script>
+<script src="js/tienda-caracas-spa.js"></script>
+</body>
+</html>
