@@ -57,7 +57,7 @@ function mostrarSeccion(seccion) {
     if (content) content.classList.remove('hidden');
 
     const titulos = {
-        'dashboard': 'Dashboard',
+        'dashboard': 'Panel Principal,
         'clientes': 'Tienda Caracas',
         'creditos': 'Tienda Maracay',
         'pagos': 'Tienda Maracaibo',
