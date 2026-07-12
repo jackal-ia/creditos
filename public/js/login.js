@@ -102,12 +102,29 @@ if (!userData.rol && data.token) {
     }
 }
 localStorage.setItem('usuario', JSON.stringify(userData));
+                // Guardar tienda separadamente para fácil acceso
+                if (userData.tienda) {
+                    localStorage.setItem('tienda_usuario', userData.tienda);
+                }
               showAlert('¡Inicio de sesión exitoso!', 'success');
                 setTimeout(() => {
                     window.location.href = 'panel';
                 }, 1000);
             } else {
-                showAlert(data.message || 'Credenciales incorrectas', 'error');
+                // Construir mensaje de error completo incluyendo IP detectada
+                let mensajeError = data.error || data.message || 'Credenciales incorrectas';
+
+                // Si hay detalle adicional del backend (IP no autorizada, etc.)
+                if (data.detalle) {
+                    mensajeError += '\n' + data.detalle;
+                }
+
+                // Mostrar IP detectada si viene del backend
+                if (data.ip_detectada) {
+                    mensajeError += '\n\nIP detectada: ' + data.ip_detectada;
+                }
+
+                showAlert(mensajeError, 'error');
             }
         } catch (error) {
             console.error('Error de conexión:', error);
@@ -140,7 +157,8 @@ localStorage.setItem('usuario', JSON.stringify(userData));
 
     function showAlert(message, type = 'error') {
         alertBox.className = `alert ${type}`;
-        alertBox.textContent = message;
+        // Soportar saltos de línea en el mensaje
+        alertBox.innerHTML = message.replace(/\n/g, '<br>');
         alertBox.style.display = 'block';
         
         const timeout = type === 'success' ? 3000 : 5000;

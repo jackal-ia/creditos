@@ -59,6 +59,9 @@ app.get('/api/bcv/fecha/:fecha', async (req, res) => {
 // NUEVA RUTA: Estadísticas
 app.use('/api/estadisticas', require('./routes/estadisticas'));
 
+// RUTA: Actividades Pendientes
+app.use('/api/actividades', require('./routes/actividades'));
+
 // ============================================================
 // HELPERS
 // ============================================================

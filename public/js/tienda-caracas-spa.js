@@ -548,6 +548,20 @@ function createModalElement() {
                     <div id="edit-cuotas-container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;"></div>
                 </div>
 
+                <!-- Sección Eliminar Cuotas (SOLO ADMIN) -->
+                ${isAdminUser ? `
+                <div id="eliminar-cuotas-section" style="margin-bottom:20px; padding:20px; background:#fff5f5; border-radius:8px; border:1px solid #fed7d7; display:none;">
+                    <h4 style="color:#c53030; font-size:14px; margin-bottom:12px;"><i class="fas fa-trash-alt"></i> Eliminar Cuotas</h4>
+                    <p style="font-size:12px; color:#718096; margin-bottom:12px;">Seleccione las cuotas que desea eliminar permanentemente:</p>
+                    <div id="eliminar-cuotas-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                        <!-- Los checkboxes se generan dinámicamente en fillFormData -->
+                    </div>
+                    <button type="button" onclick="confirmarEliminarCuotas()" style="padding:10px 20px; background:linear-gradient(135deg, #e53e3e, #c53030); color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">
+                        <i class="fas fa-trash-alt"></i> Borrar Cuotas Seleccionadas
+                    </button>
+                </div>
+                ` : ''}
+
                 <!-- Botones -->
                 <div style="display:flex; justify-content:flex-end; gap:12px; padding-top:15px; border-top:1px solid #eee;">
                     <button type="button" onclick="closeModal()" style="padding:10px 20px; background:#f0f0f0; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
@@ -713,6 +727,50 @@ function fillFormData(item) {
         }
 
         container.innerHTML = html;
+    }
+
+    // Generar checklist de cuotas para eliminar (SOLO ADMIN y SOLO si hay cuotas)
+    if (isAdminUser) {
+        const eliminarSection = document.getElementById('eliminar-cuotas-section');
+        const eliminarList = document.getElementById('eliminar-cuotas-list');
+
+        if (eliminarSection && eliminarList) {
+            let checkboxesHtml = '';
+            let cuotasParaEliminar = 0;
+
+            for (let i = 1; i <= 11; i++) {
+                const cuota = item[`cuota_${i}`];
+                const tieneDatos = (cuota && parseFloat(cuota) > 0);
+
+                if (tieneDatos) {
+                    cuotasParaEliminar++;
+                    const ref = item[`ref_cuota_${i}`] || '-';
+                    const fecha = item[`fecha_cuota_${i}`] || '-';
+
+                    checkboxesHtml += `
+                        <label style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:white; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; transition:all 0.2s; font-size:12px;" 
+                               onmouseover="this.style.borderColor='#e53e3e'; this.style.background='#fff5f5';" 
+                               onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='white';">
+                            <input type="checkbox" name="eliminar-cuota" value="${i}" style="width:16px; height:16px; cursor:pointer; accent-color:#e53e3e;">
+                            <div>
+                                <strong style="color:#2d3748;">Cuota ${i}</strong>
+                                <div style="font-size:11px; color:#718096; margin-top:2px;">
+                                    ${formatCurrency(cuota)} | Ref: ${ref} | ${formatDate(fecha)}
+                                </div>
+                            </div>
+                        </label>
+                    `;
+                }
+            }
+
+            if (cuotasParaEliminar > 0) {
+                eliminarList.innerHTML = checkboxesHtml;
+                eliminarSection.style.display = 'block';
+            } else {
+                eliminarList.innerHTML = '<p style="color:#999; font-size:12px;">No hay cuotas para eliminar</p>';
+                eliminarSection.style.display = 'none';
+            }
+        }
     }
 }
 
@@ -1749,3 +1807,199 @@ if (typeof window.mostrarSeccion === 'function') {
         }
     };
 }
+
+
+// ==================== ELIMINAR CUOTAS ====================
+let cuotasAEliminar = [];
+
+function confirmarEliminarCuotas() {
+    // Obtener cuotas seleccionadas
+    const checkboxes = document.querySelectorAll('input[name="eliminar-cuota"]:checked');
+    cuotasAEliminar = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    if (cuotasAEliminar.length === 0) {
+        mostrarModalCorporativo(
+            'Selección Vacía',
+            'No ha seleccionado ninguna cuota para eliminar.\n\nPor favor, marque al menos una cuota del checklist.',
+            'warning',
+            [{
+                texto: 'Entendido',
+                estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;'
+            }]
+        );
+        return;
+    }
+
+    // GUARDAR COPIA LOCAL de los datos necesarios antes de mostrar el modal
+    // (currentEditItem puede perderse si el modal de edición se cierra)
+    const datosConfirmacion = {
+        id: currentEditId,
+        nro_factura: currentEditItem ? currentEditItem.nro_factura : 'N/A',
+        nombre_apellido: currentEditItem ? currentEditItem.nombre_apellido : 'N/A',
+        monto_factura: currentEditItem ? parseFloat(currentEditItem.monto_factura) || 0 : 0,
+        cuotas: {}
+    };
+
+    // Guardar datos de cada cuota seleccionada
+    cuotasAEliminar.forEach(num => {
+        if (currentEditItem) {
+            datosConfirmacion.cuotas[num] = {
+                monto: currentEditItem[`cuota_${num}`] || 0,
+                ref: currentEditItem[`ref_cuota_${num}`] || '-',
+                fecha: currentEditItem[`fecha_cuota_${num}`] || '-',
+                tasa: currentEditItem[`tasa_cuota_${num}`] || '-',
+                dolar: currentEditItem[`dolar_depositado_cuota_${num}`] || '-'
+            };
+        }
+    });
+
+    // Guardar también los datos de las cuotas NO seleccionadas para el cálculo
+    datosConfirmacion.cuotasNoSeleccionadas = {};
+    for (let i = 1; i <= 11; i++) {
+        if (!cuotasAEliminar.includes(i) && currentEditItem) {
+            datosConfirmacion.cuotasNoSeleccionadas[i] = {
+                cuota: currentEditItem[`cuota_${i}`],
+                ref: currentEditItem[`ref_cuota_${i}`],
+                fecha: currentEditItem[`fecha_cuota_${i}`],
+                tasa: currentEditItem[`tasa_cuota_${i}`],
+                dolar: currentEditItem[`dolar_depositado_cuota_${i}`]
+            };
+        }
+    }
+
+    // Construir mensaje detallado
+    let detalleCuotas = '';
+    cuotasAEliminar.forEach(num => {
+        const cuota = datosConfirmacion.cuotas[num] ? datosConfirmacion.cuotas[num].monto : 0;
+        const ref = datosConfirmacion.cuotas[num] ? datosConfirmacion.cuotas[num].ref : '-';
+        detalleCuotas += `\n• Cuota ${num}: ${formatCurrency(cuota)} (Ref: ${ref})`;
+    });
+
+    mostrarModalCorporativo(
+        '¿Confirmar Eliminación?',
+        `¿Está seguro de que desea eliminar ${cuotasAEliminar.length} cuota(s) seleccionada(s)?\n\n<strong>Factura:</strong> ${datosConfirmacion.nro_factura || 'N/A'}\n<strong>Cliente:</strong> ${datosConfirmacion.nombre_apellido || 'N/A'}\n\n<strong>Cuotas a eliminar:</strong>${detalleCuotas}\n\n⚠️ <strong>ADVERTENCIA:</strong> Esta acción no se puede deshacer. Los montos depositados serán recalculados y la deuda se actualizará automáticamente.`,
+        'warning',
+        [
+            {
+                texto: 'Cancelar',
+                estilo: 'padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;'
+            },
+            {
+                texto: 'Sí, Eliminar Cuotas',
+                estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #e53e3e, #c53030); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
+                accion: () => {
+                    ejecutarEliminarCuotas(datosConfirmacion);
+                }
+            }
+        ]
+    );
+}
+
+async function ejecutarEliminarCuotas(datosConfirmacion) {
+    if (!datosConfirmacion || !datosConfirmacion.id || cuotasAEliminar.length === 0) return;
+
+    showLoading(true);
+
+    try {
+        // Preparar datos: setear a null las cuotas seleccionadas
+        const data = {};
+        let montoDepositado = 0;
+
+        for (let i = 1; i <= 11; i++) {
+            if (cuotasAEliminar.includes(i)) {
+                // Eliminar cuota: setear todos los campos a null/0
+                data[`cuota_${i}`] = null;
+                data[`ref_cuota_${i}`] = null;
+                data[`fecha_cuota_${i}`] = null;
+                data[`tasa_cuota_${i}`] = null;
+                data[`dolar_depositado_cuota_${i}`] = null;
+            } else {
+                // Mantener cuota existente y sumar al total depositado
+                const cuotaData = datosConfirmacion.cuotasNoSeleccionadas[i];
+                const cuota = cuotaData ? parseFloat(cuotaData.cuota) || 0 : 0;
+                if (cuota > 0) {
+                    montoDepositado += cuota;
+                    data[`cuota_${i}`] = cuotaData.cuota;
+                    data[`ref_cuota_${i}`] = cuotaData.ref;
+                    data[`fecha_cuota_${i}`] = cuotaData.fecha;
+                    data[`tasa_cuota_${i}`] = cuotaData.tasa;
+                    data[`dolar_depositado_cuota_${i}`] = cuotaData.dolar;
+                }
+            }
+        }
+
+        // Recalcular deuda
+        const montoFactura = datosConfirmacion.monto_factura || 0;
+        let deuda = montoFactura - montoDepositado;
+        if (Math.abs(deuda) < 0.01) deuda = 0;
+
+        data.monto_depositados = montoDepositado;
+        data.deuda = deuda;
+
+        // Enviar a la API
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas/${datosConfirmacion.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Actualizar datos locales
+        const index = allData.findIndex(d => d.id === datosConfirmacion.id);
+        if (index !== -1) {
+            // Actualizar el item en memoria
+            cuotasAEliminar.forEach(i => {
+                allData[index][`cuota_${i}`] = null;
+                allData[index][`ref_cuota_${i}`] = null;
+                allData[index][`fecha_cuota_${i}`] = null;
+                allData[index][`tasa_cuota_${i}`] = null;
+                allData[index][`dolar_depositado_cuota_${i}`] = null;
+            });
+            allData[index].monto_depositados = montoDepositado;
+            allData[index].deuda = deuda;
+
+            // Reprocesar el item
+            allData[index] = processItemData(allData[index]);
+        }
+
+        // Refrescar la vista
+        applyFilters();
+        updateSummary();
+        updateFilterCounts();
+
+        // Cerrar modal de edición y mostrar éxito
+        closeModal();
+
+        mostrarModalCorporativo(
+            '¡Cuotas Eliminadas!',
+            `Se han eliminado ${cuotasAEliminar.length} cuota(s) exitosamente.\n\n<strong>Factura:</strong> ${datosConfirmacion.nro_factura || 'N/A'}\n<strong>Nueva Deuda:</strong> ${formatCurrency(deuda)}\n<strong>Total Depositado:</strong> ${formatCurrency(montoDepositado)}`,
+            'exito',
+            [{
+                texto: 'Aceptar',
+                estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #28a745, #218838); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;'
+            }]
+        );
+
+        cuotasAEliminar = [];
+
+    } catch (error) {
+        console.error('Error eliminando cuotas:', error);
+        mostrarModalCorporativo(
+            'Error',
+            'Error al eliminar las cuotas: ' + error.message,
+            'error',
+            [{
+                texto: 'Aceptar',
+                estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #e53e3e, #c53030); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;'
+            }]
+        );
+    } finally {
+        showLoading(false);
+    }
+}
+

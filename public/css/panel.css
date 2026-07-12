@@ -2105,3 +2105,855 @@ body {
         padding: 20px !important;
     }
 }
+
+
+/* ============================================================
+   SECCIÓN ELIMINAR CUOTAS - CHECKLIST
+   ============================================================ */
+
+#eliminar-cuotas-section {
+    animation: fadeIn 0.3s ease;
+}
+
+#eliminar-cuotas-list {
+    animation: fadeIn 0.4s ease;
+}
+
+#eliminar-cuotas-list label {
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+#eliminar-cuotas-list label:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.15);
+}
+
+#eliminar-cuotas-list input[type="checkbox"] {
+    transition: all 0.2s ease;
+}
+
+#eliminar-cuotas-list input[type="checkbox"]:checked {
+    transform: scale(1.1);
+}
+
+/* Animación para items seleccionados */
+#eliminar-cuotas-list label:has(input:checked) {
+    background: #fff5f5 !important;
+    border-color: #e53e3e !important;
+    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.2);
+}
+
+/* Responsive para checklist */
+@media (max-width: 768px) {
+    #eliminar-cuotas-list {
+        flex-direction: column;
+    }
+
+    #eliminar-cuotas-list label {
+        width: 100%;
+    }
+}
+
+/* Estilos adicionales para el modal de confirmación de eliminación */
+#modal-corporativo .modal-content {
+    max-width: 500px;
+}
+
+#modal-corporativo #modal-corp-mensaje strong {
+    color: #1a3a5c;
+}
+
+#modal-corporativo #modal-corp-mensaje .fa-exclamation-triangle,
+#modal-corporativo #modal-corp-mensaje .fa-trash-alt {
+    color: #e53e3e;
+}
+
+
+/* ============================================================
+   MINI AGENDA DIGITAL - ACTIVIDADES PENDIENTES
+   ============================================================ */
+
+.agenda-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+/* Header de la agenda */
+.agenda-header {
+    background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%);
+    border-radius: 16px;
+    padding: 24px 30px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 15px rgba(26, 58, 92, 0.3);
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.agenda-title-group h3 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agenda-title-group h3 i {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.agenda-fecha {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+.agenda-stats {
+    display: flex;
+    gap: 20px;
+}
+
+.agenda-stat {
+    text-align: center;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px;
+    min-width: 70px;
+}
+
+.agenda-stat .stat-num {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.agenda-stat .stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.8;
+}
+
+/* Formulario */
+.agenda-form-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.agenda-form-card h4 {
+    color: #1a3a5c;
+    font-size: 1rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agenda-form-card h4 i {
+    color: #48bb78;
+}
+
+.agenda-form-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.agenda-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agenda-form-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.agenda-form-group input,
+.agenda-form-group select {
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    background: white;
+}
+
+.agenda-form-group input:focus,
+.agenda-form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.agenda-form-group input[type="text"] {
+    min-width: 300px;
+    flex: 1;
+}
+
+.agenda-hora input {
+    width: 100px;
+}
+
+.agenda-prioridad select {
+    width: 120px;
+}
+
+.btn-agenda-add {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+    height: 42px;
+}
+
+.btn-agenda-add:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
+}
+
+.btn-agenda-add:active {
+    transform: translateY(0);
+}
+
+/* Lista de actividades */
+.agenda-lista-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.agenda-lista-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.agenda-lista-header h4 {
+    color: #1a3a5c;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agenda-lista-header h4 i {
+    color: #667eea;
+}
+
+.agenda-filtros {
+    display: flex;
+    gap: 8px;
+}
+
+.agenda-filter {
+    padding: 6px 14px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.agenda-filter:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.agenda-filter.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-color: transparent;
+}
+
+/* Items de actividad */
+.agenda-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.agenda-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border-left: 4px solid #667eea;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.agenda-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.agenda-item.completada {
+    background: #f0fff4;
+    border-left-color: #48bb78;
+    opacity: 0.7;
+}
+
+.agenda-item.completada .agenda-descripcion {
+    text-decoration: line-through;
+    color: #718096;
+}
+
+.agenda-item.prioridad-alta {
+    border-left-color: #ed8936;
+}
+
+.agenda-item.prioridad-urgente {
+    border-left-color: #e53e3e;
+    animation: pulseUrgente 2s infinite;
+}
+
+@keyframes pulseUrgente {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(229, 62, 62, 0); }
+}
+
+.agenda-checkbox {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    background: white;
+}
+
+.agenda-checkbox:hover {
+    border-color: #48bb78;
+}
+
+.agenda-checkbox.checked {
+    background: #48bb78;
+    border-color: #48bb78;
+}
+
+.agenda-checkbox.checked i {
+    color: white;
+    font-size: 0.8rem;
+}
+
+.agenda-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.agenda-descripcion {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #2d3748;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.agenda-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.agenda-hora-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: #64748b;
+    background: #e2e8f0;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.agenda-prioridad-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.agenda-prioridad-tag.baja {
+    background: #e2e8f0;
+    color: #64748b;
+}
+
+.agenda-prioridad-tag.media {
+    background: #ebf8ff;
+    color: #3182ce;
+}
+
+.agenda-prioridad-tag.alta {
+    background: #fffaf0;
+    color: #c05621;
+}
+
+.agenda-prioridad-tag.urgente {
+    background: #fff5f5;
+    color: #c53030;
+}
+
+.agenda-estado-tag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.agenda-estado-tag.pendiente {
+    background: #fffaf0;
+    color: #ed8936;
+}
+
+.agenda-estado-tag.completada {
+    background: #f0fff4;
+    color: #276749;
+}
+
+.agenda-fecha-fin {
+    font-size: 0.75rem;
+    color: #718096;
+}
+
+.agenda-fecha-fin i {
+    margin-right: 4px;
+    color: #48bb78;
+}
+
+.agenda-acciones {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.agenda-btn-accion {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.8rem;
+}
+
+.agenda-btn-accion.editar {
+    background: #ebf8ff;
+    color: #3182ce;
+}
+
+.agenda-btn-accion.editar:hover {
+    background: #3182ce;
+    color: white;
+}
+
+.agenda-btn-accion.eliminar {
+    background: #fff5f5;
+    color: #e53e3e;
+}
+
+.agenda-btn-accion.eliminar:hover {
+    background: #e53e3e;
+    color: white;
+}
+
+/* Estado vacío */
+.agenda-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #a0aec0;
+}
+
+.agenda-empty i {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.5;
+}
+
+.agenda-empty p {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.agenda-empty span {
+    font-size: 0.85rem;
+}
+
+/* Historial */
+.agenda-historial-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.agenda-historial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.agenda-historial-header h4 {
+    color: #1a3a5c;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agenda-historial-header h4 i {
+    color: #805ad5;
+}
+
+.agenda-historial-header select {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #64748b;
+    cursor: pointer;
+    background: white;
+}
+
+.agenda-historial {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agenda-historial-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border-left: 3px solid #48bb78;
+}
+
+.agenda-historial-item .agenda-info {
+    flex: 1;
+}
+
+.agenda-historial-item .agenda-descripcion {
+    text-decoration: line-through;
+    color: #718096;
+}
+
+.agenda-historial-item .agenda-fecha-completada {
+    font-size: 0.75rem;
+    color: #48bb78;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .agenda-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .agenda-stats {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .agenda-form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .agenda-form-group input[type="text"] {
+        min-width: 100%;
+    }
+
+    .agenda-hora input,
+    .agenda-prioridad select {
+        width: 100%;
+    }
+
+    .btn-agenda-add {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .agenda-lista-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .agenda-filtros {
+        justify-content: center;
+    }
+
+    .agenda-item {
+        flex-wrap: wrap;
+    }
+
+    .agenda-acciones {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .agenda-historial-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .agenda-historial-header select {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .agenda-header {
+        padding: 16px 20px;
+    }
+
+    .agenda-title-group h3 {
+        font-size: 1.1rem;
+    }
+
+    .agenda-stat {
+        padding: 6px 10px;
+        min-width: 55px;
+    }
+
+    .agenda-stat .stat-num {
+        font-size: 1.2rem;
+    }
+
+    .agenda-form-card,
+    .agenda-lista-card,
+    .agenda-historial-card {
+        padding: 16px;
+    }
+
+    .agenda-meta {
+        gap: 6px;
+    }
+}
+
+
+/* ============================================================
+   WIDGET ACTIVIDADES - DASHBOARD
+   ============================================================ */
+
+.card-actividades {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+}
+
+.card-actividades:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.actividades-icon {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.actividades-widget-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.actividades-widget-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.actividades-widget-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.actividades-widget-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.actividades-widget-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.actividades-widget-empty {
+    text-align: center;
+    padding: 20px 10px;
+    color: #a0aec0;
+    font-size: 0.85rem;
+}
+
+.actividades-widget-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.actividades-widget-count {
+    font-size: 0.8rem;
+    color: #718096;
+    font-weight: 500;
+}
+
+.actividades-widget-link {
+    font-size: 0.8rem;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.actividades-widget-link:hover {
+    color: #764ba2;
+}
+
+/* Animación para items del widget */
+.actividades-widget-item {
+    animation: fadeInUp 0.3s ease;
+}
+
+/* Responsive widget */
+@media (max-width: 768px) {
+    .actividades-widget-list {
+        max-height: 200px;
+    }
+}
+
+/* ============================================================
+   MODAL EDITAR ACTIVIDAD
+   ============================================================ */
+
+#modal-editar-actividad {
+    animation: fadeIn 0.2s ease;
+}
+
+#modal-editar-actividad textarea {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#modal-editar-actividad textarea:focus {
+    outline: none;
+}
+
+
+/* ============================================================
+   MODAL AÑADIR DESCRIPCIÓN - WIDGET
+   ============================================================ */
+
+#modal-descripcion-widget {
+    animation: fadeIn 0.2s ease;
+}
+
+#modal-descripcion-widget textarea {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+}
+
+#modal-descripcion-widget textarea:focus {
+    outline: none;
+}
+
+/* ============================================================
+   MODAL TODAS ACTIVIDADES - OPERADOR
+   ============================================================ */
+
+#modal-corporativo .modal-content {
+    max-width: 600px;
+}
+
+#modal-corporativo .modal-content div[style*="max-height:400px"] {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+#modal-corporativo .modal-content div[style*="max-height:400px"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+#modal-corporativo .modal-content div[style*="max-height:400px"]::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#modal-corporativo .modal-content div[style*="max-height:400px"]::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+#modal-corporativo .modal-content div[style*="max-height:400px"]::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Botón añadir descripción en widget */
+.actividades-widget-item button {
+    transition: all 0.2s ease;
+}
+
+.actividades-widget-item button:hover {
+    transform: scale(1.05);
+}
+
+/* Descripción extra en widget */
+.actividades-widget-item div[style*="font-style:italic"] {
+    animation: fadeIn 0.3s ease;
+}
+

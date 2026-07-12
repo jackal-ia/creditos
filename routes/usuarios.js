@@ -38,7 +38,7 @@ router.get('/', verificarToken, soloAdmin, async (req, res) => {
         const { busqueda, rol, activo, ordenar_por = 'created_at', orden = 'DESC' } = req.query;
 
         let query = `
-            SELECT id, nombre, email, rol, activo, ip_asignada,
+            SELECT id, nombre, email, rol, activo, ip_asignada, tienda,
                    TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion,
                    TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion
             FROM usuarios 
@@ -96,7 +96,7 @@ router.get('/:id', verificarToken, async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT id, nombre, email, rol, activo, ip_asignada,
+            `SELECT id, nombre, email, rol, activo, ip_asignada, tienda,
                     TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion,
                     TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion
              FROM usuarios WHERE id = $1`,
@@ -137,7 +137,23 @@ router.post('/',
             .optional({ checkFalsy: true })
             .trim()
             .isIP()
-            .withMessage('La IP debe ser valida (IPv4 o IPv6)')
+            .withMessage('La IP debe ser valida (IPv4 o IPv6)'),
+        body('tienda')
+            .custom((value, { req }) => {
+                // Si es operador, la tienda es obligatoria
+                if (req.body.rol === 'operador') {
+                    if (!value || value.trim() === '') {
+                        throw new Error('La tienda asignada es obligatoria para operadores');
+                    }
+                    const tiendasValidas = ['caracas', 'maracay', 'maracaibo'];
+                    if (!tiendasValidas.includes(value)) {
+                        throw new Error('La tienda debe ser caracas, maracay o maracaibo');
+                    }
+                }
+                return true;
+            })
+            .optional({ checkFalsy: true })
+            .trim()
     ],
     async (req, res) => {
         const client = await pool.connect();
@@ -150,7 +166,7 @@ router.post('/',
 
             await client.query('BEGIN');
 
-            const { nombre, email, password, rol = 'operador', ip_asignada } = req.body;
+            const { nombre, email, password, rol = 'operador', ip_asignada, tienda } = req.body;
 
             const existe = await client.query('SELECT id FROM usuarios WHERE email = $1', [email]);
             if (existe.rows.length > 0) {
@@ -163,12 +179,14 @@ router.post('/',
             // Si es operador, forzar IP (ya validado arriba, pero doble seguridad)
             const ipFinal = (rol === 'operador') ? ip_asignada : (ip_asignada || null);
 
+            const tiendaFinal = (rol === 'operador') ? tienda : (tienda || null);
+
             const result = await client.query(
-                `INSERT INTO usuarios (nombre, email, password, rol, activo, ip_asignada) 
-                 VALUES ($1, $2, $3, $4, true, $5) 
-                 RETURNING id, nombre, email, rol, activo, ip_asignada,
+                `INSERT INTO usuarios (nombre, email, password, rol, activo, ip_asignada, tienda) 
+                 VALUES ($1, $2, $3, $4, true, $5, $6) 
+                 RETURNING id, nombre, email, rol, activo, ip_asignada, tienda,
                            TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion`,
-                [nombre, email, hashedPassword, rol, ipFinal]
+                [nombre, email, hashedPassword, rol, ipFinal, tiendaFinal]
             );
 
             await logAuditoria(client, result.rows[0].id, req.usuario.id, 'CREAR', null, result.rows[0], null);
@@ -215,7 +233,23 @@ router.put('/:id',
             .optional({ checkFalsy: true })
             .trim()
             .isIP()
-            .withMessage('La IP debe ser valida (IPv4 o IPv6)')
+            .withMessage('La IP debe ser valida (IPv4 o IPv6)'),
+        body('tienda')
+            .custom((value, { req }) => {
+                const rolFinal = req.body.rol || req.usuario?.rol;
+                if (rolFinal === 'operador') {
+                    if (value === '' || value === null || value === undefined) {
+                        throw new Error('La tienda asignada es obligatoria para operadores');
+                    }
+                    const tiendasValidas = ['caracas', 'maracay', 'maracaibo'];
+                    if (value && !tiendasValidas.includes(value)) {
+                        throw new Error('La tienda debe ser caracas, maracay o maracaibo');
+                    }
+                }
+                return true;
+            })
+            .optional({ checkFalsy: true })
+            .trim()
     ],
     async (req, res) => {
         const client = await pool.connect();
@@ -255,7 +289,7 @@ router.put('/:id',
             const datosAnteriores = { ...usuarioActualBD.rows[0] };
             delete datosAnteriores.password;
 
-            const { nombre, email, rol, activo, ip_asignada } = req.body;
+            const { nombre, email, rol, activo, ip_asignada, tienda } = req.body;
 
             // Validación: si el rol final es operador, IP es obligatoria
             const rolFinal = rol || usuarioActualBD.rows[0].rol;
@@ -290,6 +324,11 @@ router.put('/:id',
                 paramCount++; 
                 updates.push(`ip_asignada = $${paramCount}`); 
                 params.push(ip_asignada || null); 
+            }
+            if (tienda !== undefined && esAdmin) { 
+                paramCount++; 
+                updates.push(`tienda = $${paramCount}`); 
+                params.push(tienda || null); 
             }
 
             paramCount++;
@@ -630,7 +669,7 @@ router.post('/restablecer-password', async (req, res) => {
 router.get('/perfil/me', verificarToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, nombre, email, rol, activo, ip_asignada,
+            `SELECT id, nombre, email, rol, activo, ip_asignada, tienda,
                     TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion,
                     TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion
              FROM usuarios WHERE id = $1`,

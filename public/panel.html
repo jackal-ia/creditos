@@ -7,6 +7,95 @@
 <link rel="stylesheet" href="css/panel.css">
 <!-- ApexCharts CDN -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
+<style>
+/* ====== ESTILOS MOVIL ====== */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed !important;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        width: 250px !important;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    .sidebar-toggle {
+        display: flex !important;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 1001;
+        background: rgba(26, 54, 93, 0.9);
+        border: none;
+        border-radius: 8px;
+        padding: 10px;
+        color: white;
+        cursor: pointer;
+    }
+
+    /* Overlay cuando sidebar está abierto */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+
+    /* Ajustar cards en móvil */
+    .card {
+        margin-bottom: 15px;
+    }
+
+    .dashboard-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Tablas responsive */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Formularios en móvil */
+    .form-row {
+        flex-direction: column !important;
+    }
+
+    .form-row .form-group {
+        width: 100% !important;
+        margin-right: 0 !important;
+    }
+}
+
+/* Ocultar toggle en desktop */
+@media (min-width: 769px) {
+    .sidebar-toggle {
+        display: none !important;
+    }
+    .sidebar-overlay {
+        display: none !important;
+    }
+}
+</style>
 </head>
 <body>
 <div class="app-container">
@@ -34,7 +123,7 @@
         <nav class="sidebar-nav">
             <div class="nav-section">
                 <span class="nav-title">PRINCIPAL</span>
-                <a href="#" class="nav-item active" onclick="mostrarSeccion('dashboard')">
+                <a href="#" class="nav-item active" id="nav-dashboard" onclick="mostrarSeccion('dashboard')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="7" height="7"></rect>
                         <rect x="14" y="3" width="7" height="7"></rect>
@@ -46,7 +135,7 @@
             </div>
             <div class="nav-section">
                 <span class="nav-title">MODULOS</span>
-                <a href="#" class="nav-item" onclick="mostrarSeccion('clientes')">
+                <a href="#" class="nav-item" id="nav-caracas" onclick="mostrarSeccion('clientes')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="9" cy="7" r="4"></circle>
@@ -55,21 +144,21 @@
                     </svg>
                     <span>Tienda Caracas</span>
                 </a>
-                <a href="#" class="nav-item" onclick="mostrarSeccion('creditos')">
+                <a href="#" class="nav-item" id="nav-maracay" onclick="mostrarSeccion('creditos')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                     </svg>
                     <span>Tienda Maracay</span>
                 </a>
-                <a href="#" class="nav-item" onclick="mostrarSeccion('pagos')">
+                <a href="#" class="nav-item" id="nav-maracaibo" onclick="mostrarSeccion('pagos')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
                         <line x1="1" y1="10" x2="23" y2="10"></line>
                     </svg>
                     <span>Tienda Maracaibo</span>
                 </a>
-                <a href="#" class="nav-item" onclick="mostrarSeccion('reportes')">
+                <a href="#" class="nav-item" id="nav-actividades-pendientes" onclick="mostrarSeccion('reportes')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -77,19 +166,19 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <span>Reportes</span>
+                    <span>Actividades Pendientes</span>
                 </a>
             </div>
             <div class="nav-section">
                 <span class="nav-title">CONFIGURACION</span>
-                <a href="#" class="nav-item" onclick="mostrarSeccion('tasas')">
+                <a href="#" class="nav-item" id="nav-tasas" onclick="mostrarSeccion('tasas')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                         <polyline points="17 6 23 6 23 12"></polyline>
                     </svg>
                     <span>Tasas BCV</span>
                 </a>
-                <a href="#" class="nav-item" onclick="mostrarSeccion('usuarios')">
+                <a href="#" class="nav-item" id="nav-usuarios" onclick="mostrarSeccion('usuarios')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
@@ -201,22 +290,27 @@
                         </div>
                     </div>
                 </div>
-                <div class="card card-placeholder">
+                <div class="card card-actividades" id="widget-actividades">
                     <div class="card-header">
-                        <div class="card-icon placeholder-icon">
+                        <div class="card-icon actividades-icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="12" y1="8" x2="12" y2="16"></line>
-                                <line x1="8" y1="12" x2="16" y2="12"></line>
+                                <path d="M9 11l3 3L22 4"></path>
+                                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
                             </svg>
                         </div>
                         <div class="card-title-group">
-                            <h3>Proximo Modulo</h3>
-                            <span class="card-subtitle">En desarrollo</span>
+                            <h3>Mis Actividades</h3>
+                            <span class="card-subtitle">Pendientes de hoy</span>
                         </div>
                     </div>
-                    <div class="placeholder-content">
-                        <p>Espacio reservado para futuros modulos del sistema.</p>
+                    <div class="actividades-widget-content">
+                        <div class="actividades-widget-list" id="actividadesWidgetList">
+                            <p class="actividades-widget-empty">Cargando...</p>
+                        </div>
+                        <div class="actividades-widget-footer">
+                            <span class="actividades-widget-count" id="actividadesWidgetCount">0 pendientes</span>
+                            <a href="#" onclick="mostrarSeccion('reportes'); return false;" class="actividades-widget-link">Ver todas →</a>
+                        </div>
                     </div>
                 </div>
                 <div class="card card-placeholder">
@@ -236,6 +330,15 @@
                     <div class="placeholder-content">
                         <p>Espacio reservado para futuros modulos del sistema.</p>
                     </div>
+                </div>
+                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
+                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -540,6 +643,15 @@
                         </div>
                     </div>
                 </div>
+                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
+                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -557,8 +669,111 @@
 
         <!-- REPORTES -->
         <div class="content-area hidden" id="contentReportes">
-            <div class="section-header"><h3>Modulo Reportes</h3><p>Reportes y estadisticas - En desarrollo</p></div>
-            <div class="card placeholder-card"><p>Este modulo estara disponible proximamente.</p></div>
+            <div class="agenda-container">
+                <!-- Header de la agenda -->
+                <div class="agenda-header">
+                    <div class="agenda-title-group">
+                        <h3><i class="fas fa-clipboard-list"></i> Mi Agenda de Hoy</h3>
+                        <span class="agenda-fecha" id="agendaFechaHoy">---</span>
+                    </div>
+                    <div class="agenda-stats">
+                        <div class="agenda-stat">
+                            <span class="stat-num" id="agendaTotal">0</span>
+                            <span class="stat-label">Total</span>
+                        </div>
+                        <div class="agenda-stat">
+                            <span class="stat-num" id="agendaPendientes">0</span>
+                            <span class="stat-label">Pendientes</span>
+                        </div>
+                        <div class="agenda-stat">
+                            <span class="stat-num" id="agendaCompletadas">0</span>
+                            <span class="stat-label">Completadas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario para nueva actividad -->
+                <div class="agenda-form-card">
+                    <h4><i class="fas fa-plus-circle"></i> Nueva Actividad</h4>
+                    <div class="agenda-form-row">
+                        <div class="agenda-form-group" style="flex:2;">
+                            <label>Descripción</label>
+                            <input type="text" id="agendaDescripcion" placeholder="Escribe la actividad a realizar..." maxlength="200">
+                        </div>
+                        <div class="agenda-form-group agenda-hora">
+                            <label>Hora</label>
+                            <input type="time" id="agendaHora">
+                        </div>
+                        <div class="agenda-form-group agenda-prioridad">
+                            <label>Prioridad</label>
+                            <select id="agendaPrioridad">
+                                <option value="baja">Baja</option>
+                                <option value="media" selected>Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="agenda-form-group" style="min-width:150px;">
+                            <label>Tienda</label>
+                            <select id="agendaTienda">
+                                <option value="caracas">Tienda Caracas</option>
+                                <option value="maracay">Tienda Maracay</option>
+                                <option value="maracaibo">Tienda Maracaibo</option>
+                            </select>
+                        </div>
+                        <button class="btn-agenda-add" onclick="agregarActividad()">
+                            <i class="fas fa-plus"></i> Agregar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de actividades -->
+                <div class="agenda-lista-card">
+                    <div class="agenda-lista-header">
+                        <h4><i class="fas fa-tasks"></i> Actividades del Día</h4>
+                        <div class="agenda-filtros">
+                            <button class="agenda-filter active" data-filter="todas" onclick="filtrarActividades('todas')">Todas</button>
+                            <button class="agenda-filter" data-filter="pendientes" onclick="filtrarActividades('pendientes')">Pendientes</button>
+                            <button class="agenda-filter" data-filter="completadas" onclick="filtrarActividades('completadas')">Completadas</button>
+                        </div>
+                    </div>
+                    <div class="agenda-lista" id="agendaLista">
+                        <div class="agenda-empty">
+                            <i class="fas fa-clipboard-check"></i>
+                            <p>No hay actividades para hoy</p>
+                            <span>Agrega tu primera actividad usando el formulario de arriba</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historial de actividades completadas -->
+                <div class="agenda-historial-card">
+                    <div class="agenda-historial-header">
+                        <h4><i class="fas fa-history"></i> Historial de Actividades</h4>
+                        <select id="agendaFiltroFecha" onchange="paginaHistorial = 1; cargarHistorialActividades();">
+                            <option value="hoy">Hoy</option>
+                            <option value="ayer">Ayer</option>
+                            <option value="semana">Esta semana</option>
+                            <option value="mes">Este mes</option>
+                        </select>
+                    </div>
+                    <div class="agenda-historial" id="agendaHistorial">
+                        <div class="agenda-empty">
+                            <i class="fas fa-inbox"></i>
+                            <p>No hay actividades en el historial</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
+                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- ESTADISTICAS (INTEGRADO EN PANEL) -->
@@ -694,6 +909,15 @@
                         </div>
                     </div>
                 </div>
+                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
+                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </main>
@@ -712,6 +936,7 @@
                     <div class="form-group" id="grupoPassword"><label>Contrasena *</label><input type="password" id="usuarioPassword" required minlength="6"></div>
                     <div class="form-group"><label>Rol *</label><select id="usuarioRol" required><option value="operador">Operador</option><option value="administrador">Administrador</option></select></div>
                     <div class="form-group" id="grupoIp"><label id="ipLabel">IP Asignada <span style="color:#e53e3e;">*</span></label><input type="text" id="usuarioIp" required placeholder="Ej: 192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$"><small id="ipHelp">Obligatorio para operadores</small></div>
+                    <div class="form-group" id="grupoTienda"><label>Tienda Asignada <span style="color:#e53e3e;">*</span></label><select id="usuarioTienda" required><option value="">Seleccionar tienda...</option><option value="caracas">Tienda Caracas</option><option value="maracay">Tienda Maracay</option><option value="maracaibo">Tienda Maracaibo</option></select><small id="tiendaHelp">Obligatoria para operadores</small></div>
                     <div class="form-group" id="grupoEstado" style="display:none;"><label>Estado</label><select id="usuarioActivo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
                 </div>
             </div>
