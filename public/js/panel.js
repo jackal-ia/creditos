@@ -3284,53 +3284,235 @@ function exportarBusquedaPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('l', 'mm', 'a4');
 
-    doc.setFontSize(20);
-    doc.setTextColor(26, 54, 93);
-    doc.text('Busqueda Tienda Caracas', 14, 20);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - (margin * 2);
 
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Generado: ' + new Date().toLocaleString('es-VE'), 14, 28);
-    doc.text('Total Registros: ' + datosBusquedaCaracas.length, 14, 33);
+    // ============================================
+    // FUNCION PARA CARGAR LOGO COMO BASE64
+    // ============================================
+    function cargarLogoComoBase64(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = function() {
+                reject(new Error('No se pudo cargar el logo'));
+            };
+            img.src = url;
+        });
+    }
 
-    doc.setDrawColor(26, 54, 93);
-    doc.setLineWidth(0.5);
-    doc.line(14, 36, 280, 36);
-
-    const headers = [['Nro', 'Factura', 'Cliente', 'Cédula', 'Monto', 'Cuotas', 'Depositado', 'Deuda', 'Estado', 'Fecha']];
-    const rows = datosBusquedaCaracas.map((row, i) => [
-        i + 1, row.nro_factura || '-', row.nombre_apellido || '-', row.cedula || '-',
-        formatCurrency(row.monto_factura || 0), row.cuotas || '-',
-        formatCurrency(row.monto_depositados || 0), formatCurrency(row.deuda || 0),
-        calcularEstadoBusqueda(row).texto, formatearFecha(row.fecha_factura)
-    ]);
-
-    doc.autoTable({
-        head: headers, body: rows, startY: 42, theme: 'striped',
-        headStyles: { fillColor: [26, 54, 93], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
-        bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
-        alternateRowStyles: { fillColor: [240, 248, 255] },
-        margin: { top: 42, left: 14, right: 14 },
-        styles: { overflow: 'linebreak', cellWidth: 'wrap' },
-        columnStyles: { 0: {cellWidth: 10}, 1: {cellWidth: 20}, 2: {cellWidth: 35}, 3: {cellWidth: 20}, 4: {cellWidth: 25}, 5: {cellWidth: 15}, 6: {cellWidth: 25}, 7: {cellWidth: 25}, 8: {cellWidth: 20}, 9: {cellWidth: 20} },
-        didDrawPage: function(data) {
-            doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text('Inversora IPSFA - Sistema de Créditos', 14, doc.internal.pageSize.height - 10);
-            doc.text('Página ' + data.pageNumber, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+    // ============================================
+    // GENERAR PDF
+    // ============================================
+    async function generarPDF() {
+        let logoBase64 = null;
+        try {
+            logoBase64 = await cargarLogoComoBase64('assets/logo.png');
+        } catch (e) {
+            console.log('Logo no disponible, continuando sin logo');
         }
+
+        // --- ENCABEZADO ---
+        let currentY = 12;
+
+        // Logo
+        if (logoBase64) {
+            doc.addImage(logoBase64, 'PNG', margin, currentY, 50, 38);
+        }
+
+        // Titulo centrado (al lado del logo, centrado verticalmente)
+        doc.setFontSize(20);
+        doc.setTextColor(26, 54, 93);
+        doc.setFont('helvetica', 'bold');
+        const titulo = 'Gestion de Creditos Inversora IPSFA C.A';
+        const tituloWidth = doc.getTextWidth(titulo);
+        doc.text(titulo, (pageWidth - tituloWidth) / 2, currentY + 16);
+
+        // Subtitulo centrado
+        doc.setFontSize(11);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont('helvetica', 'normal');
+        const subtitulo = 'Reporte de Busqueda Tienda Caracas';
+        const subtituloWidth = doc.getTextWidth(subtitulo);
+        doc.text(subtitulo, (pageWidth - subtituloWidth) / 2, currentY + 24);
+
+        // Fecha y total centrados
+        doc.setFontSize(10);
+        doc.setTextColor(80, 80, 80);
+        const fechaTexto = 'Fecha: ' + new Date().toLocaleDateString('es-VE') + '  |  Hora: ' + new Date().toLocaleTimeString('es-VE') + '  |  Total Registros: ' + datosBusquedaCaracas.length;
+        const fechaWidth = doc.getTextWidth(fechaTexto);
+        doc.text(fechaTexto, (pageWidth - fechaWidth) / 2, currentY + 32);
+
+        currentY += 48;
+
+        // Linea separadora
+        doc.setDrawColor(26, 54, 93);
+        doc.setLineWidth(0.5);
+        doc.line(margin, currentY, pageWidth - margin, currentY);
+
+        currentY += 8;
+
+        // --- TABLA DE DATOS (sin Cuotas y sin Estado) ---
+        const headers = [['Nro', 'Factura', 'Cliente', 'Cedula', 'Telefono', 'Monto', 'Depositado', 'Deuda', 'Fecha']];
+        const rows = datosBusquedaCaracas.map((row, i) => [
+            i + 1, 
+            row.nro_factura || '-', 
+            row.nombre_apellido || '-', 
+            row.cedula || '-', 
+            row.telefono || '-',
+            formatCurrency(row.monto_factura || 0), 
+            formatCurrency(row.monto_depositados || 0), 
+            formatCurrency(row.deuda || 0),
+            formatearFecha(row.fecha_factura)
+        ]);
+
+        // Calcular anchos de columnas proporcionales al ancho total
+        const colNro = 10;
+        const colFactura = 18;
+        const colCliente = 50;
+        const colCedula = 22;
+        const colTelefono = 25;
+        const colMonto = 28;
+        const colDepositado = 28;
+        const colDeuda = 28;
+        const colFecha = 22;
+        const totalColWidth = colNro + colFactura + colCliente + colCedula + colTelefono + colMonto + colDepositado + colDeuda + colFecha;
+
+        // Ajustar al ancho del contenido
+        const scaleFactor = contentWidth / totalColWidth;
+
+        doc.autoTable({
+            head: headers, 
+            body: rows, 
+            startY: currentY, 
+            theme: 'striped',
+            headStyles: { 
+                fillColor: [26, 54, 93], 
+                textColor: [255, 255, 255], 
+                fontSize: 9, 
+                fontStyle: 'bold',
+                halign: 'center',
+                valign: 'middle'
+            },
+            bodyStyles: { 
+                fontSize: 8, 
+                textColor: [50, 50, 50],
+                valign: 'middle'
+            },
+            alternateRowStyles: { fillColor: [240, 248, 255] },
+            margin: { top: 20, left: margin, right: margin },
+            styles: { 
+                overflow: 'linebreak', 
+                cellWidth: 'wrap',
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1
+            },
+            columnStyles: { 
+                0: {cellWidth: colNro * scaleFactor, halign: 'center'}, 
+                1: {cellWidth: colFactura * scaleFactor, halign: 'center'}, 
+                2: {cellWidth: colCliente * scaleFactor, halign: 'left'}, 
+                3: {cellWidth: colCedula * scaleFactor, halign: 'center'}, 
+                4: {cellWidth: colTelefono * scaleFactor, halign: 'center'},
+                5: {cellWidth: colMonto * scaleFactor, halign: 'right'}, 
+                6: {cellWidth: colDepositado * scaleFactor, halign: 'right'}, 
+                7: {cellWidth: colDeuda * scaleFactor, halign: 'right'}, 
+                8: {cellWidth: colFecha * scaleFactor, halign: 'center'}
+            },
+            didDrawPage: function(data) {
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Inversora IPSFA - Sistema de Creditos', margin, pageHeight - 10);
+                doc.text('Pagina ' + data.pageNumber, pageWidth - margin - 20, pageHeight - 10);
+            }
+        });
+
+        // --- LEYENDA DE SUMATORIAS AL FINAL ---
+        const finalY = doc.lastAutoTable.finalY + 10;
+
+        // Calcular sumatorias
+        const totalFacturado = datosBusquedaCaracas.reduce((sum, r) => sum + (parseFloat(r.monto_factura) || 0), 0);
+        const totalDepositado = datosBusquedaCaracas.reduce((sum, r) => sum + (parseFloat(r.monto_depositados) || 0), 0);
+        const totalDeuda = datosBusquedaCaracas.reduce((sum, r) => sum + (parseFloat(r.deuda) || 0), 0);
+
+        // Verificar si hay espacio suficiente, si no, agregar nueva página
+        if (finalY + 50 > pageHeight - 20) {
+            doc.addPage();
+            currentY = 20;
+        } else {
+            currentY = finalY;
+        }
+
+        // Fondo del resumen (mismo ancho que la tabla)
+        const resumenHeight = 42;
+        doc.setFillColor(26, 54, 93);
+        doc.rect(margin, currentY, contentWidth, resumenHeight, 'F');
+
+        // Titulo del resumen centrado
+        doc.setFontSize(13);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        const tituloResumen = 'TOTALES DEL REPORTE';
+        const tituloResumenWidth = doc.getTextWidth(tituloResumen);
+        doc.text(tituloResumen, (pageWidth - tituloResumenWidth) / 2, currentY + 8);
+
+        // Linea separadora
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.3);
+        doc.line(margin + 5, currentY + 12, pageWidth - margin - 5, currentY + 12);
+
+        // Tres columnas de sumatorias distribuidas equitativamente
+        const colWidth = contentWidth / 3;
+        const col1X = margin + 10;
+        const col2X = margin + colWidth + 10;
+        const col3X = margin + (colWidth * 2) + 10;
+
+        // Etiquetas
+        doc.setFontSize(9);
+        doc.setTextColor(200, 200, 200);
+        doc.setFont('helvetica', 'normal');
+        doc.text('TOTAL MONTO FACTURADO', col1X, currentY + 20);
+        doc.text('TOTAL DEPOSITADO', col2X, currentY + 20);
+        doc.text('TOTAL DEUDA PENDIENTE', col3X, currentY + 20);
+
+        // Valores
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(251, 191, 36); // Amarillo
+        doc.text(formatCurrency(totalFacturado), col1X, currentY + 30);
+
+        doc.setTextColor(74, 222, 128); // Verde
+        doc.text(formatCurrency(totalDepositado), col2X, currentY + 30);
+
+        doc.setTextColor(248, 113, 113); // Rojo
+        doc.text(formatCurrency(totalDeuda), col3X, currentY + 30);
+
+        // Total clientes centrado
+        doc.setFontSize(9);
+        doc.setTextColor(200, 200, 200);
+        doc.setFont('helvetica', 'normal');
+        const clientesTexto = datosBusquedaCaracas.length + ' clientes en el reporte';
+        const clientesWidth = doc.getTextWidth(clientesTexto);
+        doc.text(clientesTexto, (pageWidth - clientesWidth) / 2, currentY + 38);
+
+        doc.save('busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.pdf');
+        mostrarAlerta('PDF exportado correctamente', 'success');
+    }
+
+    generarPDF().catch(err => {
+        console.error('Error generando PDF:', err);
+        mostrarAlerta('Error al generar PDF: ' + err.message, 'error');
     });
-
-    doc.save('busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.pdf');
-    mostrarAlerta('PDF exportado correctamente', 'success');
-}
-
-
-
-// ============================================
-// VOLVER AL MENU PRINCIPAL DE CARACAS
-// ============================================
-function volverMenuPrincipalCaracas() {
+}function volverMenuPrincipalCaracas() {
     document.getElementById('tc-base-datos').style.display = 'none';
     document.getElementById('tc-conciliaciones').style.display = 'none';
     document.getElementById('tc-busqueda').style.display = 'none';
