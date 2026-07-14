@@ -121,7 +121,7 @@ function toggleSidebar() {
     }
 }
 
-function mostrarSeccion(seccion) {
+function mostrarSeccion(seccion, tiendaPredefinida) {
     // En móvil, cerrar sidebar al seleccionar una sección
     if (esMovil()) {
         const sidebar = document.getElementById('sidebar');
@@ -208,6 +208,17 @@ function mostrarSeccion(seccion) {
         if (busqueda) busqueda.style.display = 'none';
     }
 
+    if (seccion === 'pagos') {
+        const menu = document.getElementById('tmb-menu-principal');
+        const baseDatos = document.getElementById('tmb-base-datos');
+        const conciliaciones = document.getElementById('tmb-conciliaciones');
+        const busqueda = document.getElementById('tmb-busqueda');
+        if (menu) menu.style.display = 'grid';
+        if (baseDatos) baseDatos.style.display = 'none';
+        if (conciliaciones) conciliaciones.style.display = 'none';
+        if (busqueda) busqueda.style.display = 'none';
+    }
+
     if (seccion === 'tasas') cargarHistorial();
     if (seccion === 'usuarios') {
         cargarUsuarios();
@@ -217,7 +228,7 @@ function mostrarSeccion(seccion) {
     
     // Ocultar actividades pendientes para no-administradores
     ocultarMenuSegunRol();
-    if (seccion === 'estadisticas') initEstadisticas();
+    if (seccion === 'estadisticas') initEstadisticas(tiendaPredefinida);
     if (seccion === 'reportes') initAgenda();
 }
 
@@ -811,30 +822,92 @@ setInterval(cargarTasaActual, 300000);
 // ============================================
 
 let datosEstadisticasCache = null;
+let tiendaActivaGlobal = null;
 
-function initEstadisticas() {
-    // Cargar meses disponibles desde la API
-    cargarMesesDisponibles();
+function initEstadisticas(tiendaPredefinida) {
+    // Fallback: si hay una tienda activa global y no viene predefinida, usarla
+    if (!tiendaPredefinida && window.tiendaActiva) {
+        tiendaPredefinida = window.tiendaActiva;
+    }
+    console.log('[DEBUG] initEstadisticas called with tiendaPredefinida:', tiendaPredefinida);
 
-    // Establecer valores por defecto en los filtros
+    const tiendaSelect = document.getElementById('filtro-tienda');
+    console.log('[DEBUG] tiendaSelect found:', !!tiendaSelect);
+    if (tiendaSelect) {
+        console.log('[DEBUG] tiendaSelect current value:', tiendaSelect.value);
+        console.log('[DEBUG] tiendaSelect disabled:', tiendaSelect.disabled);
+    }
+
+    // CAPA 1: Si viene una tienda predefinida (desde el menú de una tienda específica)
+    if (tiendaPredefinida) {
+        console.log('[DEBUG] CAPA 1: tiendaPredefinida =', tiendaPredefinida);
+        if (tiendaSelect) {
+            tiendaSelect.value = tiendaPredefinida;
+            tiendaSelect.disabled = true;
+            tiendaSelect.style.background = '#e2e8f0';
+            tiendaSelect.style.cursor = 'not-allowed';
+            tiendaSelect.title = 'Tienda fijada desde el módulo de tienda';
+            console.log('[DEBUG] CAPA 1: Selector disabled for tienda:', tiendaPredefinida);
+        }
+    } 
+    // CAPA 2: Si no hay tienda predefinida, pero el usuario es OPERADOR, restringir a su tienda
+    else if (!isAdmin()) {
+        console.log('[DEBUG] CAPA 2: User is not admin');
+        const tiendaUsuario = getTiendaUsuario();
+        console.log('[DEBUG] CAPA 2: tiendaUsuario =', tiendaUsuario);
+        if (tiendaUsuario && tiendaSelect) {
+            tiendaSelect.value = tiendaUsuario;
+            tiendaSelect.disabled = true;
+            tiendaSelect.style.background = '#e2e8f0';
+            tiendaSelect.style.cursor = 'not-allowed';
+            tiendaSelect.title = 'Sede asignada a tu usuario (' + tiendaUsuario + ')';
+            tiendaPredefinida = tiendaUsuario; // Forzar la tienda predefinida
+            console.log('[DEBUG] CAPA 2: Selector disabled for tienda:', tiendaUsuario);
+        }
+    } 
+    // CAPA 3: Si es administrador sin tienda predefinida, puede elegir libremente
+    else {
+        console.log('[DEBUG] CAPA 3: Admin without tiendaPredefinida');
+        if (tiendaSelect) {
+            tiendaSelect.disabled = false;
+            tiendaSelect.style.background = '';
+            tiendaSelect.style.cursor = '';
+            tiendaSelect.title = '';
+            console.log('[DEBUG] CAPA 3: Selector enabled');
+        }
+    }
+
+    // Cargar meses disponibles desde la tienda activa
+    const tiendaActiva = tiendaPredefinida || (tiendaSelect ? tiendaSelect.value : 'caracas');
+    console.log('[DEBUG] tiendaActiva:', tiendaActiva);
+    tiendaActivaGlobal = tiendaActiva; // Guardar para aplicarFiltros
+    cargarMesesDisponibles(tiendaActiva);
+
     const hoy = new Date();
     const anioSelect = document.getElementById('filtro-anio');
-
     if (anioSelect) anioSelect.value = hoy.getFullYear();
 
     if (!chartEvolucion) inicializarGraficos();
-    cargarDatosEstadisticasReales();
-}
 
-async function cargarMesesDisponibles() {
+    // Pasar la tienda activa para forzar la carga correcta de datos
+    cargarDatosEstadisticasReales(tiendaActiva);
+}
+async function cargarMesesDisponibles(tienda) {
     try {
-        const response = await fetch('/api/tienda-caracas');
+        const tiendaSeleccionada = tienda || document.getElementById('filtro-tienda')?.value || 'caracas';
+        let apiEndpoint = '/api/tienda-caracas';
+        if (tiendaSeleccionada === 'maracay') {
+            apiEndpoint = '/api/tienda-maracay';
+        } else if (tiendaSeleccionada === 'maracaibo') {
+            apiEndpoint = '/api/tienda-maracaibo';
+        }
+
+        const response = await fetch(apiEndpoint);
         if (!response.ok) return;
 
         const clientes = await response.json();
         const mesesConDatos = new Set();
 
-        // Extraer meses de todas las fechas de cuota
         clientes.forEach(c => {
             for (let i = 1; i <= 11; i++) {
                 const fechaCuota = c['fecha_cuota_' + i];
@@ -847,19 +920,14 @@ async function cargarMesesDisponibles() {
             }
         });
 
-        // Llenar el dropdown solo con meses que tienen datos
         const mesSelect = document.getElementById('filtro-mes');
         if (mesSelect) {
             const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-            // Guardar el valor actual si existe
             const valorActual = mesSelect.value;
-
-            // Limpiar opciones existentes
             mesSelect.innerHTML = '';
 
-            // Agregar solo meses con datos
             const mesesOrdenados = Array.from(mesesConDatos).sort((a, b) => a - b);
             mesesOrdenados.forEach(mesNum => {
                 const option = document.createElement('option');
@@ -868,7 +936,6 @@ async function cargarMesesDisponibles() {
                 mesSelect.appendChild(option);
             });
 
-            // Seleccionar el mes actual si está disponible, o el último mes con datos
             const hoy = new Date();
             const mesActual = hoy.getMonth() + 1;
             if (mesesConDatos.has(mesActual)) {
@@ -949,21 +1016,33 @@ function inicializarGraficos() {
     chartDistribucion.render();
 }
 
-async function cargarDatosEstadisticasReales() {
+async function cargarDatosEstadisticasReales(tiendaPredefinida) {
     try {
         const mes = parseInt(document.getElementById('filtro-mes')?.value || new Date().getMonth() + 1);
         const anio = parseInt(document.getElementById('filtro-anio')?.value || new Date().getFullYear());
         const tipo = document.getElementById('filtro-tipo')?.value || 'todos';
 
+        // PRIORIZAR la tienda predefinida si existe, de lo contrario leer el filtro selector
+        // Si el select está deshabilitado, su valor es la tienda fijada
+        const tiendaSelect = document.getElementById('filtro-tienda');
+        const tienda = tiendaPredefinida || (tiendaSelect ? tiendaSelect.value : 'caracas');
+
         // Cargando estadisticas
 
-        const response = await fetch('/api/tienda-caracas');
+        let apiEndpoint = '/api/tienda-caracas';
+        if (tienda === 'maracay') {
+            apiEndpoint = '/api/tienda-maracay';
+        } else if (tienda === 'maracaibo') {
+            apiEndpoint = '/api/tienda-maracaibo';
+        }
+
+        const response = await fetch(apiEndpoint);
         if (!response.ok) throw new Error('Error HTTP: ' + response.status);
 
         const clientes = await response.json();
         // Clientes cargados
 
-        const estadisticas = procesarDatosEstadisticas(clientes, mes, anio, tipo);
+        const estadisticas = procesarDatosEstadisticas(clientes, mes, anio, tipo, tienda);
         datosEstadisticasCache = estadisticas;
 
         actualizarKPIsReales(estadisticas.kpis);
@@ -975,8 +1054,7 @@ async function cargarDatosEstadisticasReales() {
         mostrarAlerta('Error cargando datos. Verifica la conexion.', 'error');
     }
 }
-
-function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro) {
+function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, tiendaFiltro) {
     let cuotasCanceladas = 0;
     let cuotasIncompletas = 0;
     let totalDeudores = 0;
@@ -1203,7 +1281,7 @@ async function aplicarFiltros() {
     btn.innerHTML = '<span class="spinner"></span> Actualizando...';
     btn.disabled = true;
     try {
-        await cargarDatosEstadisticasReales();
+        await cargarDatosEstadisticasReales(tiendaActivaGlobal);
     } catch (error) {
         console.error('Error:', error);
     } finally {
@@ -1263,6 +1341,7 @@ function exportarReporte() {
         return;
     }
 
+    const tienda = document.getElementById('filtro-tienda')?.value || 'caracas';
     const headers = ['Cliente', 'Cedula', 'Cuota Mensual', 'Pagado', 'Deuda', 'Estado'];
     const rows = datosEstadisticasCache.deudores.map(d => [
         d.nombre, d.cedula, d.cuota, d.pagado, d.deuda, d.estado
@@ -2455,8 +2534,8 @@ async function completarActividadDesdeWidget(id) {
 
 // Actualizar widget cada vez que se muestra el dashboard
 const originalMostrarSeccionWidget = mostrarSeccion;
-mostrarSeccion = function(seccion) {
-    originalMostrarSeccionWidget(seccion);
+mostrarSeccion = function(seccion, tiendaPredefinida) {
+    originalMostrarSeccionWidget(seccion, tiendaPredefinida);
     if (seccion === 'dashboard') {
         actualizarWidgetActividades();
     }
@@ -3519,3 +3598,603 @@ function exportarBusquedaPDF() {
     document.getElementById('tc-menu-principal').style.display = 'grid';
 }
 
+
+
+// ============================================
+// REPORTES TIENDA MARACAIBO (INTEGRADO EN PANEL)
+// ============================================
+
+let datosBusquedaMaracaibo = [];
+let resumenBusquedaMaracaibo = {};
+let paginaBusquedaMB = 1;
+let registrosPorPaginaBusquedaMB = 10;
+let totalPaginasBusquedaMB = 1;
+
+function mostrarBusquedaMaracaibo() {
+    document.getElementById('tmb-menu-principal').style.display = 'none';
+    document.getElementById('tmb-base-datos').style.display = 'none';
+    document.getElementById('tmb-conciliaciones').style.display = 'none';
+    document.getElementById('tmb-busqueda').style.display = 'block';
+
+    // Set fechas por defecto
+    const hoy = new Date();
+    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    document.getElementById('busqmb-fecha-desde').value = primerDia.toISOString().split('T')[0];
+    document.getElementById('busqmb-fecha-hasta').value = hoy.toISOString().split('T')[0];
+}
+
+async function generarBusquedaMaracaibo() {
+    showLoading(true);
+
+    try {
+        const filtros = {
+            fecha_desde: document.getElementById('busqmb-fecha-desde').value || null,
+            fecha_hasta: document.getElementById('busqmb-fecha-hasta').value || null,
+            estado: document.getElementById('busqmb-estado').value,
+            monto_min: document.getElementById('busqmb-monto-min').value || null,
+            monto_max: document.getElementById('busqmb-monto-max').value || null,
+            nombre_cliente: document.getElementById('busqmb-nombre').value || null
+        };
+
+        // Usar endpoint de reportes de Maracaibo (o crear uno genérico)
+        const response = await fetch('/api/tienda-maracaibo');
+        const allData = await response.json();
+
+        // Filtrar datos localmente
+        let datosFiltrados = allData;
+
+        if (filtros.fecha_desde) {
+            datosFiltrados = datosFiltrados.filter(d => d.fecha_factura >= filtros.fecha_desde);
+        }
+        if (filtros.fecha_hasta) {
+            datosFiltrados = datosFiltrados.filter(d => d.fecha_factura <= filtros.fecha_hasta);
+        }
+        if (filtros.nombre_cliente) {
+            const nombre = filtros.nombre_cliente.toLowerCase();
+            datosFiltrados = datosFiltrados.filter(d => d.nombre_apellido && d.nombre_apellido.toLowerCase().includes(nombre));
+        }
+        if (filtros.monto_min) {
+            datosFiltrados = datosFiltrados.filter(d => (parseFloat(d.deuda) || 0) >= parseFloat(filtros.monto_min));
+        }
+        if (filtros.monto_max) {
+            datosFiltrados = datosFiltrados.filter(d => (parseFloat(d.deuda) || 0) <= parseFloat(filtros.monto_max));
+        }
+
+        // Calcular resumen
+        const totalClientes = datosFiltrados.length;
+        const totalDeuda = datosFiltrados.reduce((s, d) => s + (parseFloat(d.deuda) || 0), 0);
+        const totalDepositado = datosFiltrados.reduce((s, d) => s + (parseFloat(d.monto_depositados) || 0), 0);
+        const clientesMora = datosFiltrados.filter(d => (parseFloat(d.deuda) || 0) > 0).length;
+        const promedioDeuda = totalClientes > 0 ? totalDeuda / totalClientes : 0;
+
+        datosBusquedaMaracaibo = datosFiltrados;
+        resumenBusquedaMaracaibo = {
+            total_clientes: totalClientes,
+            total_deuda: totalDeuda,
+            total_depositado: totalDepositado,
+            clientes_mora: clientesMora,
+            promedio_deuda: promedioDeuda
+        };
+
+        // Mostrar resumen
+        document.getElementById('busqmb-resumen').style.display = 'grid';
+        document.getElementById('busqmb-res-total').textContent = formatNumber(totalClientes);
+        document.getElementById('busqmb-res-deuda').textContent = formatCurrency(totalDeuda);
+        document.getElementById('busqmb-res-pagado').textContent = formatCurrency(totalDepositado);
+        document.getElementById('busqmb-res-mora').textContent = formatNumber(clientesMora);
+        document.getElementById('busqmb-res-promedio').textContent = formatCurrency(promedioDeuda);
+
+        // Mostrar tabla
+        document.getElementById('busqmb-tabla-container').style.display = 'block';
+        document.getElementById('busqmb-contador').textContent = datosFiltrados.length + ' registros';
+
+        // Inicializar paginación
+        paginaBusquedaMB = 1;
+        registrosPorPaginaBusquedaMB = 10;
+        totalPaginasBusquedaMB = Math.ceil(datosFiltrados.length / registrosPorPaginaBusquedaMB) || 1;
+
+        renderizarTablaBusquedaMB();
+
+        // Mostrar gráficos
+        document.getElementById('busqmb-graficos').style.display = 'grid';
+        renderizarGraficosBusquedaMB();
+
+        // Mostrar exportar
+        document.getElementById('busqmb-exportar').style.display = 'block';
+
+        mostrarAlerta('Busqueda generada: ' + datosFiltrados.length + ' registros', 'success');
+
+    } catch (e) {
+        console.error('Error:', e);
+        mostrarAlerta('Error: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function calcularEstadoBusquedaMB(row) {
+    const deuda = parseFloat(row.deuda) || 0;
+    const depositado = parseFloat(row.monto_depositados) || 0;
+    const total = parseFloat(row.monto_factura) || 0;
+    const fecha = new Date(row.fecha_factura);
+    const dias = (new Date() - fecha) / (1000 * 60 * 60 * 24);
+
+    if (deuda <= 0 || depositado >= total) {
+        return { texto: 'Pagado', style: 'background:#d1fae5;color:#059669;' };
+    }
+    if (dias > 30 && deuda > 0) {
+        return { texto: 'En Mora', style: 'background:#fee2e2;color:#dc2626;' };
+    }
+    return { texto: 'Pendiente', style: 'background:#fef3c7;color:#d97706;' };
+}
+
+function renderizarTablaBusquedaMB() {
+    const tbody = document.getElementById('busqmb-tbody');
+    const contador = document.getElementById('busqmb-contador');
+    if (!tbody) return;
+
+    const inicio = (paginaBusquedaMB - 1) * registrosPorPaginaBusquedaMB;
+    const fin = inicio + registrosPorPaginaBusquedaMB;
+    const datosPagina = datosBusquedaMaracaibo.slice(inicio, fin);
+    totalPaginasBusquedaMB = Math.ceil(datosBusquedaMaracaibo.length / registrosPorPaginaBusquedaMB) || 1;
+
+    if (contador) {
+        contador.textContent = datosBusquedaMaracaibo.length + ' registros (Pagina ' + paginaBusquedaMB + ' de ' + totalPaginasBusquedaMB + ')';
+    }
+
+    if (datosPagina.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#718096;">No hay registros que coincidan con los filtros</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = datosPagina.map((row, i) => {
+        const estado = calcularEstadoBusquedaMB(row);
+        const numeroReal = inicio + i + 1;
+        return `<tr>
+            <td>${numeroReal}</td>
+            <td>${row.nro_factura || '-'}</td>
+            <td>${row.nombre_apellido || '-'}</td>
+            <td>${row.cedula || '-'}</td>
+            <td style="text-align:right;font-family:monospace;font-weight:600;">${formatCurrency(row.monto_factura || 0)}</td>
+            <td>${row.cuotas || '-'}</td>
+            <td style="text-align:right;font-family:monospace;color:#38a169;">${formatCurrency(row.monto_depositados || 0)}</td>
+            <td style="text-align:right;font-family:monospace;color:#e53e3e;">${formatCurrency(row.deuda || 0)}</td>
+            <td><span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;${estado.style}">${estado.texto}</span></td>
+            <td>${formatearFecha(row.fecha_factura)}</td>
+        </tr>`;
+    }).join('');
+
+    actualizarControlesPaginacionBusquedaMB();
+}
+
+function actualizarControlesPaginacionBusquedaMB() {
+    const paginacionAnterior = document.getElementById('busqmb-paginacion');
+    if (paginacionAnterior) paginacionAnterior.remove();
+
+    if (totalPaginasBusquedaMB <= 1) return;
+
+    const tablaContainer = document.getElementById('busqmb-tabla-container');
+    if (!tablaContainer) return;
+
+    const paginacionDiv = document.createElement('div');
+    paginacionDiv.id = 'busqmb-paginacion';
+    paginacionDiv.style.cssText = 'display:flex;justify-content:center;align-items:center;gap:8px;padding:15px;border-top:1px solid #e2e8f0;';
+
+    const btnPrimera = crearBotonPaginacion('|<', () => irAPaginaBusquedaMB(1), paginaBusquedaMB === 1);
+    paginacionDiv.appendChild(btnPrimera);
+
+    const btnAnterior = crearBotonPaginacion('<', () => irAPaginaBusquedaMB(paginaBusquedaMB - 1), paginaBusquedaMB === 1);
+    paginacionDiv.appendChild(btnAnterior);
+
+    const infoPagina = document.createElement('span');
+    infoPagina.style.cssText = 'font-size:13px;color:#64748b;font-weight:500;margin:0 10px;';
+    infoPagina.textContent = 'Pagina ' + paginaBusquedaMB + ' de ' + totalPaginasBusquedaMB;
+    paginacionDiv.appendChild(infoPagina);
+
+    const btnSiguiente = crearBotonPaginacion('>', () => irAPaginaBusquedaMB(paginaBusquedaMB + 1), paginaBusquedaMB >= totalPaginasBusquedaMB);
+    paginacionDiv.appendChild(btnSiguiente);
+
+    const btnUltima = crearBotonPaginacion('>|', () => irAPaginaBusquedaMB(totalPaginasBusquedaMB), paginaBusquedaMB >= totalPaginasBusquedaMB);
+    paginacionDiv.appendChild(btnUltima);
+
+    const selectLabel = document.createElement('span');
+    selectLabel.style.cssText = 'font-size:12px;color:#718096;margin-left:15px;';
+    selectLabel.textContent = 'Mostrar:';
+    paginacionDiv.appendChild(selectLabel);
+
+    const selectRegistros = document.createElement('select');
+    selectRegistros.style.cssText = 'padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;';
+    [10, 25, 50, 100].forEach(num => {
+        const option = document.createElement('option');
+        option.value = num;
+        option.textContent = num;
+        if (num === registrosPorPaginaBusquedaMB) option.selected = true;
+        selectRegistros.appendChild(option);
+    });
+    selectRegistros.onchange = function() {
+        registrosPorPaginaBusquedaMB = parseInt(this.value);
+        paginaBusquedaMB = 1;
+        totalPaginasBusquedaMB = Math.ceil(datosBusquedaMaracaibo.length / registrosPorPaginaBusquedaMB) || 1;
+        renderizarTablaBusquedaMB();
+    };
+    paginacionDiv.appendChild(selectRegistros);
+
+    tablaContainer.appendChild(paginacionDiv);
+}
+
+function irAPaginaBusquedaMB(pagina) {
+    if (pagina < 1 || pagina > totalPaginasBusquedaMB) return;
+    paginaBusquedaMB = pagina;
+    renderizarTablaBusquedaMB();
+    const tablaContainer = document.getElementById('busqmb-tabla-container');
+    if (tablaContainer) tablaContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderizarGraficosBusquedaMB() {
+    const porEstado = {
+        pendiente: datosBusquedaMaracaibo.filter(r => calcularEstadoBusquedaMB(r).texto === 'Pendiente').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0),
+        pagado: datosBusquedaMaracaibo.filter(r => calcularEstadoBusquedaMB(r).texto === 'Pagado').reduce((s, r) => s + (parseFloat(r.monto_depositados) || 0), 0),
+        mora: datosBusquedaMaracaibo.filter(r => calcularEstadoBusquedaMB(r).texto === 'En Mora').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0)
+    };
+
+    const maxValor = Math.max(porEstado.pendiente, porEstado.pagado, porEstado.mora, 1);
+
+    document.getElementById('busqmb-graf-barras').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pendiente</div>
+                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${(porEstado.pendiente/maxValor*100)}%;background:linear-gradient(90deg,#f6e05e,#d69e2e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
+                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pendiente)}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pagado</div>
+                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${(porEstado.pagado/maxValor*100)}%;background:linear-gradient(90deg,#68d391,#38a169);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
+                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pagado)}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">En Mora</div>
+                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${(porEstado.mora/maxValor*100)}%;background:linear-gradient(90deg,#fc8181,#e53e3e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
+                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.mora)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const total = resumenBusquedaMaracaibo.total_facturado || 1;
+    const pagadoPct = ((resumenBusquedaMaracaibo.total_depositado || 0) / total * 100).toFixed(1);
+    const pendientePct = ((resumenBusquedaMaracaibo.total_deuda || 0) / total * 100).toFixed(1);
+
+    document.getElementById('busqmb-graf-pastel').innerHTML = `
+        <div style="position:relative;width:180px;height:180px;">
+            <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg);">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="20"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#48bb78" stroke-width="20" 
+                    stroke-dasharray="${pagadoPct * 2.51} 251" stroke-linecap="round"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#f56565" stroke-width="20" 
+                    stroke-dasharray="${pendientePct * 2.51} 251" 
+                    stroke-dashoffset="${-pagadoPct * 2.51}" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                <div style="width:16px;height:16px;border-radius:4px;background:#48bb78;"></div>
+                <span style="color:#4a5568;">Pagado</span>
+                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pagadoPct}%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                <div style="width:16px;height:16px;border-radius:4px;background:#f56565;"></div>
+                <span style="color:#4a5568;">Pendiente</span>
+                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pendientePct}%</span>
+            </div>
+        </div>
+    `;
+}
+
+function limpiarFiltrosBusquedaMaracaibo() {
+    document.getElementById('busqmb-fecha-desde').value = '';
+    document.getElementById('busqmb-fecha-hasta').value = '';
+    document.getElementById('busqmb-estado').value = 'todos';
+    document.getElementById('busqmb-monto-min').value = '';
+    document.getElementById('busqmb-monto-max').value = '';
+    document.getElementById('busqmb-nombre').value = '';
+
+    document.getElementById('busqmb-resumen').style.display = 'none';
+    document.getElementById('busqmb-tabla-container').style.display = 'none';
+    document.getElementById('busqmb-graficos').style.display = 'none';
+    document.getElementById('busqmb-exportar').style.display = 'none';
+
+    const paginacionAnterior = document.getElementById('busqmb-paginacion');
+    if (paginacionAnterior) paginacionAnterior.remove();
+    paginaBusquedaMB = 1;
+    totalPaginasBusquedaMB = 1;
+}
+
+function exportarBusquedaExcelMaracaibo() {
+    if (datosBusquedaMaracaibo.length === 0) {
+        mostrarAlerta('No hay datos para exportar', 'error');
+        return;
+    }
+
+    const datosExcel = datosBusquedaMaracaibo.map(row => ({
+        'Nro Factura': row.nro_factura || '',
+        'Cliente': row.nombre_apellido || '',
+        'Cedula': row.cedula || '',
+        'Monto Factura': parseFloat(row.monto_factura) || 0,
+        'Cuotas': row.cuotas || '',
+        'Depositado': parseFloat(row.monto_depositados) || 0,
+        'Deuda': parseFloat(row.deuda) || 0,
+        'Estado': calcularEstadoBusquedaMB(row).texto,
+        'Fecha Factura': row.fecha_factura || ''
+    }));
+
+    datosExcel.push({});
+    datosExcel.push({
+        'Nro Factura': 'RESUMEN',
+        'Cliente': 'Total Clientes: ' + resumenBusquedaMaracaibo.total_clientes,
+        'Monto Factura': resumenBusquedaMaracaibo.total_facturado,
+        'Depositado': resumenBusquedaMaracaibo.total_depositado,
+        'Deuda': resumenBusquedaMaracaibo.total_deuda,
+        'Estado': 'Clientes Mora: ' + resumenBusquedaMaracaibo.clientes_mora
+    });
+
+    const ws = XLSX.utils.json_to_sheet(datosExcel);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte Maracaibo');
+    ws['!cols'] = [{wch:12},{wch:30},{wch:15},{wch:15},{wch:10},{wch:15},{wch:15},{wch:12},{wch:15}];
+    XLSX.writeFile(wb, 'busqueda_maracaibo_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    mostrarAlerta('Excel exportado correctamente', 'success');
+}
+
+function exportarBusquedaPDFMaracaibo() {
+    if (datosBusquedaMaracaibo.length === 0) {
+        mostrarAlerta('No hay datos para exportar', 'error');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // ============================================
+    // FUNCION PARA CARGAR LOGO COMO BASE64
+    // ============================================
+    function cargarLogoComoBase64(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = function() {
+                reject(new Error('No se pudo cargar el logo'));
+            };
+            img.src = url;
+        });
+    }
+
+    // ============================================
+    // GENERAR PDF
+    // ============================================
+    async function generarPDF() {
+        let logoBase64 = null;
+        try {
+            logoBase64 = await cargarLogoComoBase64('assets/logo.png');
+        } catch (e) {
+            console.log('Logo no disponible, continuando sin logo');
+        }
+
+        // --- ENCABEZADO ---
+        let currentY = 12;
+
+        // Logo
+        if (logoBase64) {
+            doc.addImage(logoBase64, 'PNG', margin, currentY, 50, 38);
+        }
+
+        // Titulo centrado (al lado del logo, centrado verticalmente)
+        doc.setFontSize(20);
+        doc.setTextColor(26, 54, 93);
+        doc.setFont('helvetica', 'bold');
+        const titulo = 'Gestion de Creditos Inversora IPSFA C.A';
+        const tituloWidth = doc.getTextWidth(titulo);
+        doc.text(titulo, (pageWidth - tituloWidth) / 2, currentY + 16);
+
+        // Subtitulo centrado
+        doc.setFontSize(11);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont('helvetica', 'normal');
+        const subtitulo = 'Reporte de Busqueda Tienda Maracaibo';
+        const subtituloWidth = doc.getTextWidth(subtitulo);
+        doc.text(subtitulo, (pageWidth - subtituloWidth) / 2, currentY + 24);
+
+        // Fecha y total centrados
+        doc.setFontSize(10);
+        doc.setTextColor(80, 80, 80);
+        const fechaTexto = 'Fecha: ' + new Date().toLocaleDateString('es-VE') + '  |  Hora: ' + new Date().toLocaleTimeString('es-VE') + '  |  Total Registros: ' + datosBusquedaMaracaibo.length;
+        const fechaWidth = doc.getTextWidth(fechaTexto);
+        doc.text(fechaTexto, (pageWidth - fechaWidth) / 2, currentY + 32);
+
+        currentY += 48;
+
+        // Linea separadora
+        doc.setDrawColor(26, 54, 93);
+        doc.setLineWidth(0.5);
+        doc.line(margin, currentY, pageWidth - margin, currentY);
+
+        currentY += 8;
+
+        // --- TABLA DE DATOS (sin Estado) ---
+        const headers = [['Nro', 'Factura', 'Cliente', 'Cedula', 'Telefono', 'Monto', 'Depositado', 'Deuda', 'Fecha']];
+        const rows = datosBusquedaMaracaibo.map((row, i) => [
+            i + 1, 
+            row.nro_factura || '-', 
+            row.nombre_apellido || '-', 
+            row.cedula || '-', 
+            row.telefono || '-',
+            formatCurrency(row.monto_factura || 0), 
+            formatCurrency(row.monto_depositados || 0), 
+            formatCurrency(row.deuda || 0),
+            formatearFecha(row.fecha_factura)
+        ]);
+
+        // Calcular anchos de columnas proporcionales al ancho total
+        const colNro = 10;
+        const colFactura = 18;
+        const colCliente = 50;
+        const colCedula = 22;
+        const colTelefono = 25;
+        const colMonto = 28;
+        const colDepositado = 28;
+        const colDeuda = 28;
+        const colFecha = 22;
+        const totalColWidth = colNro + colFactura + colCliente + colCedula + colTelefono + colMonto + colDepositado + colDeuda + colFecha;
+
+        // Ajustar al ancho del contenido
+        const scaleFactor = contentWidth / totalColWidth;
+
+        doc.autoTable({
+            head: headers, 
+            body: rows, 
+            startY: currentY, 
+            theme: 'striped',
+            headStyles: { 
+                fillColor: [26, 54, 93], 
+                textColor: [255, 255, 255], 
+                fontSize: 9, 
+                fontStyle: 'bold',
+                halign: 'center',
+                valign: 'middle'
+            },
+            bodyStyles: { 
+                fontSize: 8, 
+                textColor: [50, 50, 50],
+                valign: 'middle'
+            },
+            alternateRowStyles: { fillColor: [240, 248, 255] },
+            margin: { top: 20, left: margin, right: margin },
+            styles: { 
+                overflow: 'linebreak', 
+                cellWidth: 'wrap',
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1
+            },
+            columnStyles: { 
+                0: {cellWidth: colNro * scaleFactor, halign: 'center'}, 
+                1: {cellWidth: colFactura * scaleFactor, halign: 'center'}, 
+                2: {cellWidth: colCliente * scaleFactor, halign: 'left'}, 
+                3: {cellWidth: colCedula * scaleFactor, halign: 'center'}, 
+                4: {cellWidth: colTelefono * scaleFactor, halign: 'center'},
+                5: {cellWidth: colMonto * scaleFactor, halign: 'right'}, 
+                6: {cellWidth: colDepositado * scaleFactor, halign: 'right'}, 
+                7: {cellWidth: colDeuda * scaleFactor, halign: 'right'}, 
+                8: {cellWidth: colFecha * scaleFactor, halign: 'center'}
+            },
+            didDrawPage: function(data) {
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Inversora IPSFA - Sistema de Creditos', margin, pageHeight - 10);
+                doc.text('Pagina ' + data.pageNumber, pageWidth - margin - 20, pageHeight - 10);
+            }
+        });
+
+        // --- LEYENDA DE SUMATORIAS AL FINAL ---
+        const finalY = doc.lastAutoTable.finalY + 10;
+
+        // Calcular sumatorias
+        const totalFacturado = datosBusquedaMaracaibo.reduce((sum, r) => sum + (parseFloat(r.monto_factura) || 0), 0);
+        const totalDepositado = datosBusquedaMaracaibo.reduce((sum, r) => sum + (parseFloat(r.monto_depositados) || 0), 0);
+        const totalDeuda = datosBusquedaMaracaibo.reduce((sum, r) => sum + (parseFloat(r.deuda) || 0), 0);
+
+        // Verificar si hay espacio suficiente, si no, agregar nueva pagina
+        if (finalY + 50 > pageHeight - 20) {
+            doc.addPage();
+            currentY = 20;
+        } else {
+            currentY = finalY;
+        }
+
+        // Fondo del resumen (mismo ancho que la tabla)
+        const resumenHeight = 42;
+        doc.setFillColor(26, 54, 93);
+        doc.rect(margin, currentY, contentWidth, resumenHeight, 'F');
+
+        // Titulo del resumen centrado
+        doc.setFontSize(13);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        const tituloResumen = 'TOTALES DEL REPORTE';
+        const tituloResumenWidth = doc.getTextWidth(tituloResumen);
+        doc.text(tituloResumen, (pageWidth - tituloResumenWidth) / 2, currentY + 8);
+
+        // Linea separadora
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.3);
+        doc.line(margin + 5, currentY + 12, pageWidth - margin - 5, currentY + 12);
+
+        // Tres columnas de sumatorias distribuidas equitativamente
+        const colWidth = contentWidth / 3;
+        const col1X = margin + 10;
+        const col2X = margin + colWidth + 10;
+        const col3X = margin + (colWidth * 2) + 10;
+
+        // Etiquetas
+        doc.setFontSize(9);
+        doc.setTextColor(200, 200, 200);
+        doc.setFont('helvetica', 'normal');
+        doc.text('TOTAL MONTO FACTURADO', col1X, currentY + 20);
+        doc.text('TOTAL DEPOSITADO', col2X, currentY + 20);
+        doc.text('TOTAL DEUDA PENDIENTE', col3X, currentY + 20);
+
+        // Valores
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(251, 191, 36); // Amarillo
+        doc.text(formatCurrency(totalFacturado), col1X, currentY + 30);
+
+        doc.setTextColor(74, 222, 128); // Verde
+        doc.text(formatCurrency(totalDepositado), col2X, currentY + 30);
+
+        doc.setTextColor(248, 113, 113); // Rojo
+        doc.text(formatCurrency(totalDeuda), col3X, currentY + 30);
+
+        // Total clientes centrado
+        doc.setFontSize(9);
+        doc.setTextColor(200, 200, 200);
+        doc.setFont('helvetica', 'normal');
+        const clientesTexto = datosBusquedaMaracaibo.length + ' clientes en el reporte';
+        const clientesWidth = doc.getTextWidth(clientesTexto);
+        doc.text(clientesTexto, (pageWidth - clientesWidth) / 2, currentY + 38);
+
+        doc.save('busqueda_maracaibo_' + new Date().toISOString().split('T')[0] + '.pdf');
+        mostrarAlerta('PDF exportado correctamente', 'success');
+    }
+
+    generarPDF().catch(err => {
+        console.error('Error generando PDF:', err);
+        mostrarAlerta('Error al generar PDF: ' + err.message, 'error');
+    });
+}
+
+function volverMenuPrincipalMaracaibo() {
+    document.getElementById('tmb-base-datos').style.display = 'none';
+    document.getElementById('tmb-conciliaciones').style.display = 'none';
+    document.getElementById('tmb-busqueda').style.display = 'none';
+    document.getElementById('tmb-menu-principal').style.display = 'grid';
+}
