@@ -3636,40 +3636,62 @@ async function generarBusquedaMaracaibo() {
             nombre_cliente: document.getElementById('busqmb-nombre').value || null
         };
 
-        const response = await fetch('/api/reportes/maracaibo', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify(filtros)
-        });
+        // Usar endpoint de reportes de Maracaibo (o crear uno genérico)
+        const response = await fetch('/api/tienda-maracaibo');
+        const allData = await response.json();
 
-        const data = await response.json();
+        // Filtrar datos localmente
+        let datosFiltrados = allData;
 
-        if (!data.exito) {
-            throw new Error(data.error || 'Error al generar reporte');
+        if (filtros.fecha_desde) {
+            datosFiltrados = datosFiltrados.filter(d => d.fecha_factura >= filtros.fecha_desde);
+        }
+        if (filtros.fecha_hasta) {
+            datosFiltrados = datosFiltrados.filter(d => d.fecha_factura <= filtros.fecha_hasta);
+        }
+        if (filtros.nombre_cliente) {
+            const nombre = filtros.nombre_cliente.toLowerCase();
+            datosFiltrados = datosFiltrados.filter(d => d.nombre_apellido && d.nombre_apellido.toLowerCase().includes(nombre));
+        }
+        if (filtros.monto_min) {
+            datosFiltrados = datosFiltrados.filter(d => (parseFloat(d.deuda) || 0) >= parseFloat(filtros.monto_min));
+        }
+        if (filtros.monto_max) {
+            datosFiltrados = datosFiltrados.filter(d => (parseFloat(d.deuda) || 0) <= parseFloat(filtros.monto_max));
         }
 
-        datosBusquedaMaracaibo = data.datos || [];
-        resumenBusquedaMaracaibo = data.resumen || {};
+        // Calcular resumen
+        const totalClientes = datosFiltrados.length;
+        const totalDeuda = datosFiltrados.reduce((s, d) => s + (parseFloat(d.deuda) || 0), 0);
+        const totalDepositado = datosFiltrados.reduce((s, d) => s + (parseFloat(d.monto_depositados) || 0), 0);
+        const clientesMora = datosFiltrados.filter(d => (parseFloat(d.deuda) || 0) > 0).length;
+        const promedioDeuda = totalClientes > 0 ? totalDeuda / totalClientes : 0;
+
+        datosBusquedaMaracaibo = datosFiltrados;
+        resumenBusquedaMaracaibo = {
+            total_clientes: totalClientes,
+            total_deuda: totalDeuda,
+            total_depositado: totalDepositado,
+            clientes_mora: clientesMora,
+            promedio_deuda: promedioDeuda
+        };
 
         // Mostrar resumen
         document.getElementById('busqmb-resumen').style.display = 'grid';
-        document.getElementById('busqmb-res-total').textContent = formatNumber(resumenBusquedaMaracaibo.total_clientes || 0);
-        document.getElementById('busqmb-res-deuda').textContent = formatCurrency(resumenBusquedaMaracaibo.total_deuda || 0);
-        document.getElementById('busqmb-res-pagado').textContent = formatCurrency(resumenBusquedaMaracaibo.total_depositado || 0);
-        document.getElementById('busqmb-res-mora').textContent = formatNumber(resumenBusquedaMaracaibo.clientes_mora || 0);
-        document.getElementById('busqmb-res-promedio').textContent = formatCurrency(resumenBusquedaMaracaibo.promedio_deuda || 0);
+        document.getElementById('busqmb-res-total').textContent = formatNumber(totalClientes);
+        document.getElementById('busqmb-res-deuda').textContent = formatCurrency(totalDeuda);
+        document.getElementById('busqmb-res-pagado').textContent = formatCurrency(totalDepositado);
+        document.getElementById('busqmb-res-mora').textContent = formatNumber(clientesMora);
+        document.getElementById('busqmb-res-promedio').textContent = formatCurrency(promedioDeuda);
 
         // Mostrar tabla
         document.getElementById('busqmb-tabla-container').style.display = 'block';
-        document.getElementById('busqmb-contador').textContent = datosBusquedaMaracaibo.length + ' registros';
+        document.getElementById('busqmb-contador').textContent = datosFiltrados.length + ' registros';
 
         // Inicializar paginación
         paginaBusquedaMB = 1;
         registrosPorPaginaBusquedaMB = 10;
-        totalPaginasBusquedaMB = Math.ceil(datosBusquedaMaracaibo.length / registrosPorPaginaBusquedaMB) || 1;
+        totalPaginasBusquedaMB = Math.ceil(datosFiltrados.length / registrosPorPaginaBusquedaMB) || 1;
 
         renderizarTablaBusquedaMB();
 
@@ -3680,7 +3702,7 @@ async function generarBusquedaMaracaibo() {
         // Mostrar exportar
         document.getElementById('busqmb-exportar').style.display = 'block';
 
-        mostrarAlerta('Busqueda generada: ' + data.total + ' registros', 'success');
+        mostrarAlerta('Busqueda generada: ' + datosFiltrados.length + ' registros', 'success');
 
     } catch (e) {
         console.error('Error:', e);
@@ -3689,6 +3711,7 @@ async function generarBusquedaMaracaibo() {
         showLoading(false);
     }
 }
+
 function calcularEstadoBusquedaMB(row) {
     const deuda = parseFloat(row.deuda) || 0;
     const depositado = parseFloat(row.monto_depositados) || 0;

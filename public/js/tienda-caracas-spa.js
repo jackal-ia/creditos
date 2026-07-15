@@ -615,8 +615,11 @@ function createModalElement() {
 }
 
 function fillFormData(item) {
+    const modal = document.getElementById('modal-editar-cliente');
+    if (!modal) return;
+
     const setVal = (id, val) => {
-        const el = document.getElementById(id);
+        const el = modal.querySelector('#' + id);
         if (el) el.value = val || '';
     };
 
@@ -650,7 +653,7 @@ function fillFormData(item) {
     const disabledAttr = isAdminUser ? '' : 'disabled';
 
     // Generar campos de cuotas - SOLO las que tienen datos en la BD
-    const container = document.getElementById('edit-cuotas-container');
+    const container = modal.querySelector('#edit-cuotas-container');
     if (container) {
         let html = '';
         let cuotasMostradas = 0;
@@ -769,8 +772,8 @@ function fillFormData(item) {
 
     // Generar checklist de cuotas para eliminar (SOLO ADMIN y SOLO si hay cuotas)
     if (isAdminUser) {
-        const eliminarSection = document.getElementById('eliminar-cuotas-section');
-        const eliminarList = document.getElementById('eliminar-cuotas-list');
+        const eliminarSection = modal.querySelector('#eliminar-cuotas-section');
+        const eliminarList = modal.querySelector('#eliminar-cuotas-list');
 
         if (eliminarSection && eliminarList) {
             let checkboxesHtml = '';
@@ -814,7 +817,10 @@ function fillFormData(item) {
 
 function closeModal() {
     const modal = document.getElementById('modal-editar-cliente');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+        modal.remove(); // DESTRUIR del DOM para evitar conflictos con otras tiendas
+    }
     currentEditId = null;
     currentEditItem = null;
 }

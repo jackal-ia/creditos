@@ -1,12 +1,5 @@
-// ============================================================
-// TIENDA MARACAY - MÓDULO DE GESTIÓN
-// Envuelto en IIFE para aislar variables y evitar colisiones con Caracas
-// ============================================================
-(function() {
-    'use strict';
-
 /**
- * TIENDA MARACAY - MÓDULO DE GESTIÓN (Versión SPA - CORREGIDO)
+ * TIENDA CARACAS - MÓDULO DE GESTIÓN (Versión SPA - CORREGIDO)
  * 
  * REGLAS DE NEGOCIO:
  * - Cuotas: muestra cuotas pagadas reales
@@ -25,30 +18,30 @@ const API_BASE_URL = window.location.origin + '/api';
 const ITEMS_PER_PAGE_DEFAULT = 25;
 
 // ==================== ESTADO ====================
-let allDataM = [];
-let filteredDataM = [];
-let currentPageM = 1;
-let itemsPerPageM = ITEMS_PER_PAGE_DEFAULT;
-let currentFilterM = 'all';
-let isInitializedM = false;
-let currentEditIdM = null;
-let currentEditItemM = null;
+let allData = [];
+let filteredData = [];
+let currentPage = 1;
+let itemsPerPage = ITEMS_PER_PAGE_DEFAULT;
+let currentFilter = 'all';
+let isInitialized = false;
+let currentEditId = null;
+let currentEditItem = null;
 
 // ==================== INICIALIZACIÓN ====================
-function initTiendaMaracay() {
-    if (isInitializedM) {
-        console.log('Tienda Maracay ya inicializado');
+function initTiendaCaracas() {
+    if (isInitialized) {
+        console.log('Tienda Caracas ya inicializado');
         return;
     }
 
-    console.log('🚀 Tienda Maracay - Inicializando módulo');
+    console.log('🚀 Tienda Caracas - Inicializando módulo');
 
     // Cargar datos
     loadData().then(() => {
-        updateSummaryM();
-        renderTableM();
-        updateFilterCountsM();
-        isInitializedM = true;
+        updateSummary();
+        renderTable();
+        updateFilterCounts();
+        isInitialized = true;
     });
 }
 
@@ -57,24 +50,24 @@ async function loadData() {
     showLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/tienda-maracay`);
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas`);
 
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
 
-        allDataM = await response.json();
-        allDataM = allDataM.map(item => processItemData(item));
-        filteredDataM = [...allDataM];
+        allData = await response.json();
+        allData = allData.map(item => processItemData(item));
+        filteredData = [...allData];
 
-        console.log(`✅ ${allDataM.length} registros cargados`);
+        console.log(`✅ ${allData.length} registros cargados`);
 
     } catch (error) {
         console.warn('⚠️ No se pudo conectar al backend:', error);
         console.log('📦 Usando datos de ejemplo...');
 
-        allDataM = getSampleData().map(item => processItemData(item));
-        filteredDataM = [...allDataM];
+        allData = getSampleData().map(item => processItemData(item));
+        filteredData = [...allData];
     }
 
     showLoading(false);
@@ -175,36 +168,36 @@ function getSampleData() {
 }
 
 // ==================== FILTROS RÁPIDOS ====================
-function applyQuickFilterM(filter) {
-    currentFilterM = filter;
+function applyQuickFilter(filter) {
+    currentFilter = filter;
 
-    document.querySelectorAll('#contentMaracay .filter-btn').forEach(btn => {
+    document.querySelectorAll('#contentClientes .filter-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    const activeBtn = document.querySelector(`#contentMaracay [data-filter="${filter}"]`);
+    const activeBtn = document.querySelector(`#contentClientes [data-filter="${filter}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    applyFiltersM();
+    applyFilters();
 }
 
 // ==================== APLICAR FILTROS ====================
-function applyFiltersM() {
-    const searchGeneral = document.getElementById('search-general-m')?.value.toLowerCase().trim() || '';
-    const searchFactura = document.getElementById('search-factura-m')?.value.trim() || '';
-    const searchCedula = document.getElementById('search-cedula-m')?.value.trim() || '';
-    const fechaDesde = document.getElementById('fecha-desde-m')?.value || '';
-    const fechaHasta = document.getElementById('fecha-hasta-m')?.value || '';
-    const montoMin = parseFloat(document.getElementById('monto-min-m')?.value) || 0;
-    const montoMax = parseFloat(document.getElementById('monto-max-m')?.value) || Infinity;
+function applyFilters() {
+    const searchGeneral = document.getElementById('search-general')?.value.toLowerCase().trim() || '';
+    const searchFactura = document.getElementById('search-factura')?.value.trim() || '';
+    const searchCedula = document.getElementById('search-cedula')?.value.trim() || '';
+    const fechaDesde = document.getElementById('fecha-desde')?.value || '';
+    const fechaHasta = document.getElementById('fecha-hasta')?.value || '';
+    const montoMin = parseFloat(document.getElementById('monto-min')?.value) || 0;
+    const montoMax = parseFloat(document.getElementById('monto-max')?.value) || Infinity;
 
-    filteredDataM = allDataM.filter(item => {
-        if (currentFilterM !== 'all') {
+    filteredData = allData.filter(item => {
+        if (currentFilter !== 'all') {
             const deuda = item.deuda || 0;
-            if (currentFilterM === 'deudores' && !(deuda > 0)) return false;
-            if (currentFilterM === 'incompletos' && !(item.cuotas_pagadas > 0 && item.cuotas_pagadas < item.total_cuotas)) return false;
-            if (currentFilterM === 'aldia' && !(deuda <= 0)) return false;
-            if (currentFilterM === 'abiertas' && !(deuda > 0)) return false;
-            if (currentFilterM === 'canceladas' && !(deuda <= 0)) return false;
+            if (currentFilter === 'deudores' && !(deuda > 0)) return false;
+            if (currentFilter === 'incompletos' && !(item.cuotas_pagadas > 0 && item.cuotas_pagadas < item.total_cuotas)) return false;
+            if (currentFilter === 'aldia' && !(deuda <= 0)) return false;
+            if (currentFilter === 'abiertas' && !(deuda > 0)) return false;
+            if (currentFilter === 'canceladas' && !(deuda <= 0)) return false;
         }
 
         if (searchGeneral && !item.nombre_apellido?.toLowerCase().includes(searchGeneral)) return false;
@@ -218,20 +211,20 @@ function applyFiltersM() {
         return true;
     });
 
-    currentPageM = 1;
-    updateSummaryM();
-    renderTableM();
+    currentPage = 1;
+    updateSummary();
+    renderTable();
 }
 
 // ==================== LIMPIAR FILTROS ====================
-function clearFiltersM() {
-    const sg = document.getElementById('search-general-m');
-    const sf = document.getElementById('search-factura-m');
-    const sc = document.getElementById('search-cedula-m');
-    const fd = document.getElementById('fecha-desde-m');
-    const fh = document.getElementById('fecha-hasta-m');
-    const mm = document.getElementById('monto-min-m');
-    const mx = document.getElementById('monto-max-m');
+function clearFilters() {
+    const sg = document.getElementById('search-general');
+    const sf = document.getElementById('search-factura');
+    const sc = document.getElementById('search-cedula');
+    const fd = document.getElementById('fecha-desde');
+    const fh = document.getElementById('fecha-hasta');
+    const mm = document.getElementById('monto-min');
+    const mx = document.getElementById('monto-max');
 
     if (sg) sg.value = '';
     if (sf) sf.value = '';
@@ -241,19 +234,19 @@ function clearFiltersM() {
     if (mm) mm.value = '';
     if (mx) mx.value = '';
 
-    currentFilterM = 'all';
-    document.querySelectorAll('#contentMaracay .filter-btn').forEach(btn => btn.classList.remove('active'));
-    const allBtn = document.querySelector('#contentMaracay [data-filter="all"]');
+    currentFilter = 'all';
+    document.querySelectorAll('#contentClientes .filter-btn').forEach(btn => btn.classList.remove('active'));
+    const allBtn = document.querySelector('#contentClientes [data-filter="all"]');
     if (allBtn) allBtn.classList.add('active');
 
-    applyFiltersM();
+    applyFilters();
 }
 
 // ==================== DEBOUNCE ====================
 let debounceTimer;
-function debouncedFilterM() {
+function debouncedFilter() {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(applyFiltersM, 300);
+    debounceTimer = setTimeout(applyFilters, 300);
 }
 
 // ==================== DETERMINAR ESTADO ====================
@@ -278,35 +271,35 @@ function getEstado(item) {
 }
 
 // ==================== ACTUALIZAR RESUMEN ====================
-function updateSummaryM() {
-    const totalClientes = filteredDataM.length;
-    const totalFacturado = filteredDataM.reduce((sum, item) => sum + (item.monto_factura || 0), 0);
-    const totalDeuda = filteredDataM.reduce((sum, item) => sum + (item.deuda || 0), 0);
-    const totalRecaudado = filteredDataM.reduce((sum, item) => sum + (item.monto_depositados || 0), 0);
+function updateSummary() {
+    const totalClientes = filteredData.length;
+    const totalFacturado = filteredData.reduce((sum, item) => sum + (item.monto_factura || 0), 0);
+    const totalDeuda = filteredData.reduce((sum, item) => sum + (item.deuda || 0), 0);
+    const totalRecaudado = filteredData.reduce((sum, item) => sum + (item.monto_depositados || 0), 0);
 
     const setText = (id, value) => {
         const el = document.getElementById(id);
         if (el) el.textContent = value;
     };
 
-    setText('total-clientes-m', totalClientes);
-    setText('total-facturado-m', formatCurrency(totalFacturado));
-    setText('total-deuda-m', formatCurrency(totalDeuda));
-    setText('total-recaudado-m', formatCurrency(totalRecaudado));
+    setText('total-clientes', totalClientes);
+    setText('total-facturado', formatCurrency(totalFacturado));
+    setText('total-deuda', formatCurrency(totalDeuda));
+    setText('total-recaudado', formatCurrency(totalRecaudado));
 }
 
 // ==================== ACTUALIZAR CONTADORES ====================
-function updateFilterCountsM() {
+function updateFilterCounts() {
     const counts = {
-        all: allDataM.length,
-        deudores: allDataM.filter(item => (item.deuda || 0) > 0).length,
-        incompletos: allDataM.filter(item => {
+        all: allData.length,
+        deudores: allData.filter(item => (item.deuda || 0) > 0).length,
+        incompletos: allData.filter(item => {
             const cp = item.cuotas_pagadas || 0;
             return cp > 0 && cp < (item.total_cuotas || 9);
         }).length,
-        aldia: allDataM.filter(item => (item.deuda || 0) <= 0).length,
-        abiertas: allDataM.filter(item => (item.deuda || 0) > 0).length,
-        canceladas: allDataM.filter(item => (item.deuda || 0) <= 0).length
+        aldia: allData.filter(item => (item.deuda || 0) <= 0).length,
+        abiertas: allData.filter(item => (item.deuda || 0) > 0).length,
+        canceladas: allData.filter(item => (item.deuda || 0) <= 0).length
     };
 
     const setCount = (id, value) => {
@@ -314,22 +307,22 @@ function updateFilterCountsM() {
         if (el) el.textContent = value;
     };
 
-    setCount('count-all-m', counts.all);
-    setCount('count-deudores-m', counts.deudores);
-    setCount('count-incompletos-m', counts.incompletos);
-    setCount('count-aldia-m', counts.aldia);
-    setCount('count-abiertas-m', counts.abiertas);
-    setCount('count-canceladas-m', counts.canceladas);
+    setCount('count-all', counts.all);
+    setCount('count-deudores', counts.deudores);
+    setCount('count-incompletos', counts.incompletos);
+    setCount('count-aldia', counts.aldia);
+    setCount('count-abiertas', counts.abiertas);
+    setCount('count-canceladas', counts.canceladas);
 }
 
 // ==================== RENDERIZAR TABLA ====================
-function renderTableM() {
-    const tbody = document.getElementById('tabla-body-m');
+function renderTable() {
+    const tbody = document.getElementById('tabla-body');
     if (!tbody) return;
 
-    const start = (currentPageM - 1) * itemsPerPageM;
-    const end = start + itemsPerPageM;
-    const pageData = filteredDataM.slice(start, end);
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const pageData = filteredData.slice(start, end);
 
     if (pageData.length === 0) {
         tbody.innerHTML = `
@@ -341,13 +334,13 @@ function renderTableM() {
             </tr>
         `;
     } else {
-        tbody.innerHTML = pageData.map(item => createRowHTMLM(item)).join('');
+        tbody.innerHTML = pageData.map(item => createRowHTML(item)).join('');
     }
 
-    updatePaginationM();
+    updatePagination();
 }
 
-function createRowHTMLM(item) {
+function createRowHTML(item) {
     const estado = getEstado(item);
     const cuotasPagadas = item.cuotas_pagadas || 0;
     const totalCuotas = item.total_cuotas || 9;
@@ -403,10 +396,10 @@ function createRowHTMLM(item) {
             </td>
             <td>
                 <div class="acciones">
-                    <button class="btn-action btn-view" onclick="verDetalleM(${item.id})" title="Ver y editar">
+                    <button class="btn-action btn-view" onclick="verDetalle(${item.id})" title="Ver y editar">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn-action btn-delete" onclick="confirmarEliminarClienteM(${item.id})" title="Eliminar registro">
+                    <button class="btn-action btn-delete" onclick="confirmarEliminarCliente(${item.id})" title="Eliminar registro">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -416,8 +409,8 @@ function createRowHTMLM(item) {
 }
 
 // ==================== PAGINACIÓN ====================
-function updatePaginationM() {
-    const totalPages = getTotalPagesM();
+function updatePagination() {
+    const totalPages = getTotalPages();
 
     const setText = (id, value) => {
         const el = document.getElementById(id);
@@ -429,44 +422,44 @@ function updatePaginationM() {
         if (el) el.disabled = disabled;
     };
 
-    setText('pagina-info-m', `Página ${currentPageM} de ${totalPages}`);
-    setDisabled('btn-primero-m', currentPageM === 1);
-    setDisabled('btn-anterior-m', currentPageM === 1);
-    setDisabled('btn-siguiente-m', currentPageM >= totalPages);
-    setDisabled('btn-ultimo-m', currentPageM >= totalPages);
+    setText('pagina-info', `Página ${currentPage} de ${totalPages}`);
+    setDisabled('btn-primero', currentPage === 1);
+    setDisabled('btn-anterior', currentPage === 1);
+    setDisabled('btn-siguiente', currentPage >= totalPages);
+    setDisabled('btn-ultimo', currentPage >= totalPages);
 }
 
-function getTotalPagesM() {
-    return Math.ceil(filteredDataM.length / itemsPerPageM) || 1;
+function getTotalPages() {
+    return Math.ceil(filteredData.length / itemsPerPage) || 1;
 }
 
-function goToPageM(page) {
-    const totalPages = getTotalPagesM();
+function goToPage(page) {
+    const totalPages = getTotalPages();
     if (page < 1 || page > totalPages) return;
 
-    currentPageM = page;
-    renderTableM();
+    currentPage = page;
+    renderTable();
 
     const tableContainer = document.querySelector('#contentClientes .table-container');
     if (tableContainer) tableContainer.scrollIntoView({ behavior: 'smooth' });
 }
 
-function changeItemsPerPageM() {
-    const select = document.getElementById('registros-por-pagina-m');
+function changeItemsPerPage() {
+    const select = document.getElementById('registros-por-pagina');
     if (select) {
-        itemsPerPageM = parseInt(select.value);
-        currentPageM = 1;
-        renderTableM();
+        itemsPerPage = parseInt(select.value);
+        currentPage = 1;
+        renderTable();
     }
 }
 
 // ==================== MODAL EDICIÓN ====================
-function verDetalleM(id) {
-    const item = allDataM.find(d => d.id === id);
+function verDetalle(id) {
+    const item = allData.find(d => d.id === id);
     if (!item) return;
 
-    currentEditIdM = id;
-    currentEditItemM = item;
+    currentEditId = id;
+    currentEditItem = item;
 
     // Eliminar modal anterior si existe (para recrear con el rol correcto)
     const modalAnterior = document.getElementById('modal-editar-cliente');
@@ -475,11 +468,11 @@ function verDetalleM(id) {
     }
 
     // Crear el modal dinámicamente con el rol actual
-    const modal = createModalElementM();
+    const modal = createModalElement();
     document.body.appendChild(modal);
 
     // Llenar el formulario
-    fillFormDataM(item);
+    fillFormData(item);
 
     // Mostrar modal
     modal.style.display = 'flex';
@@ -511,7 +504,7 @@ function isOperador() {
 }
 
 // ==================== MODAL ====================
-function createModalElementM() {
+function createModalElement() {
     const modal = document.createElement('div');
     modal.id = 'modal-editar-cliente';
     modal.className = 'modal';
@@ -530,10 +523,10 @@ function createModalElementM() {
         <div style="background:white; border-radius:8px; width:90%; max-width:800px; max-height:90vh; overflow-y:auto; padding:25px; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
                 <h3 style="color:#1a3a5c; margin:0;"><i class="fas fa-user"></i> ${modalTitle}</h3>
-                <button onclick="closeModalM()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#666;">&times;</button>
+                <button onclick="closeModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#666;">&times;</button>
             </div>
 
-            <form id="form-editar-cliente" onsubmit="event.preventDefault(); ${isAdminUser ? 'guardarCambiosM()' : 'closeModalM()'};">
+            <form id="form-editar-cliente" onsubmit="event.preventDefault(); ${isAdminUser ? 'guardarCambios()' : 'closeModal()'};">
                 <!-- Información Principal - SOLO LECTURA (excepto Teléfono) -->
                 <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
                     <h4 style="color:#1a3a5c; font-size:14px; margin-bottom:12px;"><i class="fas fa-id-card"></i> Información Principal</h4>
@@ -599,9 +592,9 @@ function createModalElementM() {
                     <h4 style="color:#c53030; font-size:14px; margin-bottom:12px;"><i class="fas fa-trash-alt"></i> Eliminar Cuotas</h4>
                     <p style="font-size:12px; color:#718096; margin-bottom:12px;">Seleccione las cuotas que desea eliminar permanentemente:</p>
                     <div id="eliminar-cuotas-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
-                        <!-- Los checkboxes se generan dinámicamente en fillFormDataM -->
+                        <!-- Los checkboxes se generan dinámicamente en fillFormData -->
                     </div>
-                    <button type="button" onclick="confirmarEliminarCuotasM()" style="padding:10px 20px; background:linear-gradient(135deg, #e53e3e, #c53030); color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">
+                    <button type="button" onclick="confirmarEliminarCuotas()" style="padding:10px 20px; background:linear-gradient(135deg, #e53e3e, #c53030); color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">
                         <i class="fas fa-trash-alt"></i> Borrar Cuotas Seleccionadas
                     </button>
                 </div>
@@ -609,7 +602,7 @@ function createModalElementM() {
 
                 <!-- Botones -->
                 <div style="display:flex; justify-content:flex-end; gap:12px; padding-top:15px; border-top:1px solid #eee;">
-                    <button type="button" onclick="closeModalM()" style="padding:10px 20px; background:#f0f0f0; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
+                    <button type="button" onclick="closeModal()" style="padding:10px 20px; background:#f0f0f0; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
                         <i class="fas fa-times"></i> Cerrar
                     </button>
                     ${saveButton}
@@ -621,12 +614,9 @@ function createModalElementM() {
     return modal;
 }
 
-function fillFormDataM(item) {
-    const modal = document.getElementById('modal-editar-cliente');
-    if (!modal) return;
-
+function fillFormData(item) {
     const setVal = (id, val) => {
-        const el = modal.querySelector('#' + id);
+        const el = document.getElementById(id);
         if (el) el.value = val || '';
     };
 
@@ -660,7 +650,7 @@ function fillFormDataM(item) {
     const disabledAttr = isAdminUser ? '' : 'disabled';
 
     // Generar campos de cuotas - SOLO las que tienen datos en la BD
-    const container = modal.querySelector('#edit-cuotas-container');
+    const container = document.getElementById('edit-cuotas-container');
     if (container) {
         let html = '';
         let cuotasMostradas = 0;
@@ -779,8 +769,8 @@ function fillFormDataM(item) {
 
     // Generar checklist de cuotas para eliminar (SOLO ADMIN y SOLO si hay cuotas)
     if (isAdminUser) {
-        const eliminarSection = modal.querySelector('#eliminar-cuotas-section');
-        const eliminarList = modal.querySelector('#eliminar-cuotas-list');
+        const eliminarSection = document.getElementById('eliminar-cuotas-section');
+        const eliminarList = document.getElementById('eliminar-cuotas-list');
 
         if (eliminarSection && eliminarList) {
             let checkboxesHtml = '';
@@ -822,18 +812,15 @@ function fillFormDataM(item) {
     }
 }
 
-function closeModalM() {
+function closeModal() {
     const modal = document.getElementById('modal-editar-cliente');
-    if (modal) {
-        modal.style.display = 'none';
-        modal.remove(); // DESTRUIR del DOM para evitar conflictos con otras tiendas
-    }
-    currentEditIdM = null;
-    currentEditItemM = null;
+    if (modal) modal.style.display = 'none';
+    currentEditId = null;
+    currentEditItem = null;
 }
 
-async function guardarCambiosM() {
-    if (!currentEditIdM || !currentEditItemM) return;
+async function guardarCambios() {
+    if (!currentEditId || !currentEditItem) return;
 
     const getVal = (id) => {
         const el = document.getElementById(id);
@@ -843,26 +830,26 @@ async function guardarCambiosM() {
     // Aseguramos conservar todas las propiedades estructurales puras del item original
     // para que no se altere el número de factura ni el monto por configuraciones regionales remotas.
     const data = {
-        id: currentEditItemM.id,
-        numero: currentEditItemM.numero,
-        nro_factura: currentEditItemM.nro_factura, 
-        nombre_apellido: currentEditItemM.nombre_apellido,
-        cedula: currentEditItemM.cedula,
+        id: currentEditItem.id,
+        numero: currentEditItem.numero,
+        nro_factura: currentEditItem.nro_factura, 
+        nombre_apellido: currentEditItem.nombre_apellido,
+        cedula: currentEditItem.cedula,
         telefono: getVal('edit-telefono') ? getVal('edit-telefono').trim() : '',
-        fecha_factura: currentEditItemM.fecha_factura || null,
+        fecha_factura: currentEditItem.fecha_factura || null,
         // CRITICAL FIX: monto_factura debe venir del item original, NO del input formateado
         // El input usa formatNumber() que convierte 39035.88 → "39.035,88"
         // Si se lee del input, parseNumberES("39.035,88") → 39.035 (¡pierde 88% del valor!)
-        monto_factura: typeof currentEditItemM.monto_factura === 'number' 
-            ? currentEditItemM.monto_factura 
-            : parseNumberES(currentEditItemM.monto_factura)
+        monto_factura: typeof currentEditItem.monto_factura === 'number' 
+            ? currentEditItem.monto_factura 
+            : parseNumberES(currentEditItem.monto_factura)
     };
 
     let cuotasEditadas = false;
     let montoDepositado = 0;
 
     for (let i = 1; i <= 11; i++) {
-        const cuotaOriginal = parseNumberES(currentEditItemM[`cuota_${i}`]);
+        const cuotaOriginal = parseNumberES(currentEditItem[`cuota_${i}`]);
 
         if (cuotaOriginal > 0) {
             // Limpiamos los inputs de cuotas con parseNumberES por seguridad
@@ -871,9 +858,9 @@ async function guardarCambiosM() {
             const fechaInput = getVal(`edit-fecha-${i}`);
             const tasaInput = parseNumberES(getVal(`edit-tasa-${i}`));
 
-            const refOriginal = currentEditItemM[`ref_cuota_${i}`] || '';
-            const fechaOriginal = currentEditItemM[`fecha_cuota_${i}`] || '';
-            const tasaOriginal = parseNumberES(currentEditItemM[`tasa_cuota_${i}`]);
+            const refOriginal = currentEditItem[`ref_cuota_${i}`] || '';
+            const fechaOriginal = currentEditItem[`fecha_cuota_${i}`] || '';
+            const tasaOriginal = parseNumberES(currentEditItem[`tasa_cuota_${i}`]);
 
             if (cuotaInput !== cuotaOriginal || 
                 refInput !== refOriginal || 
@@ -894,8 +881,8 @@ async function guardarCambiosM() {
     }
 
     if (!cuotasEditadas) {
-        data.monto_depositados = parseNumberES(currentEditItemM.monto_depositados);
-        data.deuda = parseNumberES(currentEditItemM.deuda);
+        data.monto_depositados = parseNumberES(currentEditItem.monto_depositados);
+        data.deuda = parseNumberES(currentEditItem.deuda);
     } else {
         data.monto_depositados = montoDepositado;
         data.deuda = data.monto_factura - montoDepositado;
@@ -908,7 +895,7 @@ async function guardarCambiosM() {
     try {
         showLoading(true);
 
-        const response = await fetch(`${API_BASE_URL}/tienda-maracay/${currentEditIdM}`, {
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas/${currentEditId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -920,16 +907,16 @@ async function guardarCambiosM() {
 
         const result = await response.json();
 
-        const index = allDataM.findIndex(d => d.id === currentEditIdM);
+        const index = allData.findIndex(d => d.id === currentEditId);
         if (index !== -1) {
             // Guardamos el objeto completamente procesado e inmunizado localmente
-            allDataM[index] = processItemData({...allDataM[index], ...data});
+            allData[index] = processItemData({...allData[index], ...data});
         }
 
-        applyFiltersM();
-        updateSummaryM();
-        updateFilterCountsM();
-        closeModalM();
+        applyFilters();
+        updateSummary();
+        updateFilterCounts();
+        closeModal();
 
         alert('✅ Cambios guardados exitosamente');
 
@@ -941,13 +928,13 @@ async function guardarCambiosM() {
     }
 }
 
-function editarClienteM(id) {
-    verDetalleM(id);
+function editarCliente(id) {
+    verDetalle(id);
 }
 
 // ==================== ELIMINAR CLIENTE ====================
-function confirmarEliminarClienteM(id) {
-    const item = allDataM.find(d => d.id === id);
+function confirmarEliminarCliente(id) {
+    const item = allData.find(d => d.id === id);
     if (!item) return;
 
     mostrarModalCorporativo(
@@ -966,18 +953,18 @@ function confirmarEliminarClienteM(id) {
                 texto: 'Sí, Eliminar',
                 estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #dc3545, #c53030); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
                 accion: () => {
-                    eliminarClienteM(id);
+                    eliminarCliente(id);
                 }
             }
         ]
     );
 }
 
-async function eliminarClienteM(id) {
+async function eliminarCliente(id) {
     showLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/tienda-maracay/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas/${id}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -1000,9 +987,9 @@ async function eliminarClienteM(id) {
                     accion: () => {
                         // Recargar datos
                         loadData().then(() => {
-                            updateSummaryM();
-                            renderTableM();
-                            updateFilterCountsM();
+                            updateSummary();
+                            renderTable();
+                            updateFilterCounts();
                         });
                     }
                 }]
@@ -1020,10 +1007,10 @@ async function eliminarClienteM(id) {
 }
 
 // ==================== EXPORTACIÓN ====================
-function exportToExcelM() {
+function exportToExcel() {
     const headers = ['N°', 'Factura', 'Nombre', 'Monto Factura (Bs)', 'Fecha Factura', 'Cédula', 'Cuotas Pagadas', 'Monto Depositado (Bs)', 'Deuda (Bs)', 'Estado'];
 
-    const rows = filteredDataM.map(item => [
+    const rows = filteredData.map(item => [
         item.numero, item.nro_factura, item.nombre_apellido,
         item.monto_factura, item.fecha_factura, item.cedula,
         item.cuotas_pagadas, item.monto_depositados, item.deuda,
@@ -1032,15 +1019,15 @@ function exportToExcelM() {
 
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell || ''}"`).join(',')).join('\n');
 
-    downloadFile(csv, 'tienda_maracay.csv', 'text/csv');
+    downloadFile(csv, 'tienda_caracas.csv', 'text/csv');
 }
 
-function exportToPDFM() {
+function exportToPDF() {
     alert('Exportación a PDF en desarrollo.\nUse Imprimir → Guardar como PDF.');
-    printTableM();
+    printTable();
 }
 
-function printTableM() {
+function printTable() {
     window.print();
 }
 
@@ -1092,25 +1079,25 @@ function showLoading(show) {
 }
 
 // ==================== NAVEGACIÓN MENÚ PRINCIPAL ====================
-function mostrarBaseDatosMaracay() {
-    const menu = document.getElementById('tm-menu-principal');
-    const baseDatos = document.getElementById('tm-base-datos');
-    const conciliaciones = document.getElementById('tm-conciliaciones');
+function mostrarBaseDatos() {
+    const menu = document.getElementById('tc-menu-principal');
+    const baseDatos = document.getElementById('tc-base-datos');
+    const conciliaciones = document.getElementById('tc-conciliaciones');
 
     if (menu) menu.style.display = 'none';
     if (conciliaciones) conciliaciones.style.display = 'none';
     if (baseDatos) {
         baseDatos.style.display = 'block';
         // SIEMPRE inicializar datos al entrar a base de datos
-        isInitializedM = false;
-        initTiendaMaracay();
+        isInitialized = false;
+        initTiendaCaracas();
     }
 }
 
-function mostrarMenuPrincipalMaracay() {
-    const menu = document.getElementById('tm-menu-principal');
-    const baseDatos = document.getElementById('tm-base-datos');
-    const conciliaciones = document.getElementById('tm-conciliaciones');
+function mostrarMenuPrincipal() {
+    const menu = document.getElementById('tc-menu-principal');
+    const baseDatos = document.getElementById('tc-base-datos');
+    const conciliaciones = document.getElementById('tc-conciliaciones');
 
     if (menu) menu.style.display = 'grid';
     if (baseDatos) baseDatos.style.display = 'none';
@@ -1120,8 +1107,8 @@ function mostrarMenuPrincipalMaracay() {
 
 // ==================== CONCILIACIONES BANCARIAS ====================
 // Variables de estado
-let conciliacionClienteActualM = null;
-let conciliacionTasaActualM = null;
+let conciliacionClienteActual = null;
+let conciliacionTasaActual = null;
 
 // ==================== MODAL CORPORATIVO ====================
 function mostrarModalCorporativo(titulo, mensaje, tipo, botones) {
@@ -1182,43 +1169,43 @@ function cerrarModalCorporativo() {
     if (modal) modal.style.display = 'none';
 }
 
-function volverABuscarFacturaM() {
-    document.getElementById('concm-resultado-encontrada').style.display = 'none';
-    document.getElementById('concm-resultado-nueva').style.display = 'none';
-    document.getElementById('concm-mensaje-inicial').style.display = 'block';
-    document.getElementById('concm-factura-buscar').value = '';
-    document.getElementById('concm-factura-buscar').focus();
-    conciliacionClienteActualM = null;
+function volverABuscarFactura() {
+    document.getElementById('conc-resultado-encontrada').style.display = 'none';
+    document.getElementById('conc-resultado-nueva').style.display = 'none';
+    document.getElementById('conc-mensaje-inicial').style.display = 'block';
+    document.getElementById('conc-factura-buscar').value = '';
+    document.getElementById('conc-factura-buscar').focus();
+    conciliacionClienteActual = null;
 }
 
 // ==================== NAVEGACIÓN ====================
-function mostrarConciliacionesMaracay() {
-    const menu = document.getElementById('tm-menu-principal');
-    const baseDatos = document.getElementById('tm-base-datos');
-    const conciliaciones = document.getElementById('tm-conciliaciones');
+function mostrarConciliaciones() {
+    const menu = document.getElementById('tc-menu-principal');
+    const baseDatos = document.getElementById('tc-base-datos');
+    const conciliaciones = document.getElementById('tc-conciliaciones');
 
     if (menu) menu.style.display = 'none';
     if (baseDatos) baseDatos.style.display = 'none';
     if (conciliaciones) {
         conciliaciones.style.display = 'block';
-        limpiarFormularioConciliacionM();
-        limpiarFormularioNuevaConciliacionM();
-        document.getElementById('concm-resultado-encontrada').style.display = 'none';
-        document.getElementById('concm-resultado-nueva').style.display = 'none';
-        document.getElementById('concm-mensaje-inicial').style.display = 'block';
-        document.getElementById('concm-factura-buscar').value = '';
-        document.getElementById('concm-factura-buscar').focus();
+        limpiarFormularioConciliacion();
+        limpiarFormularioNuevaConciliacion();
+        document.getElementById('conc-resultado-encontrada').style.display = 'none';
+        document.getElementById('conc-resultado-nueva').style.display = 'none';
+        document.getElementById('conc-mensaje-inicial').style.display = 'block';
+        document.getElementById('conc-factura-buscar').value = '';
+        document.getElementById('conc-factura-buscar').focus();
     }
 }
 
 // ==================== BUSCAR FACTURA ====================
-async function buscarFacturaConciliacionM() {
-    const nroFactura = document.getElementById('concm-factura-buscar').value.trim();
+async function buscarFacturaConciliacion() {
+    const nroFactura = document.getElementById('conc-factura-buscar').value.trim();
     if (!nroFactura) {
         mostrarModalCorporativo('Validación', 'Ingrese un número de factura', 'warning', [{
             texto: 'Aceptar',
             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
-            accion: () => document.getElementById('concm-factura-buscar').focus()
+            accion: () => document.getElementById('conc-factura-buscar').focus()
         }]);
         return;
     }
@@ -1226,20 +1213,20 @@ async function buscarFacturaConciliacionM() {
     showLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/tienda-maracay`);
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas`);
         if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
 
         const data = await response.json();
         const cliente = data.find(c => c.nro_factura === nroFactura);
 
-        document.getElementById('concm-mensaje-inicial').style.display = 'none';
+        document.getElementById('conc-mensaje-inicial').style.display = 'none';
 
         if (cliente) {
-            conciliacionClienteActualM = processItemData(cliente);
-            mostrarClienteEncontradoM(conciliacionClienteActualM);
+            conciliacionClienteActual = processItemData(cliente);
+            mostrarClienteEncontrado(conciliacionClienteActual);
         } else {
-            conciliacionClienteActualM = null;
-            mostrarFacturaNoEncontradaM(nroFactura);
+            conciliacionClienteActual = null;
+            mostrarFacturaNoEncontrada(nroFactura);
         }
 
     } catch (error) {
@@ -1251,19 +1238,19 @@ async function buscarFacturaConciliacionM() {
 }
 
 // ==================== MOSTRAR CLIENTE ENCONTRADO ====================
-function mostrarClienteEncontradoM(cliente) {
-    document.getElementById('concm-resultado-encontrada').style.display = 'block';
-    document.getElementById('concm-resultado-nueva').style.display = 'none';
+function mostrarClienteEncontrado(cliente) {
+    document.getElementById('conc-resultado-encontrada').style.display = 'block';
+    document.getElementById('conc-resultado-nueva').style.display = 'none';
 
-    document.getElementById('concm-info-factura').textContent = cliente.nro_factura || '-';
-    document.getElementById('concm-info-nombre').textContent = cliente.nombre_apellido || '-';
-    document.getElementById('concm-info-cedula').textContent = cliente.cedula || '-';
-    document.getElementById('concm-info-monto').textContent = formatCurrency(cliente.monto_factura);
-    document.getElementById('concm-info-deuda').textContent = formatCurrency(cliente.deuda);
-    document.getElementById('concm-info-cuotas').textContent = `${cliente.cuotas_pagadas || 0} de ${cliente.total_cuotas || 11}`;
+    document.getElementById('conc-info-factura').textContent = cliente.nro_factura || '-';
+    document.getElementById('conc-info-nombre').textContent = cliente.nombre_apellido || '-';
+    document.getElementById('conc-info-cedula').textContent = cliente.cedula || '-';
+    document.getElementById('conc-info-monto').textContent = formatCurrency(cliente.monto_factura);
+    document.getElementById('conc-info-deuda').textContent = formatCurrency(cliente.deuda);
+    document.getElementById('conc-info-cuotas').textContent = `${cliente.cuotas_pagadas || 0} de ${cliente.total_cuotas || 11}`;
 
     // Cargar historial de cuotas siempre (visible para info)
-    cargarHistorialCuotasM(cliente);
+    cargarHistorialCuotas(cliente);
 
     // Verificar si la deuda es 0 o menor
     const deuda = parseNumberES(cliente.deuda);
@@ -1279,8 +1266,8 @@ function mostrarClienteEncontradoM(cliente) {
                     estilo: 'padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;',
                     accion: () => {
                         // Ocultar todo y volver a búsqueda
-                        document.getElementById('concm-resultado-encontrada').style.display = 'none';
-                        volverABuscarFacturaM();
+                        document.getElementById('conc-resultado-encontrada').style.display = 'none';
+                        volverABuscarFactura();
                     }
                 },
                 {
@@ -1288,34 +1275,34 @@ function mostrarClienteEncontradoM(cliente) {
                     estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #28a745, #218838); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
                     accion: () => {
                         // Mostrar formulario para agregar cuota adicional
-                        mostrarFormularioCuotaM(cliente);
+                        mostrarFormularioCuota(cliente);
                     }
                 }
             ]
         );
         // Ocultar el formulario de cuota hasta que el usuario decida
-        ocultarFormularioCuotaM();
+        ocultarFormularioCuota();
     } else {
         // Deuda > 0, mostrar formulario normalmente
-        mostrarFormularioCuotaM(cliente);
+        mostrarFormularioCuota(cliente);
     }
 }
 
-function mostrarFormularioCuotaM(cliente) {
+function mostrarFormularioCuota(cliente) {
     const siguienteCuota = (cliente.cuotas_pagadas || 0) + 1;
-    document.getElementById('concm-cuota-numero').value = siguienteCuota > 11 ? 11 : siguienteCuota;
-    document.getElementById('concm-cuota-fecha').value = new Date().toISOString().split('T')[0];
-    limpiarFormularioConciliacionM();
-    obtenerTasaPorFechaConciliacionM();
+    document.getElementById('conc-cuota-numero').value = siguienteCuota > 11 ? 11 : siguienteCuota;
+    document.getElementById('conc-cuota-fecha').value = new Date().toISOString().split('T')[0];
+    limpiarFormularioConciliacion();
+    obtenerTasaPorFechaConciliacion();
 
     // Asegurar que el formulario de cuota esté visible
-    const formCuota = document.querySelector('#concm-resultado-encontrada .card:last-of-type');
+    const formCuota = document.querySelector('#conc-resultado-encontrada .card:last-of-type');
     if (formCuota) formCuota.style.display = 'block';
 }
 
-function ocultarFormularioCuotaM() {
+function ocultarFormularioCuota() {
     // Ocultar el formulario de cuota (el último card que contiene el formulario)
-    const cards = document.querySelectorAll('#concm-resultado-encontrada .card');
+    const cards = document.querySelectorAll('#conc-resultado-encontrada .card');
     cards.forEach((card, index) => {
         // El último card es el formulario de cuota
         if (index === cards.length - 1) {
@@ -1325,12 +1312,12 @@ function ocultarFormularioCuotaM() {
 }
 
 // ==================== MOSTRAR FACTURA NO ENCONTRADA ====================
-function mostrarFacturaNoEncontradaM(nroFactura) {
-    const resEncontrada = document.getElementById('concm-resultado-encontrada');
-    const resNueva = document.getElementById('concm-resultado-nueva');
-    const msgInicial = document.getElementById('concm-mensaje-inicial');
-    const noEncontrada = document.getElementById('concm-no-encontrada');
-    const numeroEl = document.getElementById('concm-no-encontrada-numero');
+function mostrarFacturaNoEncontrada(nroFactura) {
+    const resEncontrada = document.getElementById('conc-resultado-encontrada');
+    const resNueva = document.getElementById('conc-resultado-nueva');
+    const msgInicial = document.getElementById('conc-mensaje-inicial');
+    const noEncontrada = document.getElementById('conc-no-encontrada');
+    const numeroEl = document.getElementById('conc-no-encontrada-numero');
 
     if (resEncontrada) resEncontrada.style.display = 'none';
     if (resNueva) resNueva.style.display = 'none';
@@ -1341,42 +1328,42 @@ function mostrarFacturaNoEncontradaM(nroFactura) {
     }
 }
 
-function mostrarFormularioNuevoRegistroM() {
-    const noEncontrada = document.getElementById('concm-no-encontrada');
-    const nroFactura = document.getElementById('concm-factura-buscar')?.value.trim() || '';
+function mostrarFormularioNuevoRegistro() {
+    const noEncontrada = document.getElementById('conc-no-encontrada');
+    const nroFactura = document.getElementById('conc-factura-buscar')?.value.trim() || '';
 
     if (noEncontrada) noEncontrada.style.display = 'none';
-    mostrarNuevoRegistroM(nroFactura);
+    mostrarNuevoRegistro(nroFactura);
 }
 
 // ==================== MOSTRAR NUEVO REGISTRO ====================
-function mostrarNuevoRegistroM(nroFactura) {
-    document.getElementById('concm-resultado-encontrada').style.display = 'none';
-    document.getElementById('concm-resultado-nueva').style.display = 'block';
+function mostrarNuevoRegistro(nroFactura) {
+    document.getElementById('conc-resultado-encontrada').style.display = 'none';
+    document.getElementById('conc-resultado-nueva').style.display = 'block';
 
-    document.getElementById('concm-nueva-factura').value = nroFactura;
-    document.getElementById('concm-nueva-fecha-factura').value = new Date().toISOString().split('T')[0];
-    document.getElementById('concm-nueva-cuota-fecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('conc-nueva-factura').value = nroFactura;
+    document.getElementById('conc-nueva-fecha-factura').value = new Date().toISOString().split('T')[0];
+    document.getElementById('conc-nueva-cuota-fecha').value = new Date().toISOString().split('T')[0];
 
-    document.getElementById('concm-nueva-nombre').value = '';
-    document.getElementById('concm-nueva-cedula').value = '';
-    document.getElementById('concm-nueva-monto').value = '';
-    document.getElementById('concm-nueva-cuota-monto').value = '';
-    document.getElementById('concm-nueva-cuota-ref').value = '';
-    document.getElementById('concm-nueva-cuota-tasa').value = '';
-    document.getElementById('concm-nueva-cuota-dolar').value = '';
-    document.getElementById('concm-nueva-tasa-mensaje').textContent = '';
+    document.getElementById('conc-nueva-nombre').value = '';
+    document.getElementById('conc-nueva-cedula').value = '';
+    document.getElementById('conc-nueva-monto').value = '';
+    document.getElementById('conc-nueva-cuota-monto').value = '';
+    document.getElementById('conc-nueva-cuota-ref').value = '';
+    document.getElementById('conc-nueva-cuota-tasa').value = '';
+    document.getElementById('conc-nueva-cuota-dolar').value = '';
+    document.getElementById('conc-nueva-tasa-mensaje').textContent = '';
 
-    obtenerTasaNuevaConciliacionM();
+    obtenerTasaNuevaConciliacion();
 }
 
 // ==================== OBTENER TASA BCV POR FECHA ====================
-async function obtenerTasaPorFechaConciliacionM() {
-    const fecha = document.getElementById('concm-cuota-fecha').value;
+async function obtenerTasaPorFechaConciliacion() {
+    const fecha = document.getElementById('conc-cuota-fecha').value;
     if (!fecha) return;
 
-    const tasaInput = document.getElementById('concm-cuota-tasa');
-    const mensaje = document.getElementById('concm-tasa-mensaje');
+    const tasaInput = document.getElementById('conc-cuota-tasa');
+    const mensaje = document.getElementById('conc-tasa-mensaje');
 
     mensaje.textContent = '⏳ Consultando tasa BCV...';
     mensaje.style.color = '#2c5282';
@@ -1416,10 +1403,10 @@ async function obtenerTasaPorFechaConciliacionM() {
 
         if (data && data.exito && data.tasa && data.tasa.current) {
             tasaInput.value = data.tasa.current.usd.toFixed(4);
-            conciliacionTasaActualM = data.tasa.current.usd;
+            conciliacionTasaActual = data.tasa.current.usd;
             mensaje.textContent = '✅ Tasa actual: ' + data.tasa.current.usd.toFixed(4) + ' Bs (fecha: ' + data.tasa.current.date + ')';
             mensaje.style.color = '#28a745';
-            calcularDolarConciliacionM();
+            calcularDolarConciliacion();
             return;
         }
     }
@@ -1427,27 +1414,27 @@ async function obtenerTasaPorFechaConciliacionM() {
     // Si tenemos datos de fecha válidos
     if (data && data.exito && data.tasa) {
         tasaInput.value = data.tasa.usd.toFixed(4);
-        conciliacionTasaActualM = data.tasa.usd;
+        conciliacionTasaActual = data.tasa.usd;
         mensaje.textContent = '✅ Tasa BCV obtenida: ' + data.tasa.date;
         mensaje.style.color = '#28a745';
-        calcularDolarConciliacionM();
+        calcularDolarConciliacion();
         return;
     }
 
     // Fallback final: tasa hardcodeada
     tasaInput.value = '721.3456';
-    conciliacionTasaActualM = 721.3456;
+    conciliacionTasaActual = 721.3456;
     mensaje.textContent = '⚠️ Usando tasa por defecto: 721.3456 Bs';
     mensaje.style.color = '#ed8936';
-    calcularDolarConciliacionM();
+    calcularDolarConciliacion();
 }
 
-async function obtenerTasaNuevaConciliacionM() {
-    const fecha = document.getElementById('concm-nueva-cuota-fecha').value;
+async function obtenerTasaNuevaConciliacion() {
+    const fecha = document.getElementById('conc-nueva-cuota-fecha').value;
     if (!fecha) return;
 
-    const tasaInput = document.getElementById('concm-nueva-cuota-tasa');
-    const mensaje = document.getElementById('concm-nueva-tasa-mensaje');
+    const tasaInput = document.getElementById('conc-nueva-cuota-tasa');
+    const mensaje = document.getElementById('conc-nueva-tasa-mensaje');
 
     mensaje.textContent = '⏳ Consultando tasa BCV...';
     mensaje.style.color = '#2c5282';
@@ -1487,10 +1474,10 @@ async function obtenerTasaNuevaConciliacionM() {
 
         if (data && data.exito && data.tasa && data.tasa.current) {
             tasaInput.value = data.tasa.current.usd.toFixed(4);
-            conciliacionTasaActualM = data.tasa.current.usd;
+            conciliacionTasaActual = data.tasa.current.usd;
             mensaje.textContent = '✅ Tasa actual: ' + data.tasa.current.usd.toFixed(4) + ' Bs (fecha: ' + data.tasa.current.date + ')';
             mensaje.style.color = '#28a745';
-            calcularDolarNuevaConciliacionM();
+            calcularDolarNuevaConciliacion();
             return;
         }
     }
@@ -1498,49 +1485,49 @@ async function obtenerTasaNuevaConciliacionM() {
     // Si tenemos datos de fecha válidos
     if (data && data.exito && data.tasa) {
         tasaInput.value = data.tasa.usd.toFixed(4);
-        conciliacionTasaActualM = data.tasa.usd;
+        conciliacionTasaActual = data.tasa.usd;
         mensaje.textContent = '✅ Tasa BCV obtenida: ' + data.tasa.date;
         mensaje.style.color = '#28a745';
-        calcularDolarNuevaConciliacionM();
+        calcularDolarNuevaConciliacion();
         return;
     }
 
     // Fallback final: tasa hardcodeada
     tasaInput.value = '721.3456';
-    conciliacionTasaActualM = 721.3456;
+    conciliacionTasaActual = 721.3456;
     mensaje.textContent = '⚠️ Usando tasa por defecto: 721.3456 Bs';
     mensaje.style.color = '#ed8936';
-    calcularDolarNuevaConciliacionM();
+    calcularDolarNuevaConciliacion();
 }
 
 // ==================== CALCULAR DÓLAR DEPOSITADO ====================
-function calcularDolarConciliacionM() {
-    const monto = parseFloat(document.getElementById('concm-cuota-monto').value) || 0;
-    const tasa = parseFloat(document.getElementById('concm-cuota-tasa').value) || 0;
+function calcularDolarConciliacion() {
+    const monto = parseFloat(document.getElementById('conc-cuota-monto').value) || 0;
+    const tasa = parseFloat(document.getElementById('conc-cuota-tasa').value) || 0;
 
     if (monto > 0 && tasa > 0) {
         const dolar = monto / tasa;
-        document.getElementById('concm-cuota-dolar').value = dolar.toFixed(2);
+        document.getElementById('conc-cuota-dolar').value = dolar.toFixed(2);
     } else {
-        document.getElementById('concm-cuota-dolar').value = '';
+        document.getElementById('conc-cuota-dolar').value = '';
     }
 }
 
-function calcularDolarNuevaConciliacionM() {
-    const monto = parseFloat(document.getElementById('concm-nueva-cuota-monto').value) || 0;
-    const tasa = parseFloat(document.getElementById('concm-nueva-cuota-tasa').value) || 0;
+function calcularDolarNuevaConciliacion() {
+    const monto = parseFloat(document.getElementById('conc-nueva-cuota-monto').value) || 0;
+    const tasa = parseFloat(document.getElementById('conc-nueva-cuota-tasa').value) || 0;
 
     if (monto > 0 && tasa > 0) {
         const dolar = monto / tasa;
-        document.getElementById('concm-nueva-cuota-dolar').value = dolar.toFixed(2);
+        document.getElementById('conc-nueva-cuota-dolar').value = dolar.toFixed(2);
     } else {
-        document.getElementById('concm-nueva-cuota-dolar').value = '';
+        document.getElementById('conc-nueva-cuota-dolar').value = '';
     }
 }
 
 // ==================== CARGAR HISTORIAL DE CUOTAS ====================
-function cargarHistorialCuotasM(cliente) {
-    const tbody = document.getElementById('concm-tabla-cuotas-body');
+function cargarHistorialCuotas(cliente) {
+    const tbody = document.getElementById('conc-tabla-cuotas-body');
     if (!tbody) return;
 
     let html = '';
@@ -1576,24 +1563,24 @@ function cargarHistorialCuotasM(cliente) {
 }
 
 // ==================== GUARDAR CUOTA (CLIENTE EXISTENTE) ====================
-async function guardarCuotaConciliacionM() {
-    if (!conciliacionClienteActualM) {
+async function guardarCuotaConciliacion() {
+    if (!conciliacionClienteActual) {
         mostrarModalCorporativo('Error', 'No hay cliente seleccionado', 'error');
         return;
     }
 
-    const cuotaNum = parseInt(document.getElementById('concm-cuota-numero').value);
-    const monto = parseFloat(document.getElementById('concm-cuota-monto').value);
-    const ref = document.getElementById('concm-cuota-ref').value.trim();
-    const fecha = document.getElementById('concm-cuota-fecha').value;
-    const tasa = parseFloat(document.getElementById('concm-cuota-tasa').value);
-    const dolar = parseFloat(document.getElementById('concm-cuota-dolar').value);
+    const cuotaNum = parseInt(document.getElementById('conc-cuota-numero').value);
+    const monto = parseFloat(document.getElementById('conc-cuota-monto').value);
+    const ref = document.getElementById('conc-cuota-ref').value.trim();
+    const fecha = document.getElementById('conc-cuota-fecha').value;
+    const tasa = parseFloat(document.getElementById('conc-cuota-tasa').value);
+    const dolar = parseFloat(document.getElementById('conc-cuota-dolar').value);
 
     if (!monto || monto <= 0) {
         mostrarModalCorporativo('Validación', 'Ingrese un monto válido', 'warning', [{
             texto: 'Aceptar',
             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
-            accion: () => document.getElementById('concm-cuota-monto').focus()
+            accion: () => document.getElementById('conc-cuota-monto').focus()
         }]);
         return;
     }
@@ -1601,7 +1588,7 @@ async function guardarCuotaConciliacionM() {
         mostrarModalCorporativo('Validación', 'Ingrese la referencia del depósito', 'warning', [{
             texto: 'Aceptar',
             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
-            accion: () => document.getElementById('concm-cuota-ref').focus()
+            accion: () => document.getElementById('conc-cuota-ref').focus()
         }]);
         return;
     }
@@ -1632,12 +1619,12 @@ async function guardarCuotaConciliacionM() {
         if (i === cuotaNum) {
             montoDepositado += monto;
         } else {
-            const c = parseNumberES(conciliacionClienteActualM[`cuota_${i}`]);
+            const c = parseNumberES(conciliacionClienteActual[`cuota_${i}`]);
             montoDepositado += c;
         }
     }
 
-    const montoFactura = parseNumberES(conciliacionClienteActualM.monto_factura);
+    const montoFactura = parseNumberES(conciliacionClienteActual.monto_factura);
     let deuda = montoFactura - montoDepositado;
     if (Math.abs(deuda) < 0.01) deuda = 0;
 
@@ -1647,7 +1634,7 @@ async function guardarCuotaConciliacionM() {
     showLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/tienda-maracay/${conciliacionClienteActualM.id}`, {
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas/${conciliacionClienteActual.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -1658,17 +1645,17 @@ async function guardarCuotaConciliacionM() {
         const result = await response.json();
 
         if (result.success || result.message) {
-            const refreshResponse = await fetch(`${API_BASE_URL}/tienda-maracay/${conciliacionClienteActualM.id}`);
+            const refreshResponse = await fetch(`${API_BASE_URL}/tienda-caracas/${conciliacionClienteActual.id}`);
             if (refreshResponse.ok) {
                 const refreshed = await refreshResponse.json();
-                conciliacionClienteActualM = processItemData(refreshed);
+                conciliacionClienteActual = processItemData(refreshed);
             }
 
             await loadData();
 
             if (deuda <= 0) {
                 // Factura cancelada después de guardar - ocultar formulario y mostrar modal
-                ocultarFormularioCuotaM();
+                ocultarFormularioCuota();
                 mostrarModalCorporativo(
                     '¡Factura Cancelada!',
                     'La factura ha sido cancelada completamente.\n\n¿Desea registrar una cuota adicional?',
@@ -1678,15 +1665,15 @@ async function guardarCuotaConciliacionM() {
                             texto: 'No, volver a búsqueda',
                             estilo: 'padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;',
                             accion: () => {
-                                document.getElementById('concm-resultado-encontrada').style.display = 'none';
-                                volverABuscarFacturaM();
+                                document.getElementById('conc-resultado-encontrada').style.display = 'none';
+                                volverABuscarFactura();
                             }
                         },
                         {
                             texto: 'Sí, agregar cuota',
                             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #28a745, #218838); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
                             accion: () => {
-                                mostrarFormularioCuotaM(conciliacionClienteActualM);
+                                mostrarFormularioCuota(conciliacionClienteActual);
                             }
                         }
                     ]
@@ -1699,7 +1686,7 @@ async function guardarCuotaConciliacionM() {
                         texto: 'Aceptar',
                         estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #28a745, #218838); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
                         accion: () => {
-                            volverABuscarFacturaM();
+                            volverABuscarFactura();
                         }
                     }]
                 );
@@ -1717,18 +1704,18 @@ async function guardarCuotaConciliacionM() {
 }
 
 // ==================== GUARDAR NUEVO REGISTRO + CUOTA 1 ====================
-async function guardarNuevaConciliacionM() {
-    const nroFactura = document.getElementById('concm-nueva-factura').value.trim();
-    const nombre = document.getElementById('concm-nueva-nombre').value.trim();
-    const cedula = document.getElementById('concm-nueva-cedula').value.trim();
-    const montoFactura = parseFloat(document.getElementById('concm-nueva-monto').value);
-    const fechaFactura = document.getElementById('concm-nueva-fecha-factura').value;
+async function guardarNuevaConciliacion() {
+    const nroFactura = document.getElementById('conc-nueva-factura').value.trim();
+    const nombre = document.getElementById('conc-nueva-nombre').value.trim();
+    const cedula = document.getElementById('conc-nueva-cedula').value.trim();
+    const montoFactura = parseFloat(document.getElementById('conc-nueva-monto').value);
+    const fechaFactura = document.getElementById('conc-nueva-fecha-factura').value;
 
-    const cuotaMonto = parseFloat(document.getElementById('concm-nueva-cuota-monto').value);
-    const cuotaRef = document.getElementById('concm-nueva-cuota-ref').value.trim();
-    const cuotaFecha = document.getElementById('concm-nueva-cuota-fecha').value;
-    const cuotaTasa = parseFloat(document.getElementById('concm-nueva-cuota-tasa').value);
-    const cuotaDolar = parseFloat(document.getElementById('concm-nueva-cuota-dolar').value);
+    const cuotaMonto = parseFloat(document.getElementById('conc-nueva-cuota-monto').value);
+    const cuotaRef = document.getElementById('conc-nueva-cuota-ref').value.trim();
+    const cuotaFecha = document.getElementById('conc-nueva-cuota-fecha').value;
+    const cuotaTasa = parseFloat(document.getElementById('conc-nueva-cuota-tasa').value);
+    const cuotaDolar = parseFloat(document.getElementById('conc-nueva-cuota-dolar').value);
 
     if (!nroFactura) {
         mostrarModalCorporativo('Validación', 'N° de factura es obligatorio', 'warning', [{
@@ -1741,7 +1728,7 @@ async function guardarNuevaConciliacionM() {
         mostrarModalCorporativo('Validación', 'Nombre y apellido es obligatorio', 'warning', [{
             texto: 'Aceptar',
             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
-            accion: () => document.getElementById('concm-nueva-nombre').focus()
+            accion: () => document.getElementById('conc-nueva-nombre').focus()
         }]);
         return;
     }
@@ -1749,7 +1736,7 @@ async function guardarNuevaConciliacionM() {
         mostrarModalCorporativo('Validación', 'Monto de factura es obligatorio', 'warning', [{
             texto: 'Aceptar',
             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
-            accion: () => document.getElementById('concm-nueva-monto').focus()
+            accion: () => document.getElementById('conc-nueva-monto').focus()
         }]);
         return;
     }
@@ -1764,7 +1751,7 @@ async function guardarNuevaConciliacionM() {
         mostrarModalCorporativo('Validación', 'Ingrese el monto del depósito', 'warning', [{
             texto: 'Aceptar',
             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
-            accion: () => document.getElementById('concm-nueva-cuota-monto').focus()
+            accion: () => document.getElementById('conc-nueva-cuota-monto').focus()
         }]);
         return;
     }
@@ -1772,7 +1759,7 @@ async function guardarNuevaConciliacionM() {
         mostrarModalCorporativo('Validación', 'Ingrese la referencia del depósito', 'warning', [{
             texto: 'Aceptar',
             estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
-            accion: () => document.getElementById('concm-nueva-cuota-ref').focus()
+            accion: () => document.getElementById('conc-nueva-cuota-ref').focus()
         }]);
         return;
     }
@@ -1813,7 +1800,7 @@ async function guardarNuevaConciliacionM() {
     showLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/tienda-maracay`, {
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -1834,7 +1821,7 @@ async function guardarNuevaConciliacionM() {
                 texto: 'Aceptar',
                 estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #28a745, #218838); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
                 accion: () => {
-                    volverABuscarFacturaM();
+                    volverABuscarFactura();
                 }
             }]
         );
@@ -1850,24 +1837,24 @@ async function guardarNuevaConciliacionM() {
 }
 
 // ==================== LIMPIAR FORMULARIOS ====================
-function limpiarFormularioConciliacionM() {
-    document.getElementById('concm-cuota-monto').value = '';
-    document.getElementById('concm-cuota-ref').value = '';
-    document.getElementById('concm-cuota-tasa').value = '';
-    document.getElementById('concm-cuota-dolar').value = '';
-    document.getElementById('concm-tasa-mensaje').textContent = '';
+function limpiarFormularioConciliacion() {
+    document.getElementById('conc-cuota-monto').value = '';
+    document.getElementById('conc-cuota-ref').value = '';
+    document.getElementById('conc-cuota-tasa').value = '';
+    document.getElementById('conc-cuota-dolar').value = '';
+    document.getElementById('conc-tasa-mensaje').textContent = '';
 }
 
-function limpiarFormularioNuevaConciliacionM() {
-    document.getElementById('concm-nueva-nombre').value = '';
-    document.getElementById('concm-nueva-cedula').value = '';
-    document.getElementById('concm-nueva-monto').value = '';
-    document.getElementById('concm-nueva-fecha-factura').value = new Date().toISOString().split('T')[0];
-    document.getElementById('concm-nueva-cuota-monto').value = '';
-    document.getElementById('concm-nueva-cuota-ref').value = '';
-    document.getElementById('concm-nueva-cuota-tasa').value = '';
-    document.getElementById('concm-nueva-cuota-dolar').value = '';
-    document.getElementById('concm-nueva-tasa-mensaje').textContent = '';
+function limpiarFormularioNuevaConciliacion() {
+    document.getElementById('conc-nueva-nombre').value = '';
+    document.getElementById('conc-nueva-cedula').value = '';
+    document.getElementById('conc-nueva-monto').value = '';
+    document.getElementById('conc-nueva-fecha-factura').value = new Date().toISOString().split('T')[0];
+    document.getElementById('conc-nueva-cuota-monto').value = '';
+    document.getElementById('conc-nueva-cuota-ref').value = '';
+    document.getElementById('conc-nueva-cuota-tasa').value = '';
+    document.getElementById('conc-nueva-cuota-dolar').value = '';
+    document.getElementById('conc-nueva-tasa-mensaje').textContent = '';
 }
 
 // ==================== INTEGRACIÓN CON PANEL.JS ====================
@@ -1877,23 +1864,23 @@ if (typeof window.mostrarSeccion === 'function') {
     const originalMostrarSeccion = window.mostrarSeccion;
     window.mostrarSeccion = function(seccion) {
         originalMostrarSeccion(seccion);
-        if (seccion === 'maracay') {
-            isInitializedM = false;
-            mostrarMenuPrincipalMaracay();
+        if (seccion === 'clientes') {
+            isInitialized = false;
+            mostrarMenuPrincipal();
         }
     };
 }
 
 
 // ==================== ELIMINAR CUOTAS ====================
-let cuotasAEliminarM = [];
+let cuotasAEliminar = [];
 
-function confirmarEliminarCuotasM() {
+function confirmarEliminarCuotas() {
     // Obtener cuotas seleccionadas
     const checkboxes = document.querySelectorAll('input[name="eliminar-cuota"]:checked');
-    cuotasAEliminarM = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    cuotasAEliminar = Array.from(checkboxes).map(cb => parseInt(cb.value));
 
-    if (cuotasAEliminarM.length === 0) {
+    if (cuotasAEliminar.length === 0) {
         mostrarModalCorporativo(
             'Selección Vacía',
             'No ha seleccionado ninguna cuota para eliminar.\n\nPor favor, marque al menos una cuota del checklist.',
@@ -1907,24 +1894,24 @@ function confirmarEliminarCuotasM() {
     }
 
     // GUARDAR COPIA LOCAL de los datos necesarios antes de mostrar el modal
-    // (currentEditItemM puede perderse si el modal de edición se cierra)
+    // (currentEditItem puede perderse si el modal de edición se cierra)
     const datosConfirmacion = {
-        id: currentEditIdM,
-        nro_factura: currentEditItemM ? currentEditItemM.nro_factura : 'N/A',
-        nombre_apellido: currentEditItemM ? currentEditItemM.nombre_apellido : 'N/A',
-        monto_factura: currentEditItemM ? parseNumberES(currentEditItemM.monto_factura) : 0,
+        id: currentEditId,
+        nro_factura: currentEditItem ? currentEditItem.nro_factura : 'N/A',
+        nombre_apellido: currentEditItem ? currentEditItem.nombre_apellido : 'N/A',
+        monto_factura: currentEditItem ? parseNumberES(currentEditItem.monto_factura) : 0,
         cuotas: {}
     };
 
     // Guardar datos de cada cuota seleccionada
-    cuotasAEliminarM.forEach(num => {
-        if (currentEditItemM) {
+    cuotasAEliminar.forEach(num => {
+        if (currentEditItem) {
             datosConfirmacion.cuotas[num] = {
-                monto: currentEditItemM[`cuota_${num}`] || 0,
-                ref: currentEditItemM[`ref_cuota_${num}`] || '-',
-                fecha: currentEditItemM[`fecha_cuota_${num}`] || '-',
-                tasa: currentEditItemM[`tasa_cuota_${num}`] || '-',
-                dolar: currentEditItemM[`dolar_depositado_cuota_${num}`] || '-'
+                monto: currentEditItem[`cuota_${num}`] || 0,
+                ref: currentEditItem[`ref_cuota_${num}`] || '-',
+                fecha: currentEditItem[`fecha_cuota_${num}`] || '-',
+                tasa: currentEditItem[`tasa_cuota_${num}`] || '-',
+                dolar: currentEditItem[`dolar_depositado_cuota_${num}`] || '-'
             };
         }
     });
@@ -1932,20 +1919,20 @@ function confirmarEliminarCuotasM() {
     // Guardar también los datos de las cuotas NO seleccionadas para el cálculo
     datosConfirmacion.cuotasNoSeleccionadas = {};
     for (let i = 1; i <= 11; i++) {
-        if (!cuotasAEliminarM.includes(i) && currentEditItemM) {
+        if (!cuotasAEliminar.includes(i) && currentEditItem) {
             datosConfirmacion.cuotasNoSeleccionadas[i] = {
-                cuota: currentEditItemM[`cuota_${i}`],
-                ref: currentEditItemM[`ref_cuota_${i}`],
-                fecha: currentEditItemM[`fecha_cuota_${i}`],
-                tasa: currentEditItemM[`tasa_cuota_${i}`],
-                dolar: currentEditItemM[`dolar_depositado_cuota_${i}`]
+                cuota: currentEditItem[`cuota_${i}`],
+                ref: currentEditItem[`ref_cuota_${i}`],
+                fecha: currentEditItem[`fecha_cuota_${i}`],
+                tasa: currentEditItem[`tasa_cuota_${i}`],
+                dolar: currentEditItem[`dolar_depositado_cuota_${i}`]
             };
         }
     }
 
     // Construir mensaje detallado
     let detalleCuotas = '';
-    cuotasAEliminarM.forEach(num => {
+    cuotasAEliminar.forEach(num => {
         const cuota = datosConfirmacion.cuotas[num] ? datosConfirmacion.cuotas[num].monto : 0;
         const ref = datosConfirmacion.cuotas[num] ? datosConfirmacion.cuotas[num].ref : '-';
         detalleCuotas += `\n• Cuota ${num}: ${formatCurrency(cuota)} (Ref: ${ref})`;
@@ -1953,7 +1940,7 @@ function confirmarEliminarCuotasM() {
 
     mostrarModalCorporativo(
         '¿Confirmar Eliminación?',
-        `¿Está seguro de que desea eliminar ${cuotasAEliminarM.length} cuota(s) seleccionada(s)?\n\n<strong>Factura:</strong> ${datosConfirmacion.nro_factura || 'N/A'}\n<strong>Cliente:</strong> ${datosConfirmacion.nombre_apellido || 'N/A'}\n\n<strong>Cuotas a eliminar:</strong>${detalleCuotas}\n\n⚠️ <strong>ADVERTENCIA:</strong> Esta acción no se puede deshacer. Los montos depositados serán recalculados y la deuda se actualizará automáticamente.`,
+        `¿Está seguro de que desea eliminar ${cuotasAEliminar.length} cuota(s) seleccionada(s)?\n\n<strong>Factura:</strong> ${datosConfirmacion.nro_factura || 'N/A'}\n<strong>Cliente:</strong> ${datosConfirmacion.nombre_apellido || 'N/A'}\n\n<strong>Cuotas a eliminar:</strong>${detalleCuotas}\n\n⚠️ <strong>ADVERTENCIA:</strong> Esta acción no se puede deshacer. Los montos depositados serán recalculados y la deuda se actualizará automáticamente.`,
         'warning',
         [
             {
@@ -1964,15 +1951,15 @@ function confirmarEliminarCuotasM() {
                 texto: 'Sí, Eliminar Cuotas',
                 estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #e53e3e, #c53030); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;',
                 accion: () => {
-                    ejecutarEliminarCuotasM(datosConfirmacion);
+                    ejecutarEliminarCuotas(datosConfirmacion);
                 }
             }
         ]
     );
 }
 
-async function ejecutarEliminarCuotasM(datosConfirmacion) {
-    if (!datosConfirmacion || !datosConfirmacion.id || cuotasAEliminarM.length === 0) return;
+async function ejecutarEliminarCuotas(datosConfirmacion) {
+    if (!datosConfirmacion || !datosConfirmacion.id || cuotasAEliminar.length === 0) return;
 
     showLoading(true);
 
@@ -1982,7 +1969,7 @@ async function ejecutarEliminarCuotasM(datosConfirmacion) {
         let montoDepositado = 0;
 
         for (let i = 1; i <= 11; i++) {
-            if (cuotasAEliminarM.includes(i)) {
+            if (cuotasAEliminar.includes(i)) {
                 // Eliminar cuota: setear todos los campos a null/0
                 data[`cuota_${i}`] = null;
                 data[`ref_cuota_${i}`] = null;
@@ -2013,7 +2000,7 @@ async function ejecutarEliminarCuotasM(datosConfirmacion) {
         data.deuda = deuda;
 
         // Enviar a la API
-        const response = await fetch(`${API_BASE_URL}/tienda-maracay/${datosConfirmacion.id}`, {
+        const response = await fetch(`${API_BASE_URL}/tienda-caracas/${datosConfirmacion.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -2026,34 +2013,34 @@ async function ejecutarEliminarCuotasM(datosConfirmacion) {
         const result = await response.json();
 
         // Actualizar datos locales
-        const index = allDataM.findIndex(d => d.id === datosConfirmacion.id);
+        const index = allData.findIndex(d => d.id === datosConfirmacion.id);
         if (index !== -1) {
             // Actualizar el item en memoria
-            cuotasAEliminarM.forEach(i => {
-                allDataM[index][`cuota_${i}`] = null;
-                allDataM[index][`ref_cuota_${i}`] = null;
-                allDataM[index][`fecha_cuota_${i}`] = null;
-                allDataM[index][`tasa_cuota_${i}`] = null;
-                allDataM[index][`dolar_depositado_cuota_${i}`] = null;
+            cuotasAEliminar.forEach(i => {
+                allData[index][`cuota_${i}`] = null;
+                allData[index][`ref_cuota_${i}`] = null;
+                allData[index][`fecha_cuota_${i}`] = null;
+                allData[index][`tasa_cuota_${i}`] = null;
+                allData[index][`dolar_depositado_cuota_${i}`] = null;
             });
-            allDataM[index].monto_depositados = montoDepositado;
-            allDataM[index].deuda = deuda;
+            allData[index].monto_depositados = montoDepositado;
+            allData[index].deuda = deuda;
 
             // Reprocesar el item
-            allDataM[index] = processItemData(allDataM[index]);
+            allData[index] = processItemData(allData[index]);
         }
 
         // Refrescar la vista
-        applyFiltersM();
-        updateSummaryM();
-        updateFilterCountsM();
+        applyFilters();
+        updateSummary();
+        updateFilterCounts();
 
         // Cerrar modal de edición y mostrar éxito
-        closeModalM();
+        closeModal();
 
         mostrarModalCorporativo(
             '¡Cuotas Eliminadas!',
-            `Se han eliminado ${cuotasAEliminarM.length} cuota(s) exitosamente.\n\n<strong>Factura:</strong> ${datosConfirmacion.nro_factura || 'N/A'}\n<strong>Nueva Deuda:</strong> ${formatCurrency(deuda)}\n<strong>Total Depositado:</strong> ${formatCurrency(montoDepositado)}`,
+            `Se han eliminado ${cuotasAEliminar.length} cuota(s) exitosamente.\n\n<strong>Factura:</strong> ${datosConfirmacion.nro_factura || 'N/A'}\n<strong>Nueva Deuda:</strong> ${formatCurrency(deuda)}\n<strong>Total Depositado:</strong> ${formatCurrency(montoDepositado)}`,
             'exito',
             [{
                 texto: 'Aceptar',
@@ -2061,7 +2048,7 @@ async function ejecutarEliminarCuotasM(datosConfirmacion) {
             }]
         );
 
-        cuotasAEliminarM = [];
+        cuotasAEliminar = [];
 
     } catch (error) {
         console.error('Error eliminando cuotas:', error);
@@ -2079,6 +2066,3 @@ async function ejecutarEliminarCuotasM(datosConfirmacion) {
     }
 }
 
-
-})();
-// Fin de IIFE Tienda Maracay
