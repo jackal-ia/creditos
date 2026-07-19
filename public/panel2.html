@@ -324,108 +324,22 @@
                         <a href="#" onclick="mostrarSeccion('reportes'); return false;">Ver todas <i class="fas fa-arrow-right"></i></a>
                     </div>
                 </div>
-                <div class="card card-domiciliacion" id="cardDomiciliacion">
+                <div class="card card-placeholder" id="cardProximoModulo">
                     <div class="card-header">
-                        <div class="card-icon domi-icon">
+                        <div class="card-icon placeholder-icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="12" y1="8" x2="12" y2="16"></line>
+                                <line x1="8" y1="12" x2="16" y2="12"></line>
                             </svg>
                         </div>
                         <div class="card-title-group">
-                            <h3>Domiciliación Bancaria</h3>
-                            <span class="card-subtitle">Generar archivo TXT para débitos automáticos</span>
+                            <h3>Proximo Modulo</h3>
+                            <span class="card-subtitle">En desarrollo</span>
                         </div>
                     </div>
-                    <div class="domi-content">
-                        <div class="domi-config">
-                            <div class="domi-field">
-                                <label>Cuenta Matriz</label>
-                                <input type="text" id="domi-cuenta-matriz" value="01770006571102246326" readonly>
-                            </div>
-                            <div class="domi-field">
-                                <label>Código Empresa</label>
-                                <input type="text" id="domi-codigo-empresa" value="0139" readonly>
-                            </div>
-                            <div class="domi-field">
-                                <label>Operador</label>
-                                <input type="text" id="domi-operador" value="17" readonly>
-                            </div>
-                            <div class="domi-field">
-                                <label>Fecha Nómina *</label>
-                                <input type="date" id="domi-fecha-nomina" required>
-                            </div>
-                        </div>
-                        <div class="domi-dropzone" id="domi-dropzone">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="17 8 12 3 7 8"></polyline>
-                                <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
-                            <p>Arrastra tu archivo Excel aquí</p>
-                            <span>Cada fila se divide en 15 cuotas | Col: A=Cédula, B=Cuenta, C=Monto</span>
-                            <input type="file" id="domi-file-input" accept=".xlsx,.xls" hidden>
-                        </div>
-                        <div class="domi-preview" id="domi-preview" style="display: none;">
-                            <div class="domi-preview-header">
-                                <span>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                        <polyline points="14 2 14 8 20 8"></polyline>
-                                    </svg>
-                                    Archivo cargado
-                                </span>
-                                <button class="domi-remove" id="domi-remove-file">✕ Eliminar</button>
-                            </div>
-                            <div class="domi-file-info">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                </svg>
-                                <div>
-                                    <div class="domi-file-name" id="domi-file-name">-</div>
-                                    <div class="domi-file-size" id="domi-file-size">-</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="domi-resumen" id="domi-resumen" style="display: none;">
-                            <div class="domi-stat">
-                                <span class="domi-stat-num" id="domi-stat-registros">0</span>
-                                <span class="domi-stat-label">Empleados</span>
-                            </div>
-                            <div class="domi-stat">
-                                <span class="domi-stat-num" id="domi-stat-lineas">0</span>
-                                <span class="domi-stat-label">Líneas TXT</span>
-                            </div>
-                            <div class="domi-stat">
-                                <span class="domi-stat-num" id="domi-stat-monto">0</span>
-                                <span class="domi-stat-label">Monto Total Bs</span>
-                            </div>
-                        </div>
-                        <div class="domi-progress" id="domi-progress" style="display: none;">
-                            <div class="domi-progress-spinner"></div>
-                            <span class="domi-progress-text">Generando archivo TXT...</span>
-                        </div>
-                        <div class="domi-actions" id="domi-actions" style="display: none;">
-                            <button class="domi-btn domi-btn-secondary" id="domi-btn-preview" disabled>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                                Ver Preview TXT
-                            </button>
-                            <button class="domi-btn domi-btn-primary" id="domi-btn-generar" disabled>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                                Generar y Descargar TXT
-                            </button>
-                        </div>
+                    <div class="placeholder-content">
+                        <p>Espacio reservado para futuros modulos del sistema.</p>
                     </div>
                 </div>
 
@@ -974,117 +888,6 @@
     <!-- jsPDF para exportar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-
-
-<!-- ====== MODAL PREVIEW TXT - DOMICILIACION BANCARIA ====== -->
-<div class="domi-modal-overlay" id="domi-modal-preview">
-    <div class="domi-modal">
-        <div class="domi-modal-header">
-            <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                Vista Previa del Archivo TXT
-            </h3>
-            <button class="domi-modal-close" id="domi-modal-close">×</button>
-        </div>
-        <div class="domi-modal-body">
-            <div class="domi-modal-info">
-                <div class="domi-modal-info-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                    </svg>
-                    <div>
-                        <div class="label">Archivo</div>
-                        <div class="value" id="domi-modal-filename">-</div>
-                    </div>
-                </div>
-                <div class="domi-modal-info-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
-                        <line x1="8" y1="6" x2="21" y2="6"></line>
-                        <line x1="8" y1="12" x2="21" y2="12"></line>
-                        <line x1="8" y1="18" x2="21" y2="18"></line>
-                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                    </svg>
-                    <div>
-                        <div class="label">Empleados</div>
-                        <div class="value" id="domi-modal-registros">0</div>
-                    </div>
-                </div>
-                <div class="domi-modal-info-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                        <line x1="1" y1="10" x2="23" y2="10"></line>
-                    </svg>
-                    <div>
-                        <div class="label">Líneas TXT</div>
-                        <div class="value" id="domi-modal-lineas">0</div>
-                    </div>
-                </div>
-                <div class="domi-modal-info-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                        <line x1="1" y1="10" x2="23" y2="10"></line>
-                    </svg>
-                    <div>
-                        <div class="label">Monto Total</div>
-                        <div class="value" id="domi-modal-monto">0 Bs</div>
-                    </div>
-                </div>
-                <div class="domi-modal-info-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    <div>
-                        <div class="label">Fecha</div>
-                        <div class="value" id="domi-modal-fecha">-</div>
-                    </div>
-                </div>
-            </div>
-            <div class="domi-txt-preview" id="domi-txt-preview-content"></div>
-            <div class="domi-leyenda">
-                <div class="domi-leyenda-item">
-                    <div class="domi-leyenda-color enc"></div>
-                    <span><strong>Encabezado</strong> — 51 caracteres (1 línea)</span>
-                </div>
-                <div class="domi-leyenda-item">
-                    <div class="domi-leyenda-color det"></div>
-                    <span><strong>Detalle</strong> — 54 caracteres (15 líneas por empleado)</span>
-                </div>
-                <div class="domi-leyenda-item">
-                    <div class="domi-leyenda-color pos"></div>
-                    <span><strong>Posiciones</strong> — guía de columnas</span>
-                </div>
-                <div class="domi-leyenda-item">
-                    <div class="domi-leyenda-color com"></div>
-                    <span><strong>Comentario</strong> — referencia visual</span>
-                </div>
-            </div>
-        </div>
-        <div class="domi-modal-footer">
-            <button class="domi-btn domi-btn-secondary" id="domi-modal-btn-cerrar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-                Cerrar
-            </button>
-            <button class="domi-btn domi-btn-primary" id="domi-modal-btn-descargar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Descargar TXT
-            </button>
-        </div>
-    </div>
-</div>
 
 </body>
 </html>

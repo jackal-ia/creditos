@@ -1321,9 +1321,11 @@
                             <button class="btn-action btn-view" data-action="ver-detalle" data-id="${item.id}" title="Ver y editar">
                                 <i class="fas fa-eye"></i>
                             </button>
+                           ${isAdminUser() ? `
                             <button class="btn-action btn-delete" data-action="confirmar-eliminar" data-id="${item.id}" title="Eliminar registro">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
+                               <i class="fas fa-trash-alt"></i>
+                                 </button>
+                                      ` : ''}
                         </div>
                     </td>
                 </tr>
