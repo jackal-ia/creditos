@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Diagnóstico Técnico — Sistema de Créditos IPSFA v6.7</title>
+<style>
+@page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+:root {
+  --primary: #1a3a5c; --secondary: #2c5282; --accent: #3182ce;
+  --success: #38a169; --warning: #d69e2e; --danger: #e53e3e;
+  --text: #2d3748; --text-light: #718096; --bg: #f7fafc; --border: #e2e8f0;
+}
+* { box-sizing: border-box; }
+body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10pt; line-height: 1.5; color: var(--text); margin: 0; padding: 0; }
+
+.cover { page-break-after: always; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 50%, #3182ce 100%); color: white; padding: 40px; }
+.cover-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 6px 20px; font-size: 9pt; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
+.cover h1 { font-size: 28pt; font-weight: 700; margin: 0 0 15px 0; line-height: 1.2; }
+.cover h2 { font-size: 14pt; font-weight: 400; margin: 0 0 40px 0; opacity: 0.9; }
+.cover-meta { display: flex; gap: 40px; margin-top: 20px; font-size: 10pt; opacity: 0.85; }
+.cover-meta div { text-align: center; }
+.cover-meta .label { font-size: 8pt; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+.cover-meta .value { font-size: 12pt; font-weight: 600; margin-top: 4px; }
+.cover-verdict { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px 40px; margin-top: 40px; max-width: 500px; }
+.cover-verdict .status { font-size: 24pt; font-weight: 700; color: #f6e05e; }
+.cover-verdict .desc { font-size: 10pt; opacity: 0.9; margin-top: 8px; }
+
+.section { page-break-before: always; padding: 15px 0; }
+.section:first-of-type { page-break-before: auto; }
+h1.section-title { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+h2 { font-size: 12pt; font-weight: 600; color: var(--secondary); margin: 18px 0 10px 0; }
+h3 { font-size: 11pt; font-weight: 600; color: var(--text); margin: 14px 0 8px 0; }
+p { margin: 8px 0; text-align: justify; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.metric-card { background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
+.metric-value { font-size: 16pt; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.metric-label { font-size: 7.5pt; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+.problem-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.problem-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.problem-badge { font-size: 7.5pt; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.5px; color: white; }
+.badge-critical { background: var(--danger); }
+.badge-high { background: var(--warning); }
+.badge-medium { background: #4299e1; }
+.problem-id { font-size: 8pt; color: var(--text-light); font-weight: 600; }
+.problem-title { font-weight: 600; font-size: 10pt; color: var(--primary); margin-bottom: 4px; }
+.problem-impact { font-size: 8.5pt; color: var(--danger); font-weight: 600; }
+.problem-solution { font-size: 8.5pt; color: var(--success); }
+
+.verdict-box { background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%); color: white; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0; }
+.verdict-box .status { font-size: 20pt; font-weight: 700; color: #f6e05e; }
+.verdict-box .text { font-size: 10pt; opacity: 0.9; margin-top: 8px; }
+
+.phase-card { border: 2px solid var(--border); border-radius: 10px; padding: 12px 15px; margin: 10px 0; page-break-inside: avoid; }
+.phase-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.phase-title { font-weight: 700; font-size: 11pt; color: var(--primary); }
+.phase-time { font-size: 9pt; color: var(--text-light); background: var(--bg); padding: 2px 10px; border-radius: 10px; }
+.phase-critical { border-color: var(--danger); background: #fff5f5; }
+.phase-high { border-color: var(--warning); background: #fffaf0; }
+.phase-medium { border-color: var(--accent); background: #ebf8ff; }
+
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 8.5pt; page-break-inside: avoid; }
+th { background: var(--primary); color: white; font-weight: 600; padding: 6px 8px; text-align: left; border: 1px solid var(--primary); }
+td { padding: 5px 8px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) { background: #f8fafc; }
+
+.info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.warn-box { background: #fffaf0; border-left: 4px solid var(--warning); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 3px 0; }
+
+.footer { font-size: 7.5pt; color: var(--text-light); text-align: center; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 15px; }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-badge">Documento de Diagnóstico</div>
+  <h1>Diagnóstico Técnico</h1>
+  <h2>Sistema de Créditos IPSFA</h2>
+  <div style="font-size: 36pt; font-weight: 700; margin: 20px 0;">v6.7</div>
+  <div class="cover-meta">
+    <div><div class="label">Elaborado</div><div class="value">Julio 2026</div></div>
+    <div><div class="label">Clasificación</div><div class="value">Interno / Operativo</div></div>
+    <div><div class="label">Versión</div><div class="value">1.0</div></div>
+  </div>
+  <div class="cover-verdict">
+    <div class="status">⚠️ MEDIO-ALTO</div>
+    <div class="desc">Sistema funcional y estable. Riesgo principal: infraestructura inmadura (sin HTTPS, backup ni servicio).</div>
+  </div>
+</div>
+
+<!-- RESUMEN EJECUTIVO -->
+<div class="section">
+<h1 class="section-title">Resumen Ejecutivo</h1>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="metric-value">✅</div><div class="metric-label">Estado: Funcional</div></div>
+  <div class="metric-card"><div class="metric-value">🟠</div><div class="metric-label">Riesgo: Medio-Alto</div></div>
+  <div class="metric-card"><div class="metric-value">647</div><div class="metric-label">Pruebas pasan</div></div>
+  <div class="metric-card"><div class="metric-value">28h</div><div class="metric-label">Para estabilizar</div></div>
+</div>
+
+<p>El Sistema de Créditos IPSFA v6.7 está <strong>funcional y estable</strong> tras 12 entregas de mejoras (v6.0 a v6.7). El código está bien probado, la arquitectura es limpia y la seguridad funciona correctamente.</p>
+
+<p>Sin embargo, el <strong>riesgo principal no está en el código sino en la infraestructura</strong>: el sistema corre en una ventana de terminal sin backup, sin cifrado HTTPS, sin auto-reinicio y sin monitorización. Estos 5 problemas críticos pueden dejar al sistema fuera de servicio por causas externas (corte de luz, cierre accidental de terminal, fallo de disco).</p>
+
+<div class="verdict-box">
+  <div class="status">VEREDICTO</div>
+  <div class="text">El código está sano. La infraestructura es la que necesita atención urgente.</div>
+</div>
+</div>
+
+<!-- FORTALEZAS -->
+<div class="section">
+<h1 class="section-title">1. Fortalezas del Sistema</h1>
+
+<table>
+<tr><th>Área</th><th>Estado</th><th>Evidencia</th></tr>
+<tr><td>Código probado</td><td style="color:#38a169;font-weight:600;">✅ Excelente</td><td>647 pruebas automáticas pasan desde v6.0 hasta v6.7</td></tr>
+<tr><td>Arquitectura backend</td><td style="color:#38a169;font-weight:600;">✅ Limpia</td><td>Routers independientes, pool compartido, middleware desacoplado</td></tr>
+<tr><td>Seguridad</td><td style="color:#38a169;font-weight:600;">✅ Funcional</td><td>JWT + revocación + rate-limit + validación IP real (v6.1)</td></tr>
+<tr><td>UI/UX</td><td style="color:#38a169;font-weight:600;">✅ Moderna</td><td>Tarjetas interactivas, modal corporativo, agenda renovada (v6.5-v6.7)</td></tr>
+<tr><td>Documentación</td><td style="color:#38a169;font-weight:600;">✅ Completa</td><td>Informe técnico v6.7 con 14 secciones</td></tr>
+<tr><td>Deuda técnica</td><td style="color:#38a169;font-weight:600;">✅ Reducida</td><td>61% de código duplicado eliminado (v6.0)</td></tr>
+<tr><td>Rendimiento</td><td style="color:#38a169;font-weight:600;">✅ Sobrado</td><td><5% CPU, <200 MB RAM para carga actual</td></tr>
+</table>
+</div>
+
+<!-- PROBLEMAS CRÍTICOS -->
+<div class="section">
+<h1 class="section-title">2. Problemas Críticos 🔴</h1>
+<p><em>Requieren atención inmediata. Resolver esta semana.</em></p>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-critical">CRÍTICO</span>
+    <span class="problem-id">C-1</span>
+  </div>
+  <div class="problem-title">Sin HTTPS — Credenciales y JWT en texto plano</div>
+  <div class="problem-impact">Impacto: Cualquier interceptación de red expone contraseñas, tokens y datos de clientes.</div>
+  <div class="problem-solution">Solución: Implementar certificado SSL. Opción A: Let's Encrypt (si hay dominio público). Opción B: Certificado autofirmado (red local). Opción C: Reverse proxy nginx con SSL.</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-critical">CRÍTICO</span>
+    <span class="problem-id">C-2</span>
+  </div>
+  <div class="problem-title">Servidor como ventana de terminal — Sin auto-reinicio</div>
+  <div class="problem-impact">Impacto: Si se cierra la ventana, el sistema cae. No hay notificación ni recuperación automática.</div>
+  <div class="problem-solution">Solución: Crear servicio de Windows. Opción A: nssm (recomendado). Opción B: PM2 con pm2-windows-startup. El servicio debe auto-iniciar al encender la PC.</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-critical">CRÍTICO</span>
+    <span class="problem-id">C-3</span>
+  </div>
+  <div class="problem-title">Sin backup automatizado de la base de datos</div>
+  <div class="problem-impact">Impacto: Pérdida total de datos si falla el disco duro, se corrompe la BD o hay error humano.</div>
+  <div class="problem-solution">Solución: Script batch diario con pg_dump que guarde en carpeta backups/ con fecha. Retención de 30 días. Probar restauración mensualmente.</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-critical">CRÍTICO</span>
+    <span class="problem-id">C-4</span>
+  </div>
+  <div class="problem-title">Funciones SQL de estadísticas no instaladas en la BD</div>
+  <div class="problem-impact">Impacto: La página /estadisticas muestra error 500 o datos vacíos. El módulo avanzado no funciona.</div>
+  <div class="problem-solution">Solución: Ejecutar: psql -f database/estadisticas-v2.sql. Verificar: SELECT * FROM v_resumen_cuotas_mes LIMIT 1</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-critical">CRÍTICO</span>
+    <span class="problem-id">C-5</span>
+  </div>
+  <div class="problem-title">Acceso remoto sin VPN — Exposición directa</div>
+  <div class="problem-impact">Impacto: Si se abren puertos del router, el sistema queda expuesto a Internet sin cifrado.</div>
+  <div class="problem-solution">Solución: Tailscale (gratis, más fácil) o WireGuard (más control, más complejo). Nunca abrir puertos del router sin VPN.</div>
+</div>
+</div>
+
+<!-- PROBLEMAS ALTOS -->
+<div class="section">
+<h1 class="section-title">3. Problemas Altos 🟠</h1>
+<p><em>Deben resolverse en las próximas 2 semanas.</em></p>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-high">ALTO</span>
+    <span class="problem-id">A-1</span>
+  </div>
+  <div class="problem-title">Tabla 'sesiones' esquema muerto (nunca usada)</div>
+  <div class="problem-solution">Solución: Confirmar que ningún archivo la referencia. Ejecutar: DROP TABLE sesiones;</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-high">ALTO</span>
+    <span class="problem-id">A-2</span>
+  </div>
+  <div class="problem-title">Archivos legacy sin uso en el proyecto</div>
+  <div class="problem-solution">Solución: Mover a carpeta legacy/: tienda-caracas.html, reportes-caracas.html, tienda-caracas.js, reportes.js (viejo)</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-high">ALTO</span>
+    <span class="problem-id">A-3</span>
+  </div>
+  <div class="problem-title">Página /estadisticas no enlazada desde el menú</div>
+  <div class="problem-solution">Solución: Agregar enlace en el sidebar del panel. Solo accesible por URL directa actualmente.</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-high">ALTO</span>
+    <span class="problem-id">A-4</span>
+  </div>
+  <div class="problem-title">Sin sistema de logging de aplicación</div>
+  <div class="problem-solution">Solución: Agregar morgan para logs HTTP + winston para logs de errores en archivo. Sin logs, diagnosticar fallas es ciego.</div>
+</div>
+
+<div class="problem-card">
+  <div class="problem-header">
+    <span class="problem-badge badge-high">ALTO</span>
+    <span class="problem-id">A-5</span>
+  </div>
+  <div class="problem-title">Sin manejo de errores global en Express</div>
+  <div class="problem-solution">Solución: Middleware de error que devuelva mensaje genérico en producción (sin stack trace). El stack trace fuga información interna.</div>
+</div>
+</div>
+
+<!-- PROBLEMAS MEDIOS -->
+<div class="section">
+<h1 class="section-title">4. Problemas Medios 🟡</h1>
+<p><em>Mejoras operativas. No bloquean pero limitan el crecimiento.</em></p>
+
+<table>
+<tr><th>ID</th><th>Problema</th><th>Impacto</th><th>Solución</th></tr>
+<tr><td>M-1</td><td>Sin paginación en API de actividades</td><td>JSON puede ser muy grande con 200+ actividades</td><td>Agregar LIMIT/OFFSET</td></tr>
+<tr><td>M-2</td><td>Sin índices en campos de búsqueda</td><td>Full table scan en cada búsqueda</td><td>CREATE INDEX en cedula, nombre</td></tr>
+<tr><td>M-3</td><td>Sin validación de cédula venezolana</td><td>Acepta cualquier texto</td><td>Regex V/E/J-12345678</td></tr>
+<tr><td>M-4</td><td>Sin notificaciones de cobranza</td><td>Todo es consulta manual</td><td>Alertas en dashboard o email</td></tr>
+<tr><td>M-5</td><td>Sin exportación programada de reportes</td><td>Reportes solo manuales</td><td>node-cron + nodemailer</td></tr>
+<tr><td>M-6</td><td>CSS monolítico en panel.css (96KB)</td><td>Difícil de mantener</td><td>Dividir en 4 archivos</td></tr>
+</table>
+</div>
+
+<!-- RENDIMIENTO -->
+<div class="section">
+<h1 class="section-title">5. Rendimiento y Escalabilidad</h1>
+
+<h2>5.1 Métricas actuales</h2>
+<table>
+<tr><th>Métrica</th><th>Valor</th><th>Estado</th></tr>
+<tr><td>Carga actual</td><td>3 tiendas, ~200 clientes, 5-10 usuarios</td><td style="color:#38a169;font-weight:600;">✅ Cómoda</td></tr>
+<tr><td>RAM Node.js</td><td>80-120 MB</td><td style="color:#38a169;font-weight:600;">✅ Bajo</td></tr>
+<tr><td>RAM PostgreSQL</td><td>100-200 MB</td><td style="color:#38a169;font-weight:600;">✅ Bajo</td></tr>
+<tr><td>CPU</td><td>&lt;5% en uso normal</td><td style="color:#38a169;font-weight:600;">✅ Muy bajo</td></tr>
+<tr><td>Disco</td><td>~50 MB código + BD</td><td style="color:#38a169;font-weight:600;">✅ Muy bajo</td></tr>
+</table>
+
+<h2>5.2 Cuellos de botella</h2>
+<ul>
+<li><strong>GET /api/tiendas/:tienda</strong> sin paginación ni límite. Con 500+ clientes, el JSON puede superar 2MB.</li>
+<li><strong>Sin compresión gzip</strong> en Express. Las respuestas viajan sin comprimir.</li>
+<li><strong>Sin caché</strong> de consultas frecuentes (tasa BCV, estadísticas del dashboard).</li>
+</ul>
+
+<h2>5.3 Límite de escalabilidad</h2>
+<p>El sistema puede crecer hasta aproximadamente <strong>1.000 clientes por tienda</strong> antes de mostrar degradación visible. Más allá de eso, la falta de paginación en la API y la ausencia de índices en la base de datos harán que las consultas sean lentas.</p>
+
+<div class="info-box">Conclusión: El sistema está sobrado de recursos para su carga actual. Los problemas de rendimiento son prevenibles, no críticos.</div>
+</div>
+
+<!-- DEUDA TÉCNICA -->
+<div class="section">
+<h1 class="section-title">6. Deuda Técnica</h1>
+
+<table>
+<tr><th>Métrica</th><th>Valor</th><th>Tendencia</th></tr>
+<tr><td>Código duplicado eliminado</td><td>61% (~4.600 líneas)</td><td style="color:#38a169;">✅ Mejorando</td></tr>
+<tr><td>Vulnerabilidades críticas cerradas</td><td>6/6 (v6.1)</td><td style="color:#38a169;">✅ Cerradas</td></tr>
+<tr><td>Bugs latentes corregidos</td><td>8/8 (v6.0-v6.7)</td><td style="color:#38a169;">✅ Cerrados</td></tr>
+<tr><td>Archivos legacy sin uso</td><td>~15 archivos</td><td style="color:#e53e3e;">⚠️ Pendiente</td></tr>
+<tr><td>Tablas muertas en BD</td><td>1 (sesiones)</td><td style="color:#e53e3e;">⚠️ Pendiente</td></tr>
+<tr><td>Complejidad tienda-spa.js</td><td>Alta (2.900 líneas)</td><td style="color:#d69e2e;">⚠️ Monolítico</td></tr>
+<tr><td>Complejidad panel.js</td><td>Alta (3.300+ líneas)</td><td style="color:#d69e2e;">⚠️ Monolítico</td></tr>
+</table>
+
+<h2>Acoplamiento</h2>
+<ul>
+<li><strong>Backend:</strong> Bajo. Routers independientes, pool compartido, sin dependencias circulares.</li>
+<li><strong>Frontend:</strong> Alto. panel.js depende de tienda-spa.js, CSS es un monolito de 96KB.</li>
+</ul>
+</div>
+
+<!-- PLAN DE ACCIÓN -->
+<div class="section">
+<h1 class="section-title">7. Plan de Acción Priorizado</h1>
+
+<div class="phase-card phase-critical">
+  <div class="phase-header">
+    <span class="phase-title">🔴 FASE 1 — URGENTE (esta semana)</span>
+    <span class="phase-time">~4 horas</span>
+  </div>
+  <ol>
+    <li><strong>Instalar funciones SQL de estadísticas</strong><br>
+    Ejecutar: <code>psql -f database/estadisticas-v2.sql</code><br>
+    Verificar: <code>SELECT * FROM v_resumen_cuotas_mes LIMIT 1</code></li>
+    <li><strong>Crear backup automatizado</strong><br>
+    Script batch diario con pg_dump. Guardar en backups/ con fecha. Retención 30 días.</li>
+    <li><strong>Crear servicio de Windows para Node.js</strong><br>
+    Opción A: nssm (recomendado). Opción B: PM2. Auto-inicio al encender la PC.</li>
+    <li><strong>Agregar índices en campos de búsqueda</strong><br>
+    <code>CREATE INDEX idx_cedula_caracas ON tienda_caracas(cedula)</code> (repetir para maracay y maracaibo)</li>
+  </ol>
+</div>
+
+<div class="phase-card phase-high">
+  <div class="phase-header">
+    <span class="phase-title">🟠 FASE 2 — IMPORTANTE (2 semanas)</span>
+    <span class="phase-time">~8 horas</span>
+  </div>
+  <ol>
+    <li><strong>Implementar HTTPS</strong> — Certificado SSL (Let's Encrypt o autofirmado)</li>
+    <li><strong>Configurar VPN</strong> — Tailscale (gratis, fácil) o WireGuard</li>
+    <li><strong>Agregar paginación a API de actividades</strong> — LIMIT 50 OFFSET ?</li>
+    <li><strong>Limpiar archivos legacy</strong> — Mover a carpeta legacy/, eliminar tabla sesiones</li>
+  </ol>
+</div>
+
+<div class="phase-card phase-medium">
+  <div class="phase-header">
+    <span class="phase-title">🟡 FASE 3 — MEJORAS (1 mes)</span>
+    <span class="phase-time">~16 horas</span>
+  </div>
+  <ol>
+    <li><strong>Sistema de logging</strong> — Morgan (HTTP) + Winston (errores)</li>
+    <li><strong>Dividir CSS monolítico</strong> — panel-dashboard.css, panel-agenda.css, etc.</li>
+    <li><strong>Validación de cédula venezolana</strong> — Regex + dígito verificador</li>
+    <li><strong>Enlace /estadisticas en el menú</strong> — Agregar al sidebar del panel</li>
+    <li><strong>Middleware de error global</strong> — Sin stack trace en producción</li>
+  </ol>
+</div>
+</div>
+
+<!-- RIESGOS -->
+<div class="section">
+<h1 class="section-title">8. Matriz de Riesgos</h1>
+
+<table>
+<tr><th>Riesgo</th><th>Probabilidad</th><th>Impacto</th><th>Nivel</th><th>Mitigación</th></tr>
+<tr><td>Pérdida de datos (sin backup)</td><td>Media</td><td>Catastrófico</td><td style="color:#e53e3e;font-weight:600;">🔴 Alto</td><td>Backup diario automático</td></tr>
+<tr><td>Caída del servicio (sin auto-reinicio)</td><td>Alta</td><td>Alto</td><td style="color:#e53e3e;font-weight:600;">🔴 Alto</td><td>Servicio de Windows</td></tr>
+<tr><td>Interceptación de credenciales (sin HTTPS)</td><td>Media</td><td>Alto</td><td style="color:#e53e3e;font-weight:600;">🔴 Alto</td><td>Certificado SSL</td></tr>
+<tr><td>Degradación con crecimiento</td><td>Baja</td><td>Medio</td><td style="color:#d69e2e;font-weight:600;">🟠 Medio</td><td>Paginación + índices</td></tr>
+<tr><td>Exposición por acceso remoto</td><td>Baja</td><td>Alto</td><td style="color:#d69e2e;font-weight:600;">🟠 Medio</td><td>VPN obligatoria</td></tr>
+<tr><td>Confusión por archivos legacy</td><td>Alta</td><td>Bajo</td><td style="color:#4299e1;font-weight:600;">🟡 Bajo</td><td>Limpiar carpeta legacy/</td></tr>
+</table>
+</div>
+
+<!-- CONCLUSIONES -->
+<div class="section">
+<h1 class="section-title">9. Conclusiones y Recomendaciones</h1>
+
+<h2>9.1 Conclusión general</h2>
+<p>El Sistema de Créditos IPSFA v6.7 representa un <strong>caso de éxito en refactorización de código</strong>. Las 12 versiones v6.x eliminaron el 61% de la deuda técnica, cerraron 6 vulnerabilidades de seguridad, y modernizaron la interfaz de usuario con un diseño corporativo profesional.</p>
+
+<p>El problema actual no es el código — es la <strong>infraestructura que lo sostiene</strong>. El sistema corre en condiciones de desarrollo (ventana de terminal, sin backup, sin cifrado) cuando debería estar en condiciones de producción.</p>
+
+<h2>9.2 Recomendaciones prioritarias</h2>
+<ol>
+<li><strong>No agregar más funcionalidades</strong> hasta estabilizar la infraestructura. El código puede esperar; la pérdida de datos no.</li>
+<li><strong>Implementar backup antes de cualquier otra cosa.</strong> Es la medida más barata y la que más protege.</li>
+<li><strong>Crear el servicio de Windows inmediatamente después.</strong> Elimina el riesgo de caídas por cierre accidental.</li>
+<li><strong>HTTPS y VPN son obligatorios</strong> si se va a acceder desde fuera de la red local.</li>
+<li><strong>Documentar cada cambio</strong> en el informe técnico para mantener trazabilidad.</li>
+</ol>
+
+<h2>9.3 Próximos pasos inmediatos</h2>
+<table>
+<tr><th>Orden</th><th>Tarea</th><th>Tiempo</th><th>Dependencia</th></tr>
+<tr><td>1</td><td>Backup automatizado</td><td>1 hora</td><td>Ninguna</td></tr>
+<tr><td>2</td><td>Servicio de Windows</td><td>1 hora</td><td>Ninguna</td></tr>
+<tr><td>3</td><td>Índices en BD</td><td>30 min</td><td>Ninguna</td></tr>
+<tr><td>4</td><td>Funciones SQL estadísticas</td><td>30 min</td><td>Ninguna</td></tr>
+<tr><td>5</td><td>HTTPS</td><td>2-4 horas</td><td>Dominio o certificado</td></tr>
+<tr><td>6</td><td>VPN</td><td>1-2 horas</td><td>Ninguna</td></tr>
+</table>
+
+<div class="success-box" style="margin-top: 20px;">
+<strong>Resumen ejecutivo:</strong> El sistema funciona bien. Invierte 4 horas esta semana en backup + servicio + índices + SQL, y tendrás un sistema estable y protegido. El resto puede esperar.
+</div>
+</div>
+
+<div class="footer" style="margin-top: 40px; padding-top: 15px; border-top: 2px solid var(--primary); text-align: center; font-size: 9pt; color: var(--text-light);">
+<p><strong>Diagnóstico Técnico — Sistema de Créditos IPSFA v6.7</strong></p>
+<p>Elaborado: Julio 2026 | Clasificación: Interno / Operativo | Documento v1.0</p>
+<p>647 pruebas pasan | 5 problemas críticos | 5 problemas altos | 6 problemas medios</p>
+</div>
+
+</body>
+</html>
