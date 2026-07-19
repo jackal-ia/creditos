@@ -81,7 +81,7 @@ router.get('/', verificarToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error listando actividades:', err);
-        res.status(500).json({ error: 'Error al obtener actividades', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener actividades' });
     }
 });
 
@@ -118,7 +118,7 @@ router.get('/:id', verificarToken, async (req, res) => {
         res.json({ exito: true, actividad });
     } catch (err) {
         console.error('Error obteniendo actividad:', err);
-        res.status(500).json({ error: 'Error al obtener actividad', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener actividad' });
     }
 });
 
@@ -159,7 +159,7 @@ router.post('/', verificarToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error creando actividad:', err);
-        res.status(500).json({ error: 'Error al crear actividad', detalle: err.message });
+        res.status(500).json({ error: 'Error al crear actividad' });
     }
 });
 
@@ -237,7 +237,7 @@ router.put('/:id', verificarToken, async (req, res) => {
     } catch (err) {
         console.error('Error actualizando actividad:', err);
         console.error('Stack trace:', err.stack);
-        res.status(500).json({ error: 'Error al actualizar actividad', detalle: err.message });
+        res.status(500).json({ error: 'Error al actualizar actividad' });
     }
 });
 
@@ -270,7 +270,7 @@ router.delete('/:id', verificarToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error eliminando actividad:', err);
-        res.status(500).json({ error: 'Error al eliminar actividad', detalle: err.message });
+        res.status(500).json({ error: 'Error al eliminar actividad' });
     }
 });
 
@@ -314,7 +314,7 @@ router.get('/estadisticas/resumen', verificarToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error obteniendo estadisticas:', err);
-        res.status(500).json({ error: 'Error al obtener estadisticas', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener estadisticas' });
     }
 });
 

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estadísticas | Créditos IPSFA</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.18.5/package/dist/xlsx.full.min.js"></script>
+<style>
+    :root {
+        --azul: #16324f;
+        --azul-osc: #0e2236;
+        --dorado: #b08d3c;
+        --fondo: #f0f2f5;
+        --borde: #dde1e6;
+        --texto: #2c3e50;
+        --verde: #2e7d32;
+        --ambar: #b26a00;
+        --rojo: #9c3d3d;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: var(--fondo); color: var(--texto);
+    }
+
+    /* ---------- Topbar ---------- */
+    .topbar {
+        background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%);
+        color: #fff; padding: 0 24px; height: 60px;
+        display: flex; align-items: center; gap: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.25);
+        position: sticky; top: 0; z-index: 50;
+    }
+    .topbar img { height: 38px; width: auto; }
+    .topbar .titulo { font-size: 18px; font-weight: 600; letter-spacing: .5px; }
+    .topbar .titulo span { color: var(--dorado); }
+    .topbar .spacer { flex: 1; }
+    .topbar .usuario { font-size: 13px; opacity: .9; margin-right: 14px; }
+    .topbar a.btn-top, .topbar button.btn-top {
+        background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.25);
+        padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+        text-decoration: none; display: inline-flex; align-items: center; gap: 7px;
+        transition: background .2s;
+    }
+    .topbar a.btn-top:hover, .topbar button.btn-top:hover { background: rgba(255,255,255,.22); }
+
+    .contenedor { max-width: 1280px; margin: 22px auto; padding: 0 20px 40px; }
+
+    /* ---------- Filtros ---------- */
+    .card {
+        background: #fff; border: 1px solid var(--borde); border-radius: 10px;
+        padding: 18px 20px; margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(16,34,54,.06);
+    }
+    .filtros { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+    .campo { display: flex; flex-direction: column; gap: 5px; }
+    .campo label { font-size: 12px; font-weight: 600; color: #5a6b7d; text-transform: uppercase; letter-spacing: .4px; }
+    .campo select, .campo input {
+        padding: 9px 12px; border: 1px solid var(--borde); border-radius: 6px;
+        font-size: 14px; min-width: 150px; background: #fff; color: var(--texto);
+    }
+    .campo select:focus, .campo input:focus { outline: 2px solid rgba(22,50,79,.25); border-color: var(--azul); }
+    .btn {
+        background: var(--azul); color: #fff; border: none; padding: 10px 20px;
+        border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 8px; transition: background .2s;
+    }
+    .btn:hover { background: var(--azul-osc); }
+    .btn.dorado { background: var(--dorado); }
+    .btn.dorado:hover { background: #96762f; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ---------- KPIs ---------- */
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .kpi {
+        background: #fff; border: 1px solid var(--borde); border-radius: 10px;
+        padding: 16px 18px; position: relative; overflow: hidden;
+        box-shadow: 0 1px 3px rgba(16,34,54,.06);
+    }
+    .kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--azul); }
+    .kpi.verde::before { background: var(--verde); }
+    .kpi.ambar::before { background: var(--ambar); }
+    .kpi.rojo::before { background: var(--rojo); }
+    .kpi.dorado::before { background: var(--dorado); }
+    .kpi .k-label { font-size: 12px; color: #5a6b7d; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+    .kpi .k-valor { font-size: 24px; font-weight: 700; color: var(--azul); margin-top: 6px; }
+    .kpi .k-icono { position: absolute; right: 14px; top: 14px; font-size: 22px; color: #c7d0da; }
+
+    /* ---------- Gráficos ---------- */
+    .graficos { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; margin-bottom: 20px; }
+    @media (max-width: 980px) { .graficos { grid-template-columns: 1fr; } }
+    .card h3 {
+        font-size: 15px; color: var(--azul); margin-bottom: 12px;
+        display: flex; align-items: center; gap: 9px;
+    }
+    .card h3 i { color: var(--dorado); }
+
+    /* ---------- Tabla ---------- */
+    table.tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    table.tabla thead th {
+        background: var(--azul); color: #fff; text-align: left;
+        padding: 10px 12px; font-weight: 600; font-size: 12.5px;
+        text-transform: uppercase; letter-spacing: .4px;
+    }
+    table.tabla thead th:first-child { border-radius: 8px 0 0 0; }
+    table.tabla thead th:last-child { border-radius: 0 8px 0 0; }
+    table.tabla tbody td { padding: 9px 12px; border-bottom: 1px solid #edf0f3; }
+    table.tabla tbody tr:hover { background: #f6f8fb; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge.verde { background: #e5f2e6; color: var(--verde); }
+    .badge.ambar { background: #fdf0dc; color: var(--ambar); }
+    .badge.rojo { background: #f9e5e5; color: var(--rojo); }
+    .badge.azul { background: #e3ebf3; color: var(--azul); }
+
+    /* ---------- Estados ---------- */
+    .cargando { text-align: center; padding: 40px; color: #5a6b7d; }
+    .cargando i { font-size: 28px; color: var(--dorado); margin-bottom: 10px; }
+    .vacio { text-align: center; padding: 26px; color: #8a97a5; font-size: 14px; }
+    .alerta-modulo {
+        display: none; background: #fdf3e3; border: 1px solid #ecd9ae; border-left: 4px solid var(--ambar);
+        color: #6b5310; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;
+    }
+    .alerta-modulo code { background: rgba(0,0,0,.07); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+    .oculto { display: none !important; }
+    .footer-nota { text-align: center; color: #93a1b0; font-size: 12px; margin-top: 26px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <img src="assets/logo.png" alt="IPSFA" onerror="this.style.display='none'">
+    <div class="titulo">Créditos <span>IPSFA</span> — Estadísticas</div>
+    <div class="spacer"></div>
+    <div class="usuario"><i class="fa-solid fa-user"></i> <span id="nombreUsuario">—</span></div>
+    <a class="btn-top" href="/panel"><i class="fa-solid fa-arrow-left"></i> Panel</a>
+    <button class="btn-top" id="btnSalir"><i class="fa-solid fa-right-from-bracket"></i> Salir</button>
+</div>
+
+<div class="contenedor">
+
+    <div class="alerta-modulo" id="alertaModulo">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <strong>Módulo no instalado en la base de datos.</strong>
+        La página carga correctamente, pero las funciones SQL de estadísticas aún no existen en PostgreSQL.
+        Ejecute <code>database\estadisticas-v2.sql</code> con psql (o el archivo <code>instalar-estadisticas.bat</code>) y recargue esta página.
+    </div>
+
+    <!-- Filtros -->
+    <div class="card">
+        <div class="filtros">
+            <div class="campo">
+                <label for="selMes">Mes</label>
+                <select id="selMes"></select>
+            </div>
+            <div class="campo">
+                <label for="selAnio">Año</label>
+                <select id="selAnio"></select>
+            </div>
+            <div class="campo" id="campoTienda">
+                <label for="selTienda">Tienda</label>
+                <select id="selTienda">
+                    <option value="">Todas</option>
+                    <option value="caracas">Caracas</option>
+                    <option value="maracay">Maracay</option>
+                    <option value="maracaibo">Maracaibo</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="txtBuscar">Buscar deudor</label>
+                <input type="text" id="txtBuscar" placeholder="Nombre o cédula…">
+            </div>
+            <button class="btn" id="btnActualizar"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+            <button class="btn dorado" id="btnExportar"><i class="fa-solid fa-file-excel"></i> Exportar Excel</button>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpis">
+        <div class="kpi"><i class="fa-solid fa-file-invoice-dollar k-icono"></i><div class="k-label">Créditos activos</div><div class="k-valor" id="kCreditos">—</div></div>
+        <div class="kpi verde"><i class="fa-solid fa-circle-check k-icono"></i><div class="k-label">Cuotas canceladas</div><div class="k-valor" id="kCanceladas">—</div></div>
+        <div class="kpi ambar"><i class="fa-solid fa-circle-half-stroke k-icono"></i><div class="k-label">Cuotas incompletas</div><div class="k-valor" id="kIncompletas">—</div></div>
+        <div class="kpi rojo"><i class="fa-solid fa-user-clock k-icono"></i><div class="k-label">Deudores</div><div class="k-valor" id="kDeudores">—</div></div>
+        <div class="kpi dorado"><i class="fa-solid fa-sack-dollar k-icono"></i><div class="k-label">Monto cancelado</div><div class="k-valor" id="kMontoCancelado">—</div></div>
+        <div class="kpi"><i class="fa-solid fa-scale-unbalanced k-icono"></i><div class="k-label">Monto pendiente</div><div class="k-valor" id="kMontoPendiente">—</div></div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="graficos">
+        <div class="card">
+            <h3><i class="fa-solid fa-chart-column"></i> Evolución de pagos — <span id="tituloAnio"></span></h3>
+            <div id="graficoEvolucion"></div>
+        </div>
+        <div class="card">
+            <h3><i class="fa-solid fa-chart-pie"></i> Distribución de pagos — <span id="tituloMes"></span></h3>
+            <div id="graficoDistribucion"></div>
+        </div>
+    </div>
+
+    <!-- Deudores -->
+    <div class="card">
+        <h3><i class="fa-solid fa-list"></i> Deudores del período <span class="badge azul" id="contadorDeudores">0</span></h3>
+        <div class="cargando" id="cargandoTabla"><i class="fa-solid fa-spinner fa-spin"></i><div>Cargando…</div></div>
+        <div class="vacio oculto" id="vacioTabla">Sin deudores en el período seleccionado.</div>
+        <div style="overflow-x:auto;">
+            <table class="tabla oculto" id="tablaDeudores">
+                <thead>
+                    <tr>
+                        <th>#</th><th>Nombre y apellido</th><th>Cédula</th><th>Tienda</th>
+                        <th class="num">Cuota mensual</th><th class="num">Pagado</th><th class="num">Deuda</th><th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyDeudores"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-nota">Sistema de Créditos IPSFA v6.2 — Módulo de estadísticas</div>
+</div>
+
+<script>
+// ============================================================
+// ESTADÍSTICAS IPSFA v6.2 — Lógica de la página
+// Consume /api/estadisticas/* (JWT obligatorio desde v6.1)
+// ============================================================
+(function () {
+    'use strict';
+
+    // ---------- Autenticación ----------
+    const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/'; return; }
+
+    let usuario = {};
+    try { usuario = JSON.parse(localStorage.getItem('usuario') || '{}'); } catch (e) { usuario = {}; }
+    const esAdmin = usuario.rol === 'administrador';
+
+    document.getElementById('nombreUsuario').textContent = usuario.nombre || usuario.email || 'Usuario';
+
+    async function apiFetch(url) {
+        const resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (resp.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuario');
+            window.location.href = '/';
+            throw new Error('Sesión expirada');
+        }
+        return resp;
+    }
+
+    document.getElementById('btnSalir').addEventListener('click', async function () {
+        try { await apiFetch('/api/auth/logout').catch(function () {}); } catch (e) {}
+        // Logout por POST
+        try {
+            await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+        } catch (e) {}
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        window.location.href = '/';
+    });
+
+    // ---------- Utilidades ----------
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const fmtNum = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtInt = new Intl.NumberFormat('es-VE');
+
+    function numero(v) {
+        const n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+    }
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ---------- Selectores de período ----------
+    const selMes = document.getElementById('selMes');
+    const selAnio = document.getElementById('selAnio');
+    const selTienda = document.getElementById('selTienda');
+    const hoy = new Date();
+
+    MESES.forEach(function (m, i) {
+        const op = document.createElement('option');
+        op.value = i + 1; op.textContent = m;
+        selMes.appendChild(op);
+    });
+    selMes.value = hoy.getMonth() + 1;
+
+    const anioActual = hoy.getFullYear();
+    for (let a = anioActual - 4; a <= anioActual + 1; a++) {
+        const op = document.createElement('option');
+        op.value = a; op.textContent = a;
+        selAnio.appendChild(op);
+    }
+    selAnio.value = anioActual;
+
+    // Operador: tienda fija (el backend la fuerza igualmente desde el token)
+    if (!esAdmin) {
+        const t = usuario.tienda || localStorage.getItem('tienda_usuario') || '';
+        selTienda.value = t;
+        selTienda.disabled = true;
+    }
+
+    function params() {
+        const p = new URLSearchParams({ mes: selMes.value, anio: selAnio.value });
+        if (selTienda.value) p.set('tienda', selTienda.value);
+        return p;
+    }
+
+    // ---------- Estado de datos (para exportar) ----------
+    let kpiActuales = null;
+    let deudoresActuales = [];
+    let evolucionActual = [];
+    let distribucionActual = [];
+
+    // ---------- KPIs ----------
+    async function cargarKPIs() {
+        const r = await apiFetch('/api/estadisticas/?' + params().toString());
+        const j = await r.json();
+        if (!j.exito) throw new Error(j.error || 'Error');
+        const d = j.datos || {};
+        kpiActuales = d;
+        document.getElementById('kCreditos').textContent = fmtInt.format(d.total_creditos_activos || 0);
+        document.getElementById('kCanceladas').textContent = fmtInt.format(numero(d.total_cuotas_canceladas));
+        document.getElementById('kIncompletas').textContent = fmtInt.format(numero(d.total_cuotas_incompletas));
+        document.getElementById('kDeudores').textContent = fmtInt.format(d.total_deudores || 0);
+        document.getElementById('kMontoCancelado').textContent = fmtNum.format(numero(d.monto_total_cancelado));
+        document.getElementById('kMontoPendiente').textContent = fmtNum.format(numero(d.monto_total_pendiente));
+    }
+
+    // ---------- Gráfico evolución ----------
+    let chartEvolucion = null;
+    async function cargarEvolucion() {
+        const p = new URLSearchParams({ anio: selAnio.value });
+        if (selTienda.value) p.set('tienda', selTienda.value);
+        const r = await apiFetch('/api/estadisticas/evolucion?' + p.toString());
+        const j = await r.json();
+        if (!j.exito) throw new Error(j.error || 'Error');
+        evolucionActual = j.datos || [];
+
+        const porMes = {};
+        evolucionActual.forEach(function (f) { porMes[f.mes] = f; });
+        const cats = [], canceladas = [], pendiente = [];
+        for (let m = 1; m <= 12; m++) {
+            cats.push(MESES[m - 1].substring(0, 3));
+            const f = porMes[m];
+            canceladas.push(f ? numero(f.monto_cancelado) : 0);
+            pendiente.push(f ? numero(f.monto_pendiente) : 0);
+        }
+        document.getElementById('tituloAnio').textContent = selAnio.value;
+
+        const opciones = {
+            chart: { type: 'bar', height: 320, toolbar: { show: false }, fontFamily: 'Segoe UI, sans-serif' },
+            series: [
+                { name: 'Cancelado', type: 'column', data: canceladas },
+                { name: 'Pendiente', type: 'column', data: pendiente }
+            ],
+            xaxis: { categories: cats },
+            colors: ['#16324f', '#b08d3c'],
+            plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
+            dataLabels: { enabled: false },
+            legend: { position: 'top' },
+            yaxis: { labels: { formatter: function (v) { return fmtInt.format(v); } } },
+            tooltip: { y: { formatter: function (v) { return fmtNum.format(v); } } },
+            noData: { text: 'Sin datos para el año seleccionado' }
+        };
+        if (chartEvolucion) { chartEvolucion.destroy(); }
+        chartEvolucion = new ApexCharts(document.getElementById('graficoEvolucion'), opciones);
+        chartEvolucion.render();
+    }
+
+    // ---------- Gráfico distribución ----------
+    let chartDistribucion = null;
+    async function cargarDistribucion() {
+        const r = await apiFetch('/api/estadisticas/distribucion?' + params().toString());
+        const j = await r.json();
+        if (!j.exito) throw new Error(j.error || 'Error');
+        distribucionActual = j.datos || [];
+        document.getElementById('tituloMes').textContent = MESES[selMes.value - 1];
+
+        const etiquetas = distribucionActual.map(function (d) { return d.categoria; });
+        const valores = distribucionActual.map(function (d) { return d.cantidad; });
+        const mapaColores = { 'Al día': '#2e7d32', 'Incompleto': '#b26a00', 'No pagó': '#9c3d3d' };
+        const colores = etiquetas.map(function (e) { return mapaColores[e] || '#5a6b7d'; });
+
+        const opciones = {
+            chart: { type: 'donut', height: 320, fontFamily: 'Segoe UI, sans-serif' },
+            series: valores,
+            labels: etiquetas,
+            colors: colores,
+            legend: { position: 'bottom' },
+            dataLabels: { formatter: function (val) { return val.toFixed(1) + '%'; } },
+            plotOptions: { pie: { donut: { size: '58%' } } },
+            noData: { text: 'Sin datos para el período' }
+        };
+        if (chartDistribucion) { chartDistribucion.destroy(); }
+        chartDistribucion = new ApexCharts(document.getElementById('graficoDistribucion'), opciones);
+        chartDistribucion.render();
+    }
+
+    // ---------- Tabla de deudores ----------
+    async function cargarDeudores() {
+        const cargando = document.getElementById('cargandoTabla');
+        const vacio = document.getElementById('vacioTabla');
+        const tabla = document.getElementById('tablaDeudores');
+        const tbody = document.getElementById('tbodyDeudores');
+        cargando.classList.remove('oculto');
+        vacio.classList.add('oculto');
+        tabla.classList.add('oculto');
+
+        const p = params();
+        const q = document.getElementById('txtBuscar').value.trim();
+        if (q) p.set('busqueda', q);
+        const r = await apiFetch('/api/estadisticas/deudores?' + p.toString());
+        const j = await r.json();
+        if (!j.exito) throw new Error(j.error || 'Error');
+        deudoresActuales = j.datos || [];
+
+        cargando.classList.add('oculto');
+        document.getElementById('contadorDeudores').textContent = deudoresActuales.length;
+
+        if (deudoresActuales.length === 0) {
+            vacio.classList.remove('oculto');
+            return;
+        }
+        tbody.innerHTML = deudoresActuales.map(function (d, i) {
+            const clase = d.estado === 'Al día' ? 'verde' : (d.estado === 'Incompleto' ? 'ambar' : 'rojo');
+            const nombreTienda = d.tienda ? d.tienda.charAt(0).toUpperCase() + d.tienda.slice(1) : '—';
+            return '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + escapeHtml(d.nombre_apellido) + '</td>' +
+                '<td>' + escapeHtml(d.cedula) + '</td>' +
+                '<td>' + escapeHtml(nombreTienda) + '</td>' +
+                '<td class="num">' + fmtNum.format(numero(d.cuota_mensual)) + '</td>' +
+                '<td class="num">' + fmtNum.format(numero(d.pagado)) + '</td>' +
+                '<td class="num"><strong>' + fmtNum.format(numero(d.deuda)) + '</strong></td>' +
+                '<td><span class="badge ' + clase + '">' + escapeHtml(d.estado) + '</span></td>' +
+            '</tr>';
+        }).join('');
+        tabla.classList.remove('oculto');
+    }
+
+    // ---------- Exportar a Excel ----------
+    function exportarExcel() {
+        if (typeof XLSX === 'undefined') { alert('La librería de Excel no cargó. Verifique su conexión.'); return; }
+        const wb = XLSX.utils.book_new();
+        const periodo = MESES[selMes.value - 1] + ' ' + selAnio.value;
+        const tiendaTxt = selTienda.value ? selTienda.options[selTienda.selectedIndex].text : 'Todas';
+
+        // Hoja 1: resumen
+        const resumen = [
+            ['Estadísticas — Sistema de Créditos IPSFA'],
+            ['Período', periodo],
+            ['Tienda', tiendaTxt],
+            [],
+            ['Indicador', 'Valor'],
+            ['Créditos activos', numero(kpiActuales && kpiActuales.total_creditos_activos)],
+            ['Cuotas canceladas', numero(kpiActuales && kpiActuales.total_cuotas_canceladas)],
+            ['Cuotas incompletas', numero(kpiActuales && kpiActuales.total_cuotas_incompletas)],
+            ['Deudores', numero(kpiActuales && kpiActuales.total_deudores)],
+            ['Monto cancelado', numero(kpiActuales && kpiActuales.monto_total_cancelado)],
+            ['Monto pendiente', numero(kpiActuales && kpiActuales.monto_total_pendiente)]
+        ];
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), 'Resumen');
+
+        // Hoja 2: deudores
+        const filas = [['#', 'Nombre y apellido', 'Cédula', 'Tienda', 'Cuota mensual', 'Pagado', 'Deuda', 'Estado']];
+        deudoresActuales.forEach(function (d, i) {
+            filas.push([i + 1, d.nombre_apellido, d.cedula, d.tienda || '', numero(d.cuota_mensual), numero(d.pagado), numero(d.deuda), d.estado]);
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filas), 'Deudores');
+
+        // Hoja 3: evolución anual
+        const evo = [['Mes', 'Cuotas canceladas', 'Cuotas incompletas', 'Monto cancelado', 'Monto pendiente']];
+        evolucionActual.forEach(function (f) {
+            evo.push([MESES[(f.mes || 1) - 1], numero(f.cuotas_canceladas), numero(f.cuotas_incompletas), numero(f.monto_cancelado), numero(f.monto_pendiente)]);
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(evo), 'Evolución');
+
+        XLSX.writeFile(wb, 'estadisticas_' + selAnio.value + '-' + String(selMes.value).padStart(2, '0') + '.xlsx');
+    }
+
+    // ---------- Carga general con manejo de módulo no instalado ----------
+    async function cargarTodo() {
+        const btn = document.getElementById('btnActualizar');
+        btn.disabled = true;
+        try {
+            await cargarKPIs();
+            await Promise.all([cargarEvolucion(), cargarDistribucion(), cargarDeudores()]);
+            document.getElementById('alertaModulo').style.display = 'none';
+        } catch (e) {
+            // Si las funciones SQL no existen, el backend responde 500
+            document.getElementById('alertaModulo').style.display = 'block';
+            document.getElementById('cargandoTabla').classList.add('oculto');
+            console.error('Error cargando estadísticas:', e);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ---------- Eventos ----------
+    document.getElementById('btnActualizar').addEventListener('click', cargarTodo);
+    document.getElementById('btnExportar').addEventListener('click', exportarExcel);
+    document.getElementById('txtBuscar').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') cargarDeudores().catch(function () {});
+    });
+    selMes.addEventListener('change', cargarTodo);
+    selAnio.addEventListener('change', cargarTodo);
+    selTienda.addEventListener('change', cargarTodo);
+
+    // ---------- Inicio ----------
+    cargarTodo();
+})();
+</script>
+
+</body>
+</html>

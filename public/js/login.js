@@ -91,8 +91,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             if (response.ok) {
                 localStorage.setItem('token', data.token);
-                // Extraer rol del token JWT si no viene en data.user
-let userData = data.user || {};
+                // Extraer rol del token JWT si no viene en data.usuario
+let userData = data.usuario || data.user || {}; // FIX v6.1: backend devuelve "usuario"
 if (!userData.rol && data.token) {
     try {
         const payload = JSON.parse(atob(data.token.split('.')[1]));

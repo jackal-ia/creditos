@@ -1,47 +1,48 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+// FIX (v6.1): pool COMPARTIDO. Antes creaba su propio pool con una cadena
+// de conexión hardcodeada con credenciales por defecto (postgres:postgres).
+const pool = require('../config/database');
+// FIX (v6.1): autenticación REAL. Antes había un middleware "señuelo"
+// (solo verificaba que existiera un token, sin validarlo) y ni siquiera
+// se aplicaba a las rutas: los 5 endpoints estaban abiertos sin token.
+const { verificarToken } = require('../middleware/auth');
 
-// Conexión a PostgreSQL (misma configuración que tu database.js)
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/creditos'
-});
-
-// Middleware para verificar autenticación (si tienes uno)
-const verificarAuth = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-        return res.status(401).json({ error: 'No autorizado' });
+// Si es operador, la tienda se fuerza desde su usuario (BD), nunca del query
+function tiendaEfectiva(req, tiendaQuery) {
+    if (req.usuario && req.usuario.rol === 'operador' && req.usuario.tienda) {
+        return req.usuario.tienda;
     }
-    // Aquí tu lógica de verificación de token
-    next();
-};
+    return tiendaQuery;
+}
 
 // ============================================================
 // GET /api/estadisticas - KPIs principales
 // ============================================================
-router.get('/', async (req, res) => {
+router.get('/', verificarToken, async (req, res) => {
     try {
-        const { mes, anio, tienda } = req.query;
+        const { mes, anio } = req.query;
+        const tienda = tiendaEfectiva(req, req.query.tienda);
 
         const mesActual = mes || new Date().getMonth() + 1;
         const anioActual = anio || new Date().getFullYear();
 
+        // v6.2: se pasa la tienda efectiva a la función (NULL = todas)
         const result = await pool.query(
-            'SELECT * FROM f_estadisticas_periodo($1, $2)',
-            [mesActual, anioActual]
+            'SELECT * FROM f_estadisticas_periodo($1, $2, $3)',
+            [mesActual, anioActual, tienda || null]
         );
 
         res.json({
             exito: true,
-            datos: result.rows[0]
+            datos: result.rows[0],
+            tienda: tienda || 'todas'
         });
     } catch (error) {
         console.error('Error en estadísticas:', error);
-        res.status(500).json({ 
-            exito: false, 
-            error: 'Error al obtener estadísticas',
-            detalle: error.message 
+        res.status(500).json({
+            exito: false,
+            error: 'Error al obtener estadísticas'
         });
     }
 });
@@ -49,21 +50,23 @@ router.get('/', async (req, res) => {
 // ============================================================
 // GET /api/estadisticas/deudores - Lista de deudores
 // ============================================================
-router.get('/deudores', async (req, res) => {
+router.get('/deudores', verificarToken, async (req, res) => {
     try {
         const { mes, anio, busqueda } = req.query;
+        // v6.2: operador queda limitado a su tienda también aquí
+        const tienda = tiendaEfectiva(req, req.query.tienda);
 
         const mesActual = mes || new Date().getMonth() + 1;
         const anioActual = anio || new Date().getFullYear();
 
         let query = `
-            SELECT * FROM f_deudores_mes($1, $2)
+            SELECT * FROM f_deudores_mes($1, $2, $3)
             WHERE 1=1
         `;
-        const params = [mesActual, anioActual];
+        const params = [mesActual, anioActual, tienda || null];
 
         if (busqueda) {
-            query += ` AND (nombre_apellido ILIKE $3 OR cedula ILIKE $3)`;
+            query += ` AND (nombre_apellido ILIKE $4 OR cedula ILIKE $4)`;
             params.push(`%${busqueda}%`);
         }
 
@@ -77,10 +80,9 @@ router.get('/deudores', async (req, res) => {
         });
     } catch (error) {
         console.error('Error en deudores:', error);
-        res.status(500).json({ 
-            exito: false, 
-            error: 'Error al obtener deudores',
-            detalle: error.message 
+        res.status(500).json({
+            exito: false,
+            error: 'Error al obtener deudores'
         });
     }
 });
@@ -88,14 +90,16 @@ router.get('/deudores', async (req, res) => {
 // ============================================================
 // GET /api/estadisticas/evolucion - Evolución mensual
 // ============================================================
-router.get('/evolucion', async (req, res) => {
+router.get('/evolucion', verificarToken, async (req, res) => {
     try {
         const { anio } = req.query;
         const anioActual = anio || new Date().getFullYear();
+        // v6.2: tienda efectiva (operador = su tienda)
+        const tienda = tiendaEfectiva(req, req.query.tienda);
 
         const result = await pool.query(
-            'SELECT * FROM f_evolucion_pagos($1)',
-            [anioActual]
+            'SELECT * FROM f_evolucion_pagos($1, $2)',
+            [anioActual, tienda || null]
         );
 
         res.json({
@@ -104,10 +108,9 @@ router.get('/evolucion', async (req, res) => {
         });
     } catch (error) {
         console.error('Error en evolución:', error);
-        res.status(500).json({ 
-            exito: false, 
-            error: 'Error al obtener evolución',
-            detalle: error.message 
+        res.status(500).json({
+            exito: false,
+            error: 'Error al obtener evolución'
         });
     }
 });
@@ -115,16 +118,18 @@ router.get('/evolucion', async (req, res) => {
 // ============================================================
 // GET /api/estadisticas/distribucion - Distribución de pagos
 // ============================================================
-router.get('/distribucion', async (req, res) => {
+router.get('/distribucion', verificarToken, async (req, res) => {
     try {
         const { mes, anio } = req.query;
 
         const mesActual = mes || new Date().getMonth() + 1;
         const anioActual = anio || new Date().getFullYear();
+        // v6.2: tienda efectiva (operador = su tienda)
+        const tienda = tiendaEfectiva(req, req.query.tienda);
 
         const result = await pool.query(
-            'SELECT * FROM f_distribucion_pagos($1, $2)',
-            [mesActual, anioActual]
+            'SELECT * FROM f_distribucion_pagos($1, $2, $3)',
+            [mesActual, anioActual, tienda || null]
         );
 
         res.json({
@@ -133,10 +138,9 @@ router.get('/distribucion', async (req, res) => {
         });
     } catch (error) {
         console.error('Error en distribución:', error);
-        res.status(500).json({ 
-            exito: false, 
-            error: 'Error al obtener distribución',
-            detalle: error.message 
+        res.status(500).json({
+            exito: false,
+            error: 'Error al obtener distribución'
         });
     }
 });
@@ -144,16 +148,17 @@ router.get('/distribucion', async (req, res) => {
 // ============================================================
 // GET /api/estadisticas/exportar - Exportar a PDF/Excel
 // ============================================================
-router.get('/exportar', async (req, res) => {
+router.get('/exportar', verificarToken, async (req, res) => {
     try {
         const { mes, anio, formato } = req.query;
-
-        // Aquí implementarías la lógica de exportación
-        // Por ahora devuelve los datos crudos
+        // v6.2: valores por defecto (antes llegaban undefined a la función)
+        const mesActual = mes || new Date().getMonth() + 1;
+        const anioActual = anio || new Date().getFullYear();
+        const tienda = tiendaEfectiva(req, req.query.tienda);
 
         const result = await pool.query(
-            'SELECT * FROM f_estadisticas_periodo($1, $2)',
-            [mes, anio]
+            'SELECT * FROM f_estadisticas_periodo($1, $2, $3)',
+            [mesActual, anioActual, tienda || null]
         );
 
         res.json({
@@ -163,10 +168,9 @@ router.get('/exportar', async (req, res) => {
         });
     } catch (error) {
         console.error('Error en exportar:', error);
-        res.status(500).json({ 
-            exito: false, 
-            error: 'Error al exportar',
-            detalle: error.message 
+        res.status(500).json({
+            exito: false,
+            error: 'Error al exportar'
         });
     }
 });

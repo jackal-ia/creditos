@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const pool = require('../config/database');
-const { verificarToken, soloAdmin, registrarAuditoria } = require('../middleware/auth');
+// FIX (v6.1): middleware UNIFICADO. Antes este archivo tenía su propio
+// verificarToken inline que NO consultaba la BD: un usuario desactivado
+// seguía operando hasta que el token expirara (24h).
+const { verificarToken, soloAdmin } = require('../middleware/auth');
 
 // ============================================
 // HELPERS
@@ -13,13 +15,13 @@ const { verificarToken, soloAdmin, registrarAuditoria } = require('../middleware
 async function logAuditoria(client, usuarioId, usuarioAccionId, accion, datosAnteriores, datosNuevos, ipAddress) {
     try {
         await client.query(
-            `INSERT INTO auditoria_usuarios 
+            `INSERT INTO auditoria_usuarios
              (usuario_id, usuario_accion_id, accion, datos_anteriores, datos_nuevos, ip_address)
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [
-                usuarioId, 
-                usuarioAccionId, 
-                accion, 
+                usuarioId,
+                usuarioAccionId,
+                accion,
                 datosAnteriores ? JSON.stringify(datosAnteriores) : null,
                 datosNuevos ? JSON.stringify(datosNuevos) : null,
                 ipAddress || null
@@ -41,7 +43,7 @@ router.get('/', verificarToken, soloAdmin, async (req, res) => {
             SELECT id, nombre, email, rol, activo, ip_asignada, tienda,
                    TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion,
                    TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion
-            FROM usuarios 
+            FROM usuarios
             WHERE 1=1
         `;
         const params = [];
@@ -80,7 +82,7 @@ router.get('/', verificarToken, soloAdmin, async (req, res) => {
         });
     } catch (err) {
         console.error('Error listando usuarios:', err);
-        res.status(500).json({ error: 'Error al obtener usuarios', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener usuarios' });
     }
 });
 
@@ -109,12 +111,12 @@ router.get('/:id', verificarToken, async (req, res) => {
 
         res.json({ exito: true, usuario: result.rows[0] });
     } catch (err) {
-        res.status(500).json({ error: 'Error al obtener usuario', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener usuario' });
     }
 });
 
 // ============================================
-// 3. CREAR NUEVO USUARIO (Admin) - IP OBLIGATORIA PARA OPERADORES
+// 3. CREAR NUEVO USUARIO (Admin)
 // ============================================
 router.post('/',
     verificarToken,
@@ -122,11 +124,10 @@ router.post('/',
     [
         body('nombre').trim().notEmpty().withMessage('El nombre es obligatorio').isLength({ max: 100 }),
         body('email').trim().isEmail().withMessage('Email invalido').normalizeEmail(),
-        body('password').isLength({ min: 6 }).withMessage('La contrasena debe tener minimo 6 caracteres'),
+        body('password').isLength({ min: 8 }).withMessage('La contrasena debe tener minimo 8 caracteres'),
         body('rol').isIn(['administrador', 'operador']).withMessage('Rol invalido'),
         body('ip_asignada')
             .custom((value, { req }) => {
-                // Si es operador, la IP es obligatoria
                 if (req.body.rol === 'operador') {
                     if (!value || value.trim() === '') {
                         throw new Error('La IP asignada es obligatoria para operadores');
@@ -140,7 +141,6 @@ router.post('/',
             .withMessage('La IP debe ser valida (IPv4 o IPv6)'),
         body('tienda')
             .custom((value, { req }) => {
-                // Si es operador, la tienda es obligatoria
                 if (req.body.rol === 'operador') {
                     if (!value || value.trim() === '') {
                         throw new Error('La tienda asignada es obligatoria para operadores');
@@ -176,16 +176,15 @@ router.post('/',
 
             const hashedPassword = await bcrypt.hash(password, 12);
 
-            // Si es operador, forzar IP (ya validado arriba, pero doble seguridad)
             const ipFinal = (rol === 'operador') ? ip_asignada : (ip_asignada || null);
-
             const tiendaFinal = (rol === 'operador') ? tienda : (tienda || null);
 
             const result = await client.query(
-                `INSERT INTO usuarios (nombre, email, password, rol, activo, ip_asignada, tienda) 
-                 VALUES ($1, $2, $3, $4, true, $5, $6) 
+                `INSERT INTO usuarios (nombre, email, password, rol, activo, ip_asignada, tienda)
+                 VALUES ($1, $2, $3, $4, true, $5, $6)
                  RETURNING id, nombre, email, rol, activo, ip_asignada, tienda,
-                           TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion`,
+                           TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion,
+                           TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion`,
                 [nombre, email, hashedPassword, rol, ipFinal, tiendaFinal]
             );
 
@@ -202,7 +201,7 @@ router.post('/',
         } catch (err) {
             await client.query('ROLLBACK');
             console.error('Error creando usuario:', err);
-            res.status(500).json({ exito: false, error: 'Error al crear usuario', detalle: err.message });
+            res.status(500).json({ exito: false, error: 'Error al crear usuario' });
         } finally {
             client.release();
         }
@@ -210,7 +209,7 @@ router.post('/',
 );
 
 // ============================================
-// 4. ACTUALIZAR USUARIO - IP OBLIGATORIA PARA OPERADORES
+// 4. ACTUALIZAR USUARIO - CORREGIDO
 // ============================================
 router.put('/:id',
     verificarToken,
@@ -221,10 +220,9 @@ router.put('/:id',
         body('activo').optional().isBoolean(),
         body('ip_asignada')
             .custom((value, { req }) => {
-                // Si se está cambiando a operador o ya es operador, validar IP
-                const rolFinal = req.body.rol || req.usuario?.rol;
-                if (rolFinal === 'operador') {
-                    if (value === '' || value === null || value === undefined) {
+                if (value !== undefined) {
+                    const rolFinal = req.body.rol || req.usuario?.rol;
+                    if (rolFinal === 'operador' && (value === '' || value === null)) {
                         throw new Error('La IP asignada es obligatoria para operadores');
                     }
                 }
@@ -236,14 +234,16 @@ router.put('/:id',
             .withMessage('La IP debe ser valida (IPv4 o IPv6)'),
         body('tienda')
             .custom((value, { req }) => {
-                const rolFinal = req.body.rol || req.usuario?.rol;
-                if (rolFinal === 'operador') {
-                    if (value === '' || value === null || value === undefined) {
+                if (value !== undefined) {
+                    const rolFinal = req.body.rol || req.usuario?.rol;
+                    if (rolFinal === 'operador' && (value === '' || value === null)) {
                         throw new Error('La tienda asignada es obligatoria para operadores');
                     }
-                    const tiendasValidas = ['caracas', 'maracay', 'maracaibo'];
-                    if (value && !tiendasValidas.includes(value)) {
-                        throw new Error('La tienda debe ser caracas, maracay o maracaibo');
+                    if (value) {
+                        const tiendasValidas = ['caracas', 'maracay', 'maracaibo'];
+                        if (!tiendasValidas.includes(value)) {
+                            throw new Error('La tienda debe ser caracas, maracay o maracaibo');
+                        }
                     }
                 }
                 return true;
@@ -291,15 +291,15 @@ router.put('/:id',
 
             const { nombre, email, rol, activo, ip_asignada, tienda } = req.body;
 
-            // Validación: si el rol final es operador, IP es obligatoria
+            // Validacion: si el rol final es operador, IP es obligatoria
             const rolFinal = rol || usuarioActualBD.rows[0].rol;
             if (rolFinal === 'operador') {
                 const ipFinal = ip_asignada !== undefined ? ip_asignada : usuarioActualBD.rows[0].ip_asignada;
                 if (!ipFinal || ipFinal === '') {
                     await client.query('ROLLBACK');
-                    return res.status(400).json({ 
-                        exito: false, 
-                        error: 'Los operadores deben tener una IP asignada' 
+                    return res.status(400).json({
+                        exito: false,
+                        error: 'Los operadores deben tener una IP asignada'
                     });
                 }
             }
@@ -312,31 +312,65 @@ router.put('/:id',
                 }
             }
 
+            // ============================================
+            // CONSTRUIR UPDATE - CORREGIDO
+            // ============================================
             const updates = [];
             const params = [];
             let paramCount = 0;
 
-            if (nombre !== undefined) { paramCount++; updates.push(`nombre = $${paramCount}`); params.push(nombre); }
-            if (email !== undefined) { paramCount++; updates.push(`email = $${paramCount}`); params.push(email); }
-            if (rol !== undefined && esAdmin) { paramCount++; updates.push(`rol = $${paramCount}`); params.push(rol); }
-            if (activo !== undefined && esAdmin) { paramCount++; updates.push(`activo = $${paramCount}`); params.push(activo); }
-            if (ip_asignada !== undefined && esAdmin) { 
-                paramCount++; 
-                updates.push(`ip_asignada = $${paramCount}`); 
-                params.push(ip_asignada || null); 
+            if (nombre !== undefined) {
+                paramCount++;
+                updates.push(`nombre = $${paramCount}`);
+                params.push(nombre);
             }
-            if (tienda !== undefined && esAdmin) { 
-                paramCount++; 
-                updates.push(`tienda = $${paramCount}`); 
-                params.push(tienda || null); 
+            if (email !== undefined) {
+                paramCount++;
+                updates.push(`email = $${paramCount}`);
+                params.push(email);
+            }
+            if (rol !== undefined && esAdmin) {
+                paramCount++;
+                updates.push(`rol = $${paramCount}`);
+                params.push(rol);
+            }
+            if (activo !== undefined && esAdmin) {
+                paramCount++;
+                updates.push(`activo = $${paramCount}`);
+                params.push(activo);
+            }
+            if (ip_asignada !== undefined && esAdmin) {
+                paramCount++;
+                updates.push(`ip_asignada = $${paramCount}`);
+                params.push(ip_asignada || null);
+            }
+            if (tienda !== undefined && esAdmin) {
+                paramCount++;
+                updates.push(`tienda = $${paramCount}`);
+                params.push(tienda || null);
             }
 
-            paramCount++;
+            // REVOCACIÓN (v6.1): cambios de rol/estado/IP/tienda invalidan
+            // las sesiones activas del usuario modificado
+            if (esAdmin && (rol !== undefined || activo !== undefined || ip_asignada !== undefined || tienda !== undefined)) {
+                updates.push(`token_version = COALESCE(token_version, 0) + 1`);
+            }
+
+            if (updates.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ exito: false, error: 'No hay campos para actualizar' });
+            }
+
+            // CORRECCION: updated_at usa NOW() directamente, NO es un parametro
             updates.push(`updated_at = NOW()`);
+
+            // CORRECCION: El id va como ultimo parametro
+            paramCount++;
             params.push(id);
 
-            const query = `UPDATE usuarios SET ${updates.join(', ')} WHERE id = $${paramCount} 
-                          RETURNING id, nombre, email, rol, activo, ip_asignada,
+            // CORRECCION: Agregado 'tienda' al RETURNING
+            const query = `UPDATE usuarios SET ${updates.join(', ')} WHERE id = $${paramCount}
+                          RETURNING id, nombre, email, rol, activo, ip_asignada, tienda,
                                     TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as fecha_creacion,
                                     TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion`;
 
@@ -355,7 +389,7 @@ router.put('/:id',
         } catch (err) {
             await client.query('ROLLBACK');
             console.error('Error actualizando usuario:', err);
-            res.status(500).json({ error: 'Error al actualizar usuario', detalle: err.message });
+            res.status(500).json({ error: 'Error al actualizar usuario' });
         } finally {
             client.release();
         }
@@ -387,15 +421,15 @@ router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
         delete datosAnteriores.password;
 
         const result = await client.query(
-            `UPDATE usuarios SET activo = false, updated_at = NOW() 
-             WHERE id = $1 
-             RETURNING id, nombre, email, rol, activo, ip_asignada`,
+            `UPDATE usuarios SET activo = false, updated_at = NOW(),
+                    token_version = COALESCE(token_version, 0) + 1
+             WHERE id = $1
+             RETURNING id, nombre, email, rol, activo, ip_asignada, tienda,
+                       TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion`,
             [id]
         );
 
         await logAuditoria(client, id, req.usuario.id, 'ELIMINAR', datosAnteriores, result.rows[0], null);
-
-        await client.query('UPDATE sesiones SET activa = false WHERE usuario_id = $1', [id]);
 
         await client.query('COMMIT');
 
@@ -408,7 +442,7 @@ router.delete('/:id', verificarToken, soloAdmin, async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Error eliminando usuario:', err);
-        res.status(500).json({ error: 'Error al eliminar usuario', detalle: err.message });
+        res.status(500).json({ error: 'Error al eliminar usuario' });
     } finally {
         client.release();
     }
@@ -431,11 +465,10 @@ router.patch('/:id/reactivar', verificarToken, soloAdmin, async (req, res) => {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
-        // Validar que operadores reactivados tengan IP
         if (usuarioActual.rows[0].rol === 'operador' && (!usuarioActual.rows[0].ip_asignada || usuarioActual.rows[0].ip_asignada === '')) {
             await client.query('ROLLBACK');
-            return res.status(400).json({ 
-                error: 'No se puede reactivar: el operador no tiene IP asignada. Edite primero el usuario para asignarle una IP.' 
+            return res.status(400).json({
+                error: 'No se puede reactivar: el operador no tiene IP asignada'
             });
         }
 
@@ -443,9 +476,9 @@ router.patch('/:id/reactivar', verificarToken, soloAdmin, async (req, res) => {
         delete datosAnteriores.password;
 
         const result = await client.query(
-            `UPDATE usuarios SET activo = true, updated_at = NOW() 
-             WHERE id = $1 
-             RETURNING id, nombre, email, rol, activo, ip_asignada,
+            `UPDATE usuarios SET activo = true, updated_at = NOW()
+             WHERE id = $1
+             RETURNING id, nombre, email, rol, activo, ip_asignada, tienda,
                        TO_CHAR(updated_at, 'DD/MM/YYYY HH24:MI') as fecha_actualizacion`,
             [id]
         );
@@ -462,7 +495,7 @@ router.patch('/:id/reactivar', verificarToken, soloAdmin, async (req, res) => {
 
     } catch (err) {
         await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Error al reactivar usuario', detalle: err.message });
+        res.status(500).json({ error: 'Error al reactivar usuario' });
     } finally {
         client.release();
     }
@@ -475,7 +508,7 @@ router.put('/:id/password',
     verificarToken,
     [
         body('passwordActual').notEmpty().withMessage('La contrasena actual es obligatoria'),
-        body('passwordNuevo').isLength({ min: 6 }).withMessage('La nueva contrasena debe tener minimo 6 caracteres')
+        body('passwordNuevo').isLength({ min: 8 }).withMessage('La nueva contrasena debe tener minimo 8 caracteres')
     ],
     async (req, res) => {
         const client = await pool.connect();
@@ -516,23 +549,17 @@ router.put('/:id/password',
 
             const hashedPassword = await bcrypt.hash(passwordNuevo, 12);
 
+            // Al cambiar la contraseña se invalidan todas las sesiones previas
             await client.query(
-                'UPDATE usuarios SET password = $1, updated_at = NOW() WHERE id = $2',
+                'UPDATE usuarios SET password = $1, updated_at = NOW(), token_version = COALESCE(token_version, 0) + 1 WHERE id = $2',
                 [hashedPassword, id]
             );
 
-            await logAuditoria(client, id, req.usuario.id, 'CAMBIO_PASSWORD', 
-                { email: usuario.email }, 
+            await logAuditoria(client, id, req.usuario.id, 'CAMBIO_PASSWORD',
+                { email: usuario.email },
                 { email: usuario.email, mensaje: 'Password actualizada' },
                 null
             );
-
-            if (esMismoUsuario) {
-                await client.query(
-                    'UPDATE sesiones SET activa = false WHERE usuario_id = $1 AND token != $2',
-                    [id, req.headers.authorization?.replace('Bearer ', '') || '']
-                );
-            }
 
             await client.query('COMMIT');
 
@@ -544,7 +571,7 @@ router.put('/:id/password',
         } catch (err) {
             await client.query('ROLLBACK');
             console.error('Error cambiando password:', err);
-            res.status(500).json({ error: 'Error al cambiar contrasena', detalle: err.message });
+            res.status(500).json({ error: 'Error al cambiar contrasena' });
         } finally {
             client.release();
         }
@@ -567,7 +594,7 @@ router.post('/recuperar-password', async (req, res) => {
         if (result.rows.length === 0) {
             return res.json({
                 exito: true,
-                mensaje: 'Si el email existe, recibiras instrucciones para recuperar tu contrasena'
+                mensaje: 'Si el email existe, recibiras instrucciones'
             });
         }
 
@@ -583,16 +610,21 @@ router.post('/recuperar-password', async (req, res) => {
             [usuario.id, token, expiresAt]
         );
 
+        // FIX SEGURIDAD (v6.1): el token YA NO se devuelve en la respuesta.
+        // Antes cualquiera podía resetear la clave de cualquier usuario
+        // (incluido un admin) con solo saber su email.
+        // Mientras no haya envío por email, el administrador puede
+        // consultar el token directamente en la tabla reset_tokens.
+        console.log(`🔑 Token de recuperación generado para usuario ID ${usuario.id} (válido 1 hora)`);
+
         res.json({
             exito: true,
-            mensaje: 'Si el email existe, recibiras instrucciones para recuperar tu contrasena',
-            token_desarrollo: token,
-            usuario: usuario.nombre
+            mensaje: 'Si el email existe, recibiras instrucciones'
         });
 
     } catch (err) {
         console.error('Error en recuperacion:', err);
-        res.status(500).json({ error: 'Error al procesar solicitud', detalle: err.message });
+        res.status(500).json({ error: 'Error al procesar solicitud' });
     }
 });
 
@@ -609,14 +641,14 @@ router.post('/restablecer-password', async (req, res) => {
             return res.status(400).json({ error: 'Token y nueva contrasena son obligatorios' });
         }
 
-        if (passwordNuevo.length < 6) {
-            return res.status(400).json({ error: 'La contrasena debe tener minimo 6 caracteres' });
+        if (passwordNuevo.length < 8) {
+            return res.status(400).json({ error: 'La contrasena debe tener minimo 8 caracteres' });
         }
 
         await client.query('BEGIN');
 
         const tokenResult = await client.query(
-            `SELECT rt.*, u.email, u.nombre, u.rol 
+            `SELECT rt.*, u.email, u.nombre, u.rol
              FROM reset_tokens rt
              JOIN usuarios u ON rt.usuario_id = u.id
              WHERE rt.token = $1 AND rt.used = false AND rt.expires_at > NOW()`,
@@ -633,7 +665,8 @@ router.post('/restablecer-password', async (req, res) => {
         const hashedPassword = await bcrypt.hash(passwordNuevo, 12);
 
         await client.query(
-            'UPDATE usuarios SET password = $1, updated_at = NOW() WHERE id = $2',
+            // Al restablecer la contraseña se invalidan todas las sesiones previas
+            'UPDATE usuarios SET password = $1, updated_at = NOW(), token_version = COALESCE(token_version, 0) + 1 WHERE id = $2',
             [hashedPassword, resetToken.usuario_id]
         );
 
@@ -645,19 +678,17 @@ router.post('/restablecer-password', async (req, res) => {
             null
         );
 
-        await client.query('UPDATE sesiones SET activa = false WHERE usuario_id = $1', [resetToken.usuario_id]);
-
         await client.query('COMMIT');
 
         res.json({
             exito: true,
-            mensaje: 'Contrasena restablecida correctamente. Inicia sesion con tu nueva contrasena.'
+            mensaje: 'Contrasena restablecida correctamente'
         });
 
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Error restableciendo password:', err);
-        res.status(500).json({ error: 'Error al restablecer contrasena', detalle: err.message });
+        res.status(500).json({ error: 'Error al restablecer contrasena' });
     } finally {
         client.release();
     }
@@ -682,7 +713,7 @@ router.get('/perfil/me', verificarToken, async (req, res) => {
 
         res.json({ exito: true, perfil: result.rows[0] });
     } catch (err) {
-        res.status(500).json({ error: 'Error al obtener perfil', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener perfil' });
     }
 });
 
@@ -697,7 +728,7 @@ router.get('/auditoria/:usuarioId', verificarToken, soloAdmin, async (req, res) 
         const offset = (parseInt(pagina) - 1) * parseInt(limite);
 
         const result = await pool.query(
-            `SELECT a.*, 
+            `SELECT a.*,
                     u1.nombre as usuario_nombre,
                     u2.nombre as usuario_accion_nombre
              FROM auditoria_usuarios a
@@ -722,7 +753,7 @@ router.get('/auditoria/:usuarioId', verificarToken, soloAdmin, async (req, res) 
             auditoria: result.rows
         });
     } catch (err) {
-        res.status(500).json({ error: 'Error al obtener auditoria', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener auditoria' });
     }
 });
 
@@ -738,7 +769,7 @@ router.get('/estadisticas/resumen', verificarToken, soloAdmin, async (req, res) 
         const operadores = await pool.query('SELECT COUNT(*) as operadores FROM usuarios WHERE rol = $1', ['operador']);
 
         const recientes = await pool.query(
-            `SELECT COUNT(*) as recientes FROM usuarios 
+            `SELECT COUNT(*) as recientes FROM usuarios
              WHERE created_at >= NOW() - INTERVAL '7 days'`
         );
 
@@ -755,11 +786,11 @@ router.get('/estadisticas/resumen', verificarToken, soloAdmin, async (req, res) 
                 operadores: parseInt(operadores.rows[0].operadores),
                 creados_ultima_semana: parseInt(recientes.rows[0].recientes),
                 con_ip_restringida: parseInt(conIp.rows[0].con_ip),
-                operadores_sin_ip: parseInt(sinIp.rows[0].sin_ip) // Alerta: operadores sin IP
+                operadores_sin_ip: parseInt(sinIp.rows[0].sin_ip)
             }
         });
     } catch (err) {
-        res.status(500).json({ error: 'Error al obtener estadisticas', detalle: err.message });
+        res.status(500).json({ error: 'Error al obtener estadisticas' });
     }
 });
 

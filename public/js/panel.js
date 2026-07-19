@@ -90,11 +90,62 @@ document.getElementById('userRole').textContent = rolDetectado.charAt(0).toUpper
 document.getElementById('userInitials').textContent = (usuario.nombre || 'U').charAt(0).toUpperCase();
 
 function cerrarSesion() {
+    // FIX (v6.1): logout REAL — invalida el token en el servidor
+    // (incrementa token_version). Antes solo se borraba del navegador
+    // y el token seguía válido 24h para quien lo tuviera copiado.
+    const t = localStorage.getItem('token');
+    if (t) {
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + t },
+            keepalive: true
+        }).catch(() => {});
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
     localStorage.removeItem('user');
     window.location.href = '/';
 }
+
+// ============================================================
+// INTERCEPTOR GLOBAL DE AUTENTICACIÓN (v6.1)
+// - Agrega el token a TODAS las llamadas /api/ automáticamente
+//   (las rutas de tiendas y estadísticas ahora exigen token)
+// - Si el servidor responde 401 por token inválido/expirado/
+//   revocado, cierra sesión y vuelve al login en vez de mostrar
+//   errores sueltos ("token perdido")
+// ============================================================
+(function () {
+    const _fetch = window.fetch;
+    window.fetch = function (url, opts) {
+        const esApi = typeof url === 'string' && url.startsWith('/api/');
+        opts = opts || {};
+
+        if (esApi) {
+            const t = localStorage.getItem('token');
+            if (t) {
+                opts.headers = Object.assign({}, opts.headers, {
+                    'Authorization': 'Bearer ' + t
+                });
+            }
+        }
+
+        return _fetch(url, opts).then(async (res) => {
+            if (esApi && res.status === 401 && localStorage.getItem('token')
+                && !url.includes('/api/auth/logout')) {
+                // Distinguir "sesión inválida" de otros 401 (ej. clave actual incorrecta)
+                try {
+                    const cuerpo = await res.clone().json();
+                    const msg = (cuerpo && (cuerpo.error || cuerpo.mensaje) || '') + '';
+                    if (/token|sesi[oó]n|inactivo|no encontrado/i.test(msg)) {
+                        cerrarSesion();
+                    }
+                } catch (e) { /* si no es JSON, no se redirige */ }
+            }
+            return res;
+        });
+    };
+})();
 
 // ============================================
 // SIDEBAR
@@ -120,6 +171,22 @@ function toggleSidebar() {
         sidebar.classList.toggle('collapsed');
     }
 }
+
+// v6.5.1 — botón "Volver al Menú" de la sección Estadísticas:
+// regresa al menú de la tienda desde la que se abrió (filtro-tienda queda
+// fijado por initEstadisticas); operadores siempre vuelven a SU tienda.
+function volverAlMenuTienda() {
+    let tienda = '';
+    const sel = document.getElementById('filtro-tienda');
+    if (sel) tienda = sel.value;
+    if (typeof isAdmin === 'function' && !isAdmin()) {
+        const t = (typeof getTiendaUsuario === 'function') ? getTiendaUsuario() : '';
+        if (t) tienda = t;
+    }
+    const mapa = { caracas: 'clientes', maracay: 'creditos', maracaibo: 'pagos' };
+    mostrarSeccion(mapa[tienda] || 'dashboard');
+}
+window.volverAlMenuTienda = volverAlMenuTienda;
 
 function mostrarSeccion(seccion, tiendaPredefinida) {
     // En móvil, cerrar sidebar al seleccionar una sección
@@ -160,9 +227,21 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
     }
 
     document.querySelectorAll('.content-area').forEach(el => el.classList.add('hidden'));
-    const contentId = 'content' + seccion.charAt(0).toUpperCase() + seccion.slice(1);
+    // FIX (refactor tiendas): 'creditos' = Tienda Maracay y vive en
+    // contentMaracay. Antes apuntaba a contentCreditos, un placeholder
+    // "En desarrollo": el módulo real de Maracay nunca se mostraba.
+    const contentIdMap = { 'creditos': 'contentMaracay' };
+    const contentId = contentIdMap[seccion] || ('content' + seccion.charAt(0).toUpperCase() + seccion.slice(1));
     const content = document.getElementById(contentId);
     if (content) content.classList.remove('hidden');
+
+    // v6.5.1 — al cambiar de sección, volver al inicio del contenido
+    // (scroll-margin-top en CSS compensa el header fijo)
+    setTimeout(() => {
+        try {
+            if (content) content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {}
+    }, 80);
 
     const titulos = {
         'dashboard': 'Panel Principal',
@@ -197,26 +276,11 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
         if (navItem) navItem.classList.add('active');
     }
 
-    if (seccion === 'clientes') {
-        const menu = document.getElementById('tc-menu-principal');
-        const baseDatos = document.getElementById('tc-base-datos');
-        const conciliaciones = document.getElementById('tc-conciliaciones');
-        const busqueda = document.getElementById('tc-busqueda');
-        if (menu) menu.style.display = 'grid';
-        if (baseDatos) baseDatos.style.display = 'none';
-        if (conciliaciones) conciliaciones.style.display = 'none';
-        if (busqueda) busqueda.style.display = 'none';
-    }
-
-    if (seccion === 'pagos') {
-        const menu = document.getElementById('tmb-menu-principal');
-        const baseDatos = document.getElementById('tmb-base-datos');
-        const conciliaciones = document.getElementById('tmb-conciliaciones');
-        const busqueda = document.getElementById('tmb-busqueda');
-        if (menu) menu.style.display = 'grid';
-        if (baseDatos) baseDatos.style.display = 'none';
-        if (conciliaciones) conciliaciones.style.display = 'none';
-        if (busqueda) busqueda.style.display = 'none';
+    // Módulo genérico de tiendas (js/tienda-spa.js): monta la tienda
+    // correspondiente y muestra su menú principal. Reemplaza los resets
+    // manuales de tc-*/tmb-* que existían aquí antes.
+    if (window.Tiendas && typeof window.Tiendas.esSeccionTienda === 'function' && window.Tiendas.esSeccionTienda(seccion)) {
+        window.Tiendas.show(seccion);
     }
 
     if (seccion === 'tasas') cargarHistorial();
@@ -484,7 +548,10 @@ function abrirModalUsuario() {
     document.getElementById('usuarioTienda').value = '';
     document.getElementById('usuarioTienda').required = true;
     document.getElementById('tiendaHelp').textContent = 'Obligatoria para operadores';
-    document.getElementById('grupoPassword').style.display = 'block';
+    const passwordInputNew = document.getElementById('usuarioPassword');
+        passwordInputNew.required = true;
+        passwordInputNew.value = '';
+        document.getElementById('grupoPassword').style.display = 'block';
     document.getElementById('grupoEstado').style.display = 'none';
     document.getElementById('grupoIp').style.display = 'block';
     document.getElementById('grupoTienda').style.display = 'block';
@@ -562,7 +629,10 @@ async function editarUsuario(id) {
                 tiendaHelp.textContent = 'Opcional para administradores';
                 tiendaHelp.style.color = '#718096';
             }
-            document.getElementById('grupoPassword').style.display = 'none';
+            const passwordInputEdit = document.getElementById('usuarioPassword');
+        passwordInputEdit.required = false;
+        passwordInputEdit.value = '';
+        document.getElementById('grupoPassword').style.display = 'none';
             document.getElementById('grupoEstado').style.display = 'block';
             document.getElementById('grupoIp').style.display = 'block';
             document.getElementById('grupoTienda').style.display = 'block';
@@ -895,12 +965,9 @@ function initEstadisticas(tiendaPredefinida) {
 async function cargarMesesDisponibles(tienda) {
     try {
         const tiendaSeleccionada = tienda || document.getElementById('filtro-tienda')?.value || 'caracas';
-        let apiEndpoint = '/api/tienda-caracas';
-        if (tiendaSeleccionada === 'maracay') {
-            apiEndpoint = '/api/tienda-maracay';
-        } else if (tiendaSeleccionada === 'maracaibo') {
-            apiEndpoint = '/api/tienda-maracaibo';
-        }
+        // Endpoint genérico (refactor): el servidor valida la tienda
+        const tiendaValida = ['caracas', 'maracay', 'maracaibo'].includes(tiendaSeleccionada) ? tiendaSeleccionada : 'caracas';
+        const apiEndpoint = '/api/tiendas/' + tiendaValida;
 
         const response = await fetch(apiEndpoint);
         if (!response.ok) return;
@@ -1029,12 +1096,9 @@ async function cargarDatosEstadisticasReales(tiendaPredefinida) {
 
         // Cargando estadisticas
 
-        let apiEndpoint = '/api/tienda-caracas';
-        if (tienda === 'maracay') {
-            apiEndpoint = '/api/tienda-maracay';
-        } else if (tienda === 'maracaibo') {
-            apiEndpoint = '/api/tienda-maracaibo';
-        }
+        // Endpoint genérico (refactor): el servidor valida la tienda
+        const tiendaValida = ['caracas', 'maracay', 'maracaibo'].includes(tienda) ? tienda : 'caracas';
+        const apiEndpoint = '/api/tiendas/' + tiendaValida;
 
         const response = await fetch(apiEndpoint);
         if (!response.ok) throw new Error('Error HTTP: ' + response.status);
@@ -1367,6 +1431,12 @@ function exportarReporte() {
 
 let actividades = [];
 let filtroActividades = 'pendientes';  // Por defecto solo mostrar pendientes
+// v6.7 — estado del rediseño de la agenda
+let agendaTiendaFiltro = 'todas';        // filtro de tienda (página, solo admin)
+let widgetTiendaFiltro = 'todas';        // filtro de tienda (widget dashboard)
+let widgetActividadesCache = [];         // última carga del widget (filtrado en cliente)
+const TIENDAS_AGENDA = { caracas: 'Caracas', maracay: 'Maracay', maracaibo: 'Maracaibo' };
+const AGENDA_COLORES = { caracas: '#27ae60', maracay: '#7c5cbf', maracaibo: '#e67e22' };
 
 // Paginación del historial
 let paginaHistorial = 1;
@@ -1378,9 +1448,12 @@ let actividadesHistorialCache = [];
 async function initAgenda() {
     await cargarActividadesAPI();
     actualizarFechaAgenda();
+    configurarAgendaSegunRol();
     renderizarActividades();
     actualizarStatsAgenda();
+    renderAgendaExtras();
     cargarHistorialActividades();
+    cargarSemanaAgenda();
 
     // Setear hora actual por defecto en el input
     const ahora = new Date();
@@ -1611,6 +1684,7 @@ async function agregarActividad() {
             // Limpiar formulario
             descripcionInput.value = '';
             prioridadInput.value = 'media';
+            if (typeof setAgendaPrioridad === 'function') setAgendaPrioridad('media');
 
             // Actualizar hora al momento actual
             const ahora = new Date();
@@ -1620,6 +1694,7 @@ async function agregarActividad() {
             await cargarActividadesAPI();
             renderizarActividades();
             actualizarStatsAgenda();
+            renderAgendaExtras();
             await actualizarWidgetActividades();
             mostrarAlerta('Actividad agregada exitosamente', 'success');
         } else {
@@ -1666,7 +1741,9 @@ async function toggleActividad(id) {
             await cargarActividadesAPI();
             renderizarActividades();
             actualizarStatsAgenda();
+            renderAgendaExtras();
             await cargarHistorialActividades();
+            cargarSemanaAgenda();
             await actualizarWidgetActividades();
         } else {
             throw new Error(data.error || 'Error al actualizar actividad');
@@ -1713,7 +1790,9 @@ async function eliminarActividad(id) {
                             await cargarActividadesAPI();
                             renderizarActividades();
                             actualizarStatsAgenda();
+                            renderAgendaExtras();
                             cargarHistorialActividades();
+                            cargarSemanaAgenda();
                             actualizarWidgetActividades();
                             mostrarAlerta('Actividad eliminada', 'success');
                         } else {
@@ -1843,19 +1922,31 @@ function filtrarActividades(filtro) {
     renderizarActividades();
 }
 
+function agendaVisibles() {
+    // v6.7: filtro de tienda en cliente (solo admin; el operador ya viene filtrado del servidor)
+    if (typeof agendaTiendaFiltro !== 'undefined' && agendaTiendaFiltro !== 'todas' && isAdmin()) {
+        return actividades.filter(a => a.tienda === agendaTiendaFiltro);
+    }
+    return actividades;
+}
+
 function renderizarActividades() {
     const lista = document.getElementById('agendaLista');
     if (!lista) return;
 
-    let actividadesFiltradas = actividades;
+    let actividadesFiltradas = agendaVisibles().slice();
     if (filtroActividades === 'pendientes') {
-        actividadesFiltradas = actividades.filter(a => a.estado === 'pendiente');
+        actividadesFiltradas = actividadesFiltradas.filter(a => a.estado === 'pendiente');
     } else if (filtroActividades === 'completadas') {
-        actividadesFiltradas = actividades.filter(a => a.estado === 'completada');
+        actividadesFiltradas = actividadesFiltradas.filter(a => a.estado === 'completada');
     }
 
-    // Ordenar por hora
-    actividadesFiltradas.sort((a, b) => a.hora.localeCompare(b.hora));
+    // Pendientes primero; dentro de cada grupo, por hora
+    actividadesFiltradas.sort((a, b) => {
+        const da = a.estado === 'completada' ? 1 : 0;
+        const db = b.estado === 'completada' ? 1 : 0;
+        return (da - db) || String(a.hora).localeCompare(String(b.hora));
+    });
 
     if (actividadesFiltradas.length === 0) {
         let mensaje = 'No hay actividades para hoy';
@@ -1873,7 +1964,7 @@ function renderizarActividades() {
         }
 
         lista.innerHTML = `
-            <div class="agenda-empty">
+            <div class="ag2-vacia">
                 <i class="fas ${icono}"></i>
                 <p>${mensaje}</p>
                 <span>${submensaje}</span>
@@ -1890,51 +1981,38 @@ function renderizarActividades() {
         const hora = act.hora;
         const prioridad = act.prioridad;
         const tienda = act.tienda;
-        const estado = act.estado;
+        const isCompletada = act.estado === 'completada';
         const fechaCompletada = act.fecha_completada || act.fechaCompletada || null;
-
-        const isCompletada = estado === 'completada';
-        const prioridadClass = 'prioridad-' + prioridad;
         const fechaCompletadaFormateada = fechaCompletada ? formatearFechaHora(fechaCompletada) : '';
-        const tiendaNombre = {
-            'caracas': 'Caracas',
-            'maracay': 'Maracay',
-            'maracaibo': 'Maracaibo'
-        }[tienda] || tienda || 'General';
+        const tiendaNombre = TIENDAS_AGENDA[tienda] || tienda || 'General';
 
-        const descripcionExtraHtml = descripcionExtra ? 
-            `<div style="margin-top:6px; padding:8px 12px; background:#f0fff4; border-radius:8px; border-left:3px solid #48bb78; font-size:0.85rem; color:#2d3748; line-height:1.4;">
-                <div style="font-size:0.7rem; font-weight:600; color:#48bb78; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; display:flex; align-items:center; gap:4px;">
-                    <i class="fas fa-sticky-note" style="font-size:0.65rem;"></i> Nota / Descripción adicional
-                </div>
+        const chipTienda = tienda ?
+            `<span class="ag2-chip t-${tienda}"><span class="ag2-punto ${tienda}"></span> ${tiendaNombre}</span>` : '';
+
+        const descripcionExtraHtml = descripcionExtra ?
+            `<div class="ag2-nota">
+                <div class="ag2-nota-tit"><i class="fas fa-sticky-note"></i> Nota / Descripción adicional</div>
                 ${escapeHtml(descripcionExtra)}
             </div>` : '';
 
         return `
-            <div class="agenda-item ${isCompletada ? 'completada' : ''} ${prioridadClass}">
-                <div class="agenda-checkbox ${isCompletada ? 'checked' : ''}" onclick="toggleActividad(${id})">
+            <div class="ag2-item ${isCompletada ? 'hecha' : ''}" data-tienda="${tienda || ''}">
+                <button type="button" class="ag2-chk" onclick="toggleActividad(${id})" title="${isCompletada ? 'Marcar pendiente' : 'Marcar completada'}">
                     ${isCompletada ? '<i class="fas fa-check"></i>' : ''}
-                </div>
-                <div class="agenda-info">
-                    <div class="agenda-descripcion">${escapeHtml(descripcion)}</div>
-                    <div class="agenda-meta">
-                        <span class="agenda-hora-tag"><i class="far fa-clock"></i> ${hora}</span>
-                        <span class="agenda-prioridad-tag ${prioridad}">${prioridad.toUpperCase()}</span>
-                        <span class="agenda-estado-tag ${estado}">${isCompletada ? 'Completada' : 'Pendiente'}</span>
-                        <span class="agenda-tienda-tag" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#667eea; background:#f0f4f8; padding:2px 8px; border-radius:6px; font-weight:600;">
-                            <i class="fas fa-store" style="font-size:0.65rem;"></i> ${tiendaNombre}
-                        </span>
-                        ${fechaCompletadaFormateada ? '<span class="agenda-fecha-fin"><i class="fas fa-check-double"></i> ' + fechaCompletadaFormateada + '</span>' : ''}
+                </button>
+                <div class="ag2-cuerpo">
+                    <div class="ag2-desc">${escapeHtml(descripcion)}</div>
+                    <div class="ag2-meta">
+                        <span class="ag2-chip hora"><i class="far fa-clock"></i> ${hora}</span>
+                        <span class="ag2-chip p-${prioridad}">${String(prioridad).toUpperCase()}</span>
+                        ${chipTienda}
+                        ${fechaCompletadaFormateada ? '<span class="ag2-chip fin"><i class="fas fa-check-double"></i> ' + fechaCompletadaFormateada + '</span>' : ''}
                     </div>
                     ${descripcionExtraHtml}
                 </div>
-                <div class="agenda-acciones">
-                    <button class="agenda-btn-accion editar" onclick="editarActividad(${id})" title="Editar">
-                        <i class="fas fa-pen"></i>
-                    </button>
-                    <button class="agenda-btn-accion eliminar" onclick="eliminarActividad(${id})" title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                <div class="ag2-acciones">
+                    <button type="button" class="ag2-icobtn" onclick="editarActividad(${id})" title="Editar"><i class="fas fa-pen"></i></button>
+                    <button type="button" class="ag2-icobtn del" onclick="eliminarActividad(${id})" title="Eliminar"><i class="far fa-trash-can"></i></button>
                 </div>
             </div>
         `;
@@ -1942,9 +2020,10 @@ function renderizarActividades() {
 }
 
 function actualizarStatsAgenda() {
-    const total = actividades.length;
-    const pendientes = actividades.filter(a => a.estado === 'pendiente').length;
-    const completadas = actividades.filter(a => a.estado === 'completada').length;
+    const base = (typeof agendaVisibles === 'function') ? agendaVisibles() : actividades;
+    const total = base.length;
+    const pendientes = base.filter(a => a.estado === 'pendiente').length;
+    const completadas = base.filter(a => a.estado === 'completada').length;
 
     const totalEl = document.getElementById('agendaTotal');
     const pendientesEl = document.getElementById('agendaPendientes');
@@ -1953,6 +2032,156 @@ function actualizarStatsAgenda() {
     if (totalEl) totalEl.textContent = total;
     if (pendientesEl) pendientesEl.textContent = pendientes;
     if (completadasEl) completadasEl.textContent = completadas;
+
+    // v6.7: anillo de avance + resumen junto al filtro de tienda
+    const pct = total ? Math.round(completadas / total * 100) : 0;
+    const avanceEl = document.getElementById('agendaAvance');
+    const arcoEl = document.getElementById('agendaArco');
+    if (avanceEl) avanceEl.textContent = pct + '%';
+    if (arcoEl) arcoEl.style.strokeDashoffset = (106.8 * (1 - pct / 100)).toFixed(1);
+
+    const resumenEl = document.getElementById('agendaResumenTienda');
+    if (resumenEl) {
+        const donde = (typeof agendaTiendaFiltro !== 'undefined' && agendaTiendaFiltro !== 'todas')
+            ? 'en ' + (TIENDAS_AGENDA[agendaTiendaFiltro] || agendaTiendaFiltro)
+            : 'en las 3 tiendas';
+        resumenEl.innerHTML = '<strong>' + total + '</strong> actividades para hoy ' + donde;
+    }
+}
+
+// ============================================================
+// v6.7 — Extras de la agenda (filtro tienda, avance, semana)
+// ============================================================
+function filtrarAgendaTienda(t) {
+    agendaTiendaFiltro = t;
+    document.querySelectorAll('#agendaSegTienda button').forEach(b => {
+        b.classList.toggle('on', b.dataset.t === t);
+    });
+    renderizarActividades();
+    actualizarStatsAgenda();
+    renderAgendaExtras();
+    cargarHistorialActividades();
+}
+
+function setAgendaPrioridad(p) {
+    const inp = document.getElementById('agendaPrioridad');
+    if (inp) inp.value = p;
+    document.querySelectorAll('#agendaPrios button').forEach(b => {
+        b.classList.toggle('on', b.dataset.p === p);
+    });
+}
+
+function renderAgendaExtras() {
+    renderAgendaProgreso();
+    renderAgendaProxima();
+}
+
+function renderAgendaProgreso() {
+    const wrap = document.getElementById('agendaProgTiendas');
+    if (!wrap) return;
+    wrap.innerHTML = Object.keys(TIENDAS_AGENDA).map(t => {
+        const del = actividades.filter(a => a.tienda === t);
+        const ok = del.filter(a => a.estado === 'completada').length;
+        const pct = del.length ? Math.round(ok / del.length * 100) : 0;
+        return `
+        <div class="ag2-pt" data-t="${t}">
+            <div class="ag2-pt-cab">
+                <span class="nom"><span class="ag2-punto ${t}"></span> ${TIENDAS_AGENDA[t]}</span>
+                <span class="num">${ok}/${del.length} · ${pct}%</span>
+            </div>
+            <div class="ag2-riel"><div class="ag2-relleno" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+}
+
+function renderAgendaProxima() {
+    const wrap = document.getElementById('agendaProxima');
+    if (!wrap) return;
+    const pend = agendaVisibles()
+        .filter(a => a.estado === 'pendiente')
+        .sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
+    wrap.innerHTML = pend.length ? `
+        <div class="ag2-prox">
+            <div class="reloj"><i class="far fa-clock"></i></div>
+            <div>
+                <div class="que">${escapeHtml(pend[0].descripcion)}</div>
+                <div class="cuando">Hoy a las ${pend[0].hora} · ${TIENDAS_AGENDA[pend[0].tienda] || pend[0].tienda || 'General'} · Prioridad ${String(pend[0].prioridad).toUpperCase()}</div>
+            </div>
+        </div>` :
+        `<div class="ag2-vacia"><i class="far fa-circle-check"></i><p>Sin actividades pendientes</p></div>`;
+}
+
+async function cargarSemanaAgenda() {
+    const wrap = document.getElementById('agendaSemana');
+    if (!wrap) return;
+    try {
+        const ahora = new Date();
+        const diaSem = (ahora.getDay() + 6) % 7;           // 0 = lunes
+        const lunes = new Date(ahora); lunes.setDate(ahora.getDate() - diaSem);
+        const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+        const iso = (d) => d.toISOString().split('T')[0];
+
+        let url = '/api/actividades?estado=completada&fecha_desde=' + iso(lunes) + '&fecha_hasta=' + iso(domingo);
+        const tiendaUsuario = getTiendaUsuario();
+        if (tiendaUsuario && !isAdmin()) url += '&tienda=' + tiendaUsuario;
+
+        const response = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        const datos = [0, 0, 0, 0, 0, 0, 0];
+        if (response.ok) {
+            const data = await response.json();
+            if (data.exito) {
+                (data.actividades || []).forEach(a => {
+                    const f = a.fecha_completada || a.fechaCompletada;
+                    if (!f) return;
+                    const d = new Date(f);
+                    if (!isNaN(d)) datos[(d.getDay() + 6) % 7]++;
+                });
+            }
+        }
+        renderAgendaSemana(datos, diaSem);
+    } catch (e) {
+        console.warn('Error cargando semana de agenda:', e);
+    }
+}
+
+function renderAgendaSemana(datos, hoyIdx) {
+    const wrap = document.getElementById('agendaSemana');
+    if (!wrap) return;
+    const letras = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    const max = Math.max.apply(null, datos.concat([1]));
+    wrap.innerHTML = datos.map((n, i) => `
+        <div class="ag2-dia ${i === hoyIdx ? 'hoy' : ''}">
+            <span class="n">${n}</span>
+            <div class="barra" style="height:${Math.max(6, Math.round(n / max * 52))}px"></div>
+            <span class="l">${letras[i]}</span>
+        </div>`).join('');
+}
+
+function configurarAgendaSegunRol() {
+    const admin = isAdmin();
+    const tiendaUsuario = getTiendaUsuario();
+
+    // El filtro de tienda de la página y los puntos del widget son solo admin
+    const barra = document.getElementById('agendaBarraTienda');
+    if (barra) barra.style.display = admin ? 'flex' : 'none';
+    const dots = document.getElementById('widgetTiendaDots');
+    if (dots) dots.style.display = admin ? 'flex' : 'none';
+
+    // Operador: la tienda del formulario queda fija en la suya
+    const selTienda = document.getElementById('agendaTienda');
+    if (selTienda && !admin && tiendaUsuario) {
+        selTienda.value = tiendaUsuario;
+        selTienda.disabled = true;
+        selTienda.title = 'Solo puedes crear actividades para tu tienda';
+    }
+
+    // Tinte del select según la tienda elegida
+    if (selTienda && !selTienda.dataset.ag2Wire) {
+        selTienda.dataset.ag2Wire = '1';
+        const tintar = () => { selTienda.style.borderLeftColor = (AGENDA_COLORES[selTienda.value] || '#1a3a5c'); };
+        selTienda.addEventListener('change', tintar);
+        tintar();
+    }
 }
 
 async function cargarHistorialActividades() {
@@ -1994,6 +2223,9 @@ async function cargarHistorialActividades() {
         // Si es operador, filtrar por tienda
         if (tiendaUsuario && !isAdmin()) {
             url += '&tienda=' + tiendaUsuario;
+        } else if (isAdmin() && typeof agendaTiendaFiltro !== 'undefined' && agendaTiendaFiltro !== 'todas') {
+            // v6.7: el historial sigue al filtro de tienda del administrador
+            url += '&tienda=' + agendaTiendaFiltro;
         }
 
         // Agregar filtro de fecha si aplica
@@ -2086,7 +2318,7 @@ function renderizarHistorialPaginado() {
 
     if (actividadesHistorialCache.length === 0) {
         historial.innerHTML = `
-            <div class="agenda-empty">
+            <div class="ag2-vacia">
                 <i class="fas fa-inbox"></i>
                 <p>No hay actividades completadas en este período</p>
             </div>
@@ -2100,27 +2332,34 @@ function renderizarHistorialPaginado() {
     const fin = inicio + actividadesPorPagina;
     const actividadesPagina = actividadesHistorialCache.slice(inicio, fin);
 
-    historial.innerHTML = actividadesPagina.map(act => {
-        const fechaComp = act.fecha_completada || act.fechaCompletada ? formatearFechaHora(act.fecha_completada || act.fechaCompletada) : '';
-        const descripcionExtra = act.descripcion_extra || act.descripcionExtra ? 
-            `<div style="font-size:0.75rem; color:#48bb78; margin-top:4px; font-style:italic;"><i class="fas fa-comment-alt"></i> ${escapeHtml(act.descripcion_extra || act.descripcionExtra)}</div>` : '';
-        return `
-            <div class="agenda-historial-item">
-                <div class="agenda-info">
-                    <div class="agenda-descripcion">${escapeHtml(act.descripcion)}</div>
-                    ${descripcionExtra}
-                    <div class="agenda-meta">
-                        <span class="agenda-hora-tag"><i class="far fa-clock"></i> ${act.hora}</span>
-                        <span class="agenda-prioridad-tag ${act.prioridad}">${act.prioridad.toUpperCase()}</span>
-                        <span class="agenda-tienda-tag">${act.tienda || 'General'}</span>
-                    </div>
-                </div>
-                <div class="agenda-fecha-completada">
-                    <i class="fas fa-check-circle"></i> ${fechaComp}
-                </div>
-            </div>
-        `;
-    }).join('');
+    historial.innerHTML = `
+        <div class="ag2-hist-scroll">
+        <table class="ag2-tabla">
+            <thead>
+                <tr><th>Actividad</th><th>Hora</th><th>Prioridad</th><th>Tienda</th><th>Estado</th><th>Completada</th></tr>
+            </thead>
+            <tbody>
+            ${actividadesPagina.map(act => {
+                const fechaComp = act.fecha_completada || act.fechaCompletada ? formatearFechaHora(act.fecha_completada || act.fechaCompletada) : '';
+                const t = act.tienda || '';
+                const nota = (act.descripcion_extra || act.descripcionExtra) ?
+                    `<div class="ag2-hist-nota"><i class="fas fa-comment-alt"></i> ${escapeHtml(act.descripcion_extra || act.descripcionExtra)}</div>` : '';
+                const chipTienda = (t && TIENDAS_AGENDA[t]) ?
+                    `<span class="ag2-chip t-${t}"><span class="ag2-punto ${t}"></span> ${TIENDAS_AGENDA[t]}</span>` : (t || 'General');
+                return `
+                <tr>
+                    <td><span class="ag2-hist-desc">${escapeHtml(act.descripcion)}</span>${nota}</td>
+                    <td class="ag2-nw ag2-gris"><i class="far fa-clock"></i> ${act.hora}</td>
+                    <td><span class="ag2-chip p-${act.prioridad}">${String(act.prioridad).toUpperCase()}</span></td>
+                    <td>${chipTienda}</td>
+                    <td><span class="ag2-chip ok"><i class="fas fa-check"></i> Completada</span></td>
+                    <td class="ag2-nw ag2-gris">${fechaComp}</td>
+                </tr>`;
+            }).join('')}
+            </tbody>
+        </table>
+        </div>
+    `;
 
     // Actualizar controles de paginación
     if (paginacion) paginacion.style.display = 'flex';
@@ -2257,6 +2496,10 @@ window.addEventListener('resize', () => {
 // OCULTAR MENU SEGUN ROL Y TIENDA
 // ============================================
 function ocultarMenuSegunRol() {
+    // v6.4.1: la tarjeta "Próximo Módulo" solo la ve el administrador
+    const cardProximo = document.getElementById('cardProximoModulo');
+    if (cardProximo) cardProximo.style.display = isAdmin() ? '' : 'none';
+
     // Si es móvil, la vista ya fue ajustada por ajustarVistaMovil()
     if (esMovil()) {
         return;
@@ -2325,20 +2568,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function actualizarWidgetActividades() {
     const widgetList = document.getElementById('actividadesWidgetList');
-    const widgetCount = document.getElementById('actividadesWidgetCount');
     if (!widgetList) return;
 
-    // Mostrar indicador sutil de actualización
+    // Indicador sutil de actualización
     const widgetCard = document.getElementById('widget-actividades');
     if (widgetCard) {
         widgetCard.style.transition = 'box-shadow 0.3s ease';
-        widgetCard.style.boxShadow = '0 0 0 2px rgba(102, 126, 234, 0.3)';
-        setTimeout(() => {
-            widgetCard.style.boxShadow = '';
-        }, 500);
+        widgetCard.style.boxShadow = '0 0 0 2px rgba(44, 90, 134, 0.30)';
+        setTimeout(() => { widgetCard.style.boxShadow = ''; }, 500);
     }
 
-    // Cargar actividades desde la API (no solo localStorage)
     const hoy = new Date().toISOString().split('T')[0];
     let actividadesHoy = [];
 
@@ -2372,107 +2611,113 @@ async function actualizarWidgetActividades() {
         }
     }
 
-    // Filtrar por tienda del usuario si es operador (doble verificación)
+    // Doble verificación para operador (solo su tienda)
     const tiendaUsuario = getTiendaUsuario();
-    // Widget actividades actualizado
-
     if (tiendaUsuario && !isAdmin()) {
-        const antes = actividadesHoy.length;
-        actividadesHoy = actividadesHoy.filter(a => {
-            const match = !a.tienda || a.tienda === tiendaUsuario;
-            // Filtrando actividad por tienda
-            return match;
-        });
-        // Actividades filtradas
+        actividadesHoy = actividadesHoy.filter(a => !a.tienda || a.tienda === tiendaUsuario);
     }
 
-    // Filtrar solo pendientes
-    const pendientes = actividadesHoy.filter(a => a.estado === 'pendiente');
+    // v6.7: cachear y renderizar (el filtro de tienda es en cliente)
+    widgetActividadesCache = actividadesHoy;
+    renderWidgetActividades();
+}
 
-    // Ordenar por hora
-    pendientes.sort((a, b) => a.hora.localeCompare(b.hora));
+// v6.7 — filtro de tienda del widget (solo admin ve los puntos)
+function filtrarWidgetTienda(t) {
+    widgetTiendaFiltro = t;
+    document.querySelectorAll('#widgetTiendaDots button').forEach(b => {
+        b.classList.toggle('on', b.dataset.t === t);
+    });
+    renderWidgetActividades();
+}
+
+function renderWidgetActividades() {
+    const widgetList = document.getElementById('actividadesWidgetList');
+    const widgetCount = document.getElementById('actividadesWidgetCount');
+    const widgetMas = document.getElementById('widgetMas');
+    if (!widgetList) return;
+
+    const admin = isAdmin();
+    let base = widgetActividadesCache;
+    if (admin && widgetTiendaFiltro !== 'todas') {
+        base = base.filter(a => a.tienda === widgetTiendaFiltro);
+    }
+
+    // Avance del día (respeta el filtro visible)
+    const total = base.length;
+    const comp = base.filter(a => a.estado === 'completada').length;
+    const pct = total ? Math.round(comp / total * 100) : 0;
+    const avanceTxt = document.getElementById('widgetAvanceTxt');
+    const avanceBar = document.getElementById('widgetAvanceBar');
+    if (avanceTxt) avanceTxt.textContent = comp + '/' + total;
+    if (avanceBar) avanceBar.style.width = pct + '%';
+
+    const pendientes = base
+        .filter(a => a.estado === 'pendiente')
+        .sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
 
     if (pendientes.length === 0) {
         widgetList.innerHTML = `
-            <div class="actividades-widget-empty">
-                <i class="fas fa-clipboard-check" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.5;"></i>
-                <p style="margin:0; font-size:0.85rem; color:#718096;">No hay actividades pendientes</p>
-                <span style="font-size:0.75rem; color:#a0aec0;">¡Tu día está libre!</span>
+            <div class="aw-vacia">
+                <i class="fas fa-clipboard-check"></i>
+                <p>No hay actividades pendientes</p>
+                <span>¡Tu día está libre!</span>
             </div>
         `;
         if (widgetCount) widgetCount.textContent = '0 pendientes';
+        if (widgetMas) widgetMas.innerHTML = '';
         return;
     }
 
-    // Mostrar máximo 5 actividades en el widget
-    const maxMostrar = 5;
+    // Mostrar máximo 4 actividades en el widget
+    const maxMostrar = 4;
     const actividadesMostrar = pendientes.slice(0, maxMostrar);
     const restantes = pendientes.length - maxMostrar;
 
     widgetList.innerHTML = actividadesMostrar.map(act => {
-        const prioridadColor = {
-            'baja': '#e2e8f0',
-            'media': '#ebf8ff',
-            'alta': '#fffaf0',
-            'urgente': '#fff5f5'
-        }[act.prioridad] || '#e2e8f0';
-
-        const prioridadBorder = {
-            'baja': '#cbd5e1',
-            'media': '#667eea',
-            'alta': '#ed8936',
-            'urgente': '#e53e3e'
-        }[act.prioridad] || '#cbd5e1';
-
-        const descripcionExtra = (act.descripcion_extra || act.descripcionExtra) ? 
-            `<div style="font-size:0.75rem; color:#48bb78; margin-top:4px; font-style:italic; display:flex; align-items:center; gap:4px;"><i class="fas fa-comment-alt" style="font-size:0.65rem;"></i> ${escapeHtml(act.descripcion_extra || act.descripcionExtra)}</div>` : '';
-
+        const t = act.tienda || '';
+        const descripcionExtra = (act.descripcion_extra || act.descripcionExtra) ?
+            `<div class="aw-nota"><i class="fas fa-comment-alt"></i> ${escapeHtml(act.descripcion_extra || act.descripcionExtra)}</div>` : '';
+        const punto = (t && TIENDAS_AGENDA[t]) ? `<span class="ag2-punto ${t}" title="${TIENDAS_AGENDA[t]}"></span>` : '';
         return `
-            <div class="actividades-widget-item" style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:${prioridadColor}; border-radius:10px; border-left:3px solid ${prioridadBorder}; transition:all 0.2s; cursor:pointer;" 
-                 onmouseover="this.style.transform='translateX(4px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';" 
-                 onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='none';">
-                <div style="width:22px; height:22px; border:2px solid #cbd5e1; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:white; transition:all 0.2s; cursor:pointer;" 
-                     onmouseover="this.style.borderColor='#48bb78';" 
-                     onmouseout="this.style.borderColor='#cbd5e1';"
-                     onclick="event.stopPropagation(); completarActividadDesdeWidget(${act.id})">
-                    <i class="fas fa-check" style="font-size:0.7rem; color:#48bb78; opacity:0; transition:opacity 0.2s;"></i>
-                </div>
-                <div style="flex:1; min-width:0;" onclick="event.stopPropagation();">
-                    <div style="font-size:0.85rem; font-weight:500; color:#2d3748; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(act.descripcion)}</div>
-                    <div style="font-size:0.7rem; color:#718096; margin-top:2px; display:flex; align-items:center; gap:6px;">
-                        <span><i class="far fa-clock" style="margin-right:2px;"></i> ${act.hora}</span>
-                        <span style="text-transform:uppercase; font-weight:600; font-size:0.65rem; padding:1px 6px; border-radius:4px; background:white; color:#718096;">${act.prioridad}</span>
+            <div class="aw-item" data-tienda="${t}">
+                <button type="button" class="aw-chk" title="Completar"
+                        onclick="event.stopPropagation(); completarActividadDesdeWidget(${act.id})"></button>
+                <div class="aw-cuerpo">
+                    <div class="aw-desc">${escapeHtml(act.descripcion)}</div>
+                    <div class="aw-meta">
+                        <span class="ag2-chip hora"><i class="far fa-clock"></i> ${act.hora}</span>
+                        <span class="ag2-chip p-${act.prioridad}">${String(act.prioridad).toUpperCase()}</span>
                     </div>
                     ${descripcionExtra}
                 </div>
-                <button onclick="event.stopPropagation(); abrirModalDescripcionWidget(${act.id})" 
-                        style="flex-shrink:0; padding:4px 10px; background:linear-gradient(135deg, #667eea, #764ba2); color:white; border:none; border-radius:6px; font-size:0.7rem; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap;"
-                        onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 8px rgba(102,126,234,0.3)';"
-                        onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
-                    <i class="fas fa-plus" style="margin-right:3px; font-size:0.6rem;"></i> Añadir descripción
-                </button>
+                <div class="aw-lado">
+                    ${punto}
+                    <button type="button" class="aw-add" title="Añadir descripción"
+                            onclick="event.stopPropagation(); abrirModalDescripcionWidget(${act.id})">
+                        <i class="fas fa-plus"></i> Nota
+                    </button>
+                </div>
             </div>
         `;
     }).join('');
 
-    if (restantes > 0) {
-        const esOperador = getUserRole() === 'operador';
-        const onclickHandler = esOperador ? 
-            `onclick="event.stopPropagation(); mostrarModalTodasActividadesOperador(); return false;"` : 
-            `onclick="mostrarSeccion('reportes'); return false;"`;
-
-        widgetList.innerHTML += `
-            <div style="text-align:center; padding:8px; font-size:0.8rem; color:#667eea; font-weight:600; cursor:pointer; border-radius:8px; transition:all 0.2s;" 
-                 onmouseover="this.style.background='#f0f4f8';" 
-                 onmouseout="this.style.background='none';"
-                 ${onclickHandler}>
-                +${restantes} actividad${restantes > 1 ? 'es' : ''} más →
-            </div>
-        `;
+    if (widgetMas) {
+        if (restantes > 0) {
+            const esOperador = getUserRole() === 'operador';
+            const onclickHandler = esOperador ?
+                `onclick="event.stopPropagation(); mostrarModalTodasActividadesOperador(); return false;"` :
+                `onclick="mostrarSeccion('reportes'); return false;"`;
+            widgetMas.innerHTML = `<span class="aw-mas-link" ${onclickHandler}>+${restantes} actividad${restantes > 1 ? 'es' : ''} más →</span>`;
+        } else {
+            widgetMas.innerHTML = '';
+        }
     }
 
     if (widgetCount) {
-        widgetCount.textContent = pendientes.length + ' pendiente' + (pendientes.length > 1 ? 's' : '');
+        const suf = (admin && widgetTiendaFiltro !== 'todas' && TIENDAS_AGENDA[widgetTiendaFiltro])
+            ? ' · ' + TIENDAS_AGENDA[widgetTiendaFiltro] : '';
+        widgetCount.textContent = pendientes.length + ' pendiente' + (pendientes.length !== 1 ? 's' : '') + suf;
     }
 }
 
@@ -2528,7 +2773,9 @@ async function completarActividadDesdeWidget(id) {
         await cargarActividadesAPI();
         renderizarActividades();
         actualizarStatsAgenda();
+        renderAgendaExtras();
         cargarHistorialActividades();
+        cargarSemanaAgenda();
     }
 }
 
@@ -2847,11 +3094,11 @@ function exportToPDF() {
 
         filename = 'busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.pdf';
 
-    } else if (seccionActual === 'creditos' || document.getElementById('contentCreditos')?.classList.contains('active')) {
+    } else if (seccionActual === 'creditos' || document.getElementById('contentMaracay')?.classList.contains('active')) {
         titulo = 'Reporte Tienda Maracay';
         headers = [['Nro', 'Factura', 'Nombre', 'Cédula', 'Monto', 'Cuotas', 'Deuda', 'Estado']];
 
-        const tabla = document.querySelector('#contentCreditos table, .tienda-maracay-table');
+        const tabla = document.querySelector('#contentMaracay table, .tienda-maracay-table');
         if (tabla) {
             const filas = tabla.querySelectorAll('tbody tr');
             filas.forEach(fila => {
@@ -2989,1189 +3236,381 @@ function exportToPDF() {
     mostrarAlerta('PDF exportado correctamente', 'success');
 }
 
+// ============================================================
+// DASHBOARD GLOBAL v6.4 — INICIO
+// Widgets consolidados del Panel Principal.
+//   * Administrador: datos de las 3 tiendas.
+//   * Operador: solo su tienda asignada (misma vista, alcance reducido).
+// Los datos salen de GET /api/tiendas/:tienda (ya existente);
+// no requiere cambios en base de datos ni en el backend.
+// ============================================================
+const DG_NOMBRES_TIENDA = { caracas: 'Caracas', maracay: 'Maracay', maracaibo: 'Maracaibo' };
+const DG_COLORES_TIENDA = { caracas: '#27ae60', maracay: '#7c5cbf', maracaibo: '#e67e22' };
+const DG_MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const DG_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
-// ============================================
-// REPORTES TIENDA CARACAS (INTEGRADO EN PANEL)
-// ============================================
+let dgCache = { ts: 0, clave: '', datos: null, promesa: null };
+let dgCharts = [];
 
-let datosBusquedaCaracas = [];
-let resumenBusquedaCaracas = {};
-let paginaBusqueda = 1;
-let registrosPorPaginaBusqueda = 10;
-let totalPaginasBusqueda = 1;
+const dgFmt = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dgFmtInt = new Intl.NumberFormat('es-VE');
 
-function mostrarBusqueda() {
-    document.getElementById('tc-menu-principal').style.display = 'none';
-    document.getElementById('tc-base-datos').style.display = 'none';
-    document.getElementById('tc-conciliaciones').style.display = 'none';
-    document.getElementById('tc-busqueda').style.display = 'block';
-
-    // Set fechas por defecto
-    const hoy = new Date();
-    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    document.getElementById('busq-fecha-desde').value = primerDia.toISOString().split('T')[0];
-    document.getElementById('busq-fecha-hasta').value = hoy.toISOString().split('T')[0];
+// v6.4.3 — parseo robusto de montos.
+// OJO: node-pg devuelve columnas NUMERIC como TEXTO en formato US ("6664.97",
+// punto = decimal). La versión anterior trataba el punto como separador de
+// miles estilo VE y multiplicaba todos los montos x100.
+function dgNum(v) {
+    if (v === null || v === undefined || v === '') return 0;
+    if (typeof v === 'number') return isNaN(v) ? 0 : v;
+    let s = String(v).trim();
+    if (!s) return 0;
+    // Ruta rápida: número plano PG/JS ("6664.97", "28852046.63") — el punto ES el decimal
+    if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    const lastDot = s.lastIndexOf('.');
+    const lastComma = s.lastIndexOf(',');
+    const dots = (s.match(/\./g) || []).length;
+    const commas = (s.match(/,/g) || []).length;
+    if (dots > 1 && commas === 0) s = s.replace(/\./g, '');                        // VE miles: 1.234.567
+    else if (commas > 1 && dots === 0) s = s.replace(/,/g, '');                    // US miles: 1,234,567
+    else if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');      // VE: 1.234.567,89 | 1234,56
+    else s = s.replace(/,/g, '');                                                  // US: 1,234,567.89
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
 }
 
-async function generarBusquedaCaracas() {
-    showLoading(true);
+function dgCompacto(v) {
+    if (Math.abs(v) >= 1000000) return (v / 1000000).toFixed(2).replace('.', ',') + ' M';
+    if (Math.abs(v) >= 1000) return Math.round(v / 1000).toLocaleString('es-VE') + 'K';
+    return Math.round(v).toLocaleString('es-VE');
+}
 
+function dgEscape(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Tiendas visibles según el rol del usuario conectado
+function dgTiendasVisibles() {
+    if (isAdmin()) return ['caracas', 'maracay', 'maracaibo'];
+    const t = getTiendaUsuario();
+    return (t && DG_NOMBRES_TIENDA[t]) ? [t] : [];
+}
+
+// Descarga las tiendas (caché de 5 min + promesa compartida anti-doble-disparo)
+async function dgCargarDatos(tiendas) {
+    const clave = tiendas.join(',');
+    if (dgCache.datos && dgCache.clave === clave && (Date.now() - dgCache.ts) < DG_CACHE_TTL) {
+        return dgCache.datos;
+    }
+    // Si ya hay una descarga en curso para la misma combinación, se reutiliza
+    if (dgCache.promesa && dgCache.clave === clave) {
+        return dgCache.promesa;
+    }
+    dgCache.clave = clave;
+    dgCache.promesa = (async () => {
+        const resultados = await Promise.all(tiendas.map(async (t) => {
+            const resp = await fetch('/api/tiendas/' + t);
+            if (!resp.ok) throw new Error('Error ' + resp.status + ' en ' + DG_NOMBRES_TIENDA[t]);
+            const rows = await resp.json();
+            return { tienda: t, clientes: Array.isArray(rows) ? rows : (rows.data || []) };
+        }));
+        dgCache = { ts: Date.now(), clave, datos: resultados, promesa: null };
+        return resultados;
+    })();
     try {
-        const filtros = {
-            fecha_desde: document.getElementById('busq-fecha-desde').value || null,
-            fecha_hasta: document.getElementById('busq-fecha-hasta').value || null,
-            estado: document.getElementById('busq-estado').value,
-            monto_min: document.getElementById('busq-monto-min').value || null,
-            monto_max: document.getElementById('busq-monto-max').value || null,
-            nombre_cliente: document.getElementById('busq-nombre').value || null
+        return await dgCache.promesa;
+    } catch (e) {
+        dgCache.promesa = null;
+        throw e;
+    }
+}
+
+// Extrae año/mes de una fecha PG ('2026-07-15', ISO, etc.) sin problemas de zona horaria
+function dgParsearFecha(f) {
+    if (!f) return null;
+    const m = String(f).match(/^(\d{4})-(\d{2})/);
+    if (!m) return null;
+    return { anio: parseInt(m[1], 10), mes: parseInt(m[2], 10) };
+}
+
+// ------------------------------------------------------------
+// Núcleo de agregación (puro: mismo resultado para tests)
+// ------------------------------------------------------------
+function dgCalcular(datasets, fechaRef) {
+    const hoy = fechaRef || new Date();
+    const mesActual = hoy.getMonth() + 1;
+    const anioActual = hoy.getFullYear();
+
+    const r = {
+        kpis: { cartera: 0, cobrado: 0, deuda: 0, creditos: 0, cuotasCobradas: 0, deudores: 0, recuperacion: 0 },
+        porTienda: [],          // [{tienda, facturado, cobrado, deuda}]
+        distribucion: { alDia: 0, incompleto: 0, noPago: 0 },
+        evolucion: {},          // {tienda: [12 montos]}
+        top5: [],
+        radiales: []            // [{tienda, pct, conCobro, vigentes}]
+    };
+
+    datasets.forEach(({ tienda, clientes }) => {
+        const t = {
+            tienda, facturado: 0, cobrado: 0, deuda: 0,
+            evolucion: new Array(12).fill(0),
+            conCobroMes: 0, vigentes: 0
         };
 
-        const response = await fetch('/api/reportes/caracas', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify(filtros)
+        (clientes || []).forEach((c) => {
+            const factura = dgNum(c.monto_factura);
+            const depositado = dgNum(c.monto_depositados);
+            const deuda = dgNum(c.deuda);
+
+            t.facturado += factura;
+            t.cobrado += depositado;
+            t.deuda += deuda;
+
+            // Estado de cartera (por crédito)
+            if (factura > 0) {
+                if (depositado >= factura) r.distribucion.alDia++;
+                else if (depositado > 0) r.distribucion.incompleto++;
+                else r.distribucion.noPago++;
+            }
+
+            if (deuda > 0) r.kpis.deudores++;
+
+            // Recorrer las 11 cuotas
+            let cobroEsteMes = false;
+            let ultimaCuota = null; // {anio, mes} del pago más reciente (v6.4.2)
+            for (let i = 1; i <= 11; i++) {
+                const montoCuota = dgNum(c['cuota_' + i]);
+                if (montoCuota > 0) r.kpis.cuotasCobradas++;
+                const f = dgParsearFecha(c['fecha_cuota_' + i]);
+                if (f) {
+                    if (f.anio === anioActual) t.evolucion[f.mes - 1] += montoCuota;
+                    if (f.anio === anioActual && f.mes === mesActual && montoCuota > 0) cobroEsteMes = true;
+                    // v6.4.2: solo cuenta como pago si tiene monto registrado
+                    if (montoCuota > 0 && (!ultimaCuota || (f.anio * 12 + f.mes) > (ultimaCuota.anio * 12 + ultimaCuota.mes))) {
+                        ultimaCuota = f;
+                    }
+                }
+            }
+            if (cobroEsteMes) { t.conCobroMes++; t.vigentes++; }
+            else if (deuda > 0) { t.vigentes++; }
+
+            // v6.4.2: meses sin pagar — desde la última cuota pagada;
+            // si nunca pagó, desde la fecha de la factura
+            c.__ultimaCuota = ultimaCuota;
         });
 
-        const data = await response.json();
+        r.kpis.cartera += t.facturado;
+        r.kpis.cobrado += t.cobrado;
+        r.kpis.deuda += t.deuda;
+        r.kpis.creditos += (clientes || []).length;
 
-        if (!data.exito) {
-            throw new Error(data.error || 'Error al generar reporte');
-        }
+        r.porTienda.push({ tienda, facturado: t.facturado, cobrado: t.cobrado, deuda: t.deuda });
+        r.evolucion[tienda] = t.evolucion;
+        r.radiales.push({
+            tienda,
+            pct: t.vigentes > 0 ? Math.round((t.conCobroMes / t.vigentes) * 100) : 0,
+            conCobro: t.conCobroMes,
+            vigentes: t.vigentes
+        });
 
-        datosBusquedaCaracas = data.datos || [];
-        resumenBusquedaCaracas = data.resumen || {};
-
-        // Mostrar resumen
-        document.getElementById('busq-resumen').style.display = 'grid';
-        document.getElementById('busq-res-total').textContent = formatNumber(resumenBusquedaCaracas.total_clientes || 0);
-        document.getElementById('busq-res-deuda').textContent = formatCurrency(resumenBusquedaCaracas.total_deuda || 0);
-        document.getElementById('busq-res-pagado').textContent = formatCurrency(resumenBusquedaCaracas.total_depositado || 0);
-        document.getElementById('busq-res-mora').textContent = formatNumber(resumenBusquedaCaracas.clientes_mora || 0);
-        document.getElementById('busq-res-promedio').textContent = formatCurrency(resumenBusquedaCaracas.promedio_deuda || 0);
-
-        // Mostrar tabla
-        document.getElementById('busq-tabla-container').style.display = 'block';
-        document.getElementById('busq-contador').textContent = datosBusquedaCaracas.length + ' registros';
-
-        const tbody = document.getElementById('busq-tbody');
-        // Inicializar paginación
-        paginaBusqueda = 1;
-        registrosPorPaginaBusqueda = 10;
-        totalPaginasBusqueda = Math.ceil(datosBusquedaCaracas.length / registrosPorPaginaBusqueda) || 1;
-
-        // Renderizar tabla paginada
-        renderizarTablaBusqueda();
-
-        // Mostrar gráficos
-        document.getElementById('busq-graficos').style.display = 'grid';
-        renderizarGraficosBusqueda();
-
-        // Mostrar exportar
-        document.getElementById('busq-exportar').style.display = 'block';
-
-        mostrarAlerta('Busqueda generada: ' + data.total + ' registros', 'success');
-
-    } catch (e) {
-        console.error('Error:', e);
-        mostrarAlerta('Error: ' + e.message, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-function calcularEstadoBusqueda(row) {
-    const deuda = parseFloat(row.deuda) || 0;
-    const depositado = parseFloat(row.monto_depositados) || 0;
-    const total = parseFloat(row.monto_factura) || 0;
-    const fecha = new Date(row.fecha_factura);
-    const dias = (new Date() - fecha) / (1000 * 60 * 60 * 24);
-
-    if (deuda <= 0 || depositado >= total) {
-        return { texto: 'Pagado', style: 'background:#d1fae5;color:#059669;' };
-    }
-    if (dias > 30 && deuda > 0) {
-        return { texto: 'En Mora', style: 'background:#fee2e2;color:#dc2626;' };
-    }
-    return { texto: 'Pendiente', style: 'background:#fef3c7;color:#d97706;' };
-}
-
-function renderizarGraficosBusqueda() {
-    const porEstado = {
-        pendiente: datosBusquedaCaracas.filter(r => calcularEstadoBusqueda(r).texto === 'Pendiente').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0),
-        pagado: datosBusquedaCaracas.filter(r => calcularEstadoBusqueda(r).texto === 'Pagado').reduce((s, r) => s + (parseFloat(r.monto_depositados) || 0), 0),
-        mora: datosBusquedaCaracas.filter(r => calcularEstadoBusqueda(r).texto === 'En Mora').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0)
-    };
-
-    const maxValor = Math.max(porEstado.pendiente, porEstado.pagado, porEstado.mora, 1);
-
-    document.getElementById('busq-graf-barras').innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pendiente</div>
-                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
-                    <div style="height:100%;width:${(porEstado.pendiente/maxValor*100)}%;background:linear-gradient(90deg,#f6e05e,#d69e2e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
-                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pendiente)}</span>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pagado</div>
-                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
-                    <div style="height:100%;width:${(porEstado.pagado/maxValor*100)}%;background:linear-gradient(90deg,#68d391,#38a169);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
-                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pagado)}</span>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">En Mora</div>
-                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
-                    <div style="height:100%;width:${(porEstado.mora/maxValor*100)}%;background:linear-gradient(90deg,#fc8181,#e53e3e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
-                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.mora)}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const total = resumenBusquedaCaracas.total_facturado || 1;
-    const pagadoPct = ((resumenBusquedaCaracas.total_depositado || 0) / total * 100).toFixed(1);
-    const pendientePct = ((resumenBusquedaCaracas.total_deuda || 0) / total * 100).toFixed(1);
-
-    document.getElementById('busq-graf-pastel').innerHTML = `
-        <div style="position:relative;width:180px;height:180px;">
-            <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg);">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="20"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#48bb78" stroke-width="20" 
-                    stroke-dasharray="${pagadoPct * 2.51} 251" stroke-linecap="round"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#f56565" stroke-width="20" 
-                    stroke-dasharray="${pendientePct * 2.51} 251" 
-                    stroke-dashoffset="${-pagadoPct * 2.51}" stroke-linecap="round"/>
-            </svg>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-                <div style="width:16px;height:16px;border-radius:4px;background:#48bb78;"></div>
-                <span style="color:#4a5568;">Pagado</span>
-                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pagadoPct}%</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-                <div style="width:16px;height:16px;border-radius:4px;background:#f56565;"></div>
-                <span style="color:#4a5568;">Pendiente</span>
-                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pendientePct}%</span>
-            </div>
-        </div>
-    `;
-}
-
-
-// ============================================
-// RENDERIZAR TABLA DE BÚSQUEDA CON PAGINACIÓN
-// ============================================
-function renderizarTablaBusqueda() {
-    const tbody = document.getElementById('busq-tbody');
-    const contador = document.getElementById('busq-contador');
-    if (!tbody) return;
-
-    // Calcular índices para la página actual
-    const inicio = (paginaBusqueda - 1) * registrosPorPaginaBusqueda;
-    const fin = inicio + registrosPorPaginaBusqueda;
-    const datosPagina = datosBusquedaCaracas.slice(inicio, fin);
-    totalPaginasBusqueda = Math.ceil(datosBusquedaCaracas.length / registrosPorPaginaBusqueda) || 1;
-
-    if (contador) {
-        contador.textContent = datosBusquedaCaracas.length + ' registros (Página ' + paginaBusqueda + ' de ' + totalPaginasBusqueda + ')';
-    }
-
-    if (datosPagina.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#718096;">No hay registros que coincidan con los filtros</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = datosPagina.map((row, i) => {
-        const estado = calcularEstadoBusqueda(row);
-        const numeroReal = inicio + i + 1;
-        return `<tr>
-            <td>${numeroReal}</td>
-            <td>${row.nro_factura || '-'}</td>
-            <td>${row.nombre_apellido || '-'}</td>
-            <td>${row.cedula || '-'}</td>
-            <td style="text-align:right;font-family:monospace;font-weight:600;">${formatCurrency(row.monto_factura || 0)}</td>
-            <td>${row.cuotas || '-'}</td>
-            <td style="text-align:right;font-family:monospace;color:#38a169;">${formatCurrency(row.monto_depositados || 0)}</td>
-            <td style="text-align:right;font-family:monospace;color:#e53e3e;">${formatCurrency(row.deuda || 0)}</td>
-            <td><span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;${estado.style}">${estado.texto}</span></td>
-            <td>${formatearFecha(row.fecha_factura)}</td>
-        </tr>`;
-    }).join('');
-
-    // Actualizar controles de paginación
-    actualizarControlesPaginacionBusqueda();
-}
-
-function actualizarControlesPaginacionBusqueda() {
-    // Eliminar paginación anterior si existe
-    const paginacionAnterior = document.getElementById('busq-paginacion');
-    if (paginacionAnterior) paginacionAnterior.remove();
-
-    if (totalPaginasBusqueda <= 1) return;
-
-    const tablaContainer = document.getElementById('busq-tabla-container');
-    if (!tablaContainer) return;
-
-    const paginacionDiv = document.createElement('div');
-    paginacionDiv.id = 'busq-paginacion';
-    paginacionDiv.style.cssText = 'display:flex;justify-content:center;align-items:center;gap:8px;padding:15px;border-top:1px solid #e2e8f0;';
-
-    // Botón Primera
-    const btnPrimera = crearBotonPaginacion('|<', () => irAPaginaBusqueda(1), paginaBusqueda === 1);
-    paginacionDiv.appendChild(btnPrimera);
-
-    // Botón Anterior
-    const btnAnterior = crearBotonPaginacion('<', () => irAPaginaBusqueda(paginaBusqueda - 1), paginaBusqueda === 1);
-    paginacionDiv.appendChild(btnAnterior);
-
-    // Info de página
-    const infoPagina = document.createElement('span');
-    infoPagina.style.cssText = 'font-size:13px;color:#64748b;font-weight:500;margin:0 10px;';
-    infoPagina.textContent = 'Página ' + paginaBusqueda + ' de ' + totalPaginasBusqueda;
-    paginacionDiv.appendChild(infoPagina);
-
-    // Botón Siguiente
-    const btnSiguiente = crearBotonPaginacion('>', () => irAPaginaBusqueda(paginaBusqueda + 1), paginaBusqueda >= totalPaginasBusqueda);
-    paginacionDiv.appendChild(btnSiguiente);
-
-    // Botón Última
-    const btnUltima = crearBotonPaginacion('>|', () => irAPaginaBusqueda(totalPaginasBusqueda), paginaBusqueda >= totalPaginasBusqueda);
-    paginacionDiv.appendChild(btnUltima);
-
-    // Select de registros por página
-    const selectLabel = document.createElement('span');
-    selectLabel.style.cssText = 'font-size:12px;color:#718096;margin-left:15px;';
-    selectLabel.textContent = 'Mostrar:';
-    paginacionDiv.appendChild(selectLabel);
-
-    const selectRegistros = document.createElement('select');
-    selectRegistros.style.cssText = 'padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;';
-    [10, 25, 50, 100].forEach(num => {
-        const option = document.createElement('option');
-        option.value = num;
-        option.textContent = num;
-        if (num === registrosPorPaginaBusqueda) option.selected = true;
-        selectRegistros.appendChild(option);
+        // Candidatos a top deudores (v6.4.2: prioridad por tiempo sin pagar)
+        (clientes || []).forEach((c) => {
+            const deuda = dgNum(c.deuda);
+            if (deuda > 0) {
+                const factura = dgNum(c.monto_factura);
+                const depositado = dgNum(c.monto_depositados);
+                // Referencia: último pago; si nunca pagó, la fecha de la factura
+                const ref = c.__ultimaCuota || dgParsearFecha(c.fecha_factura);
+                const mesesSinPagar = ref
+                    ? Math.max(0, (anioActual - ref.anio) * 12 + (mesActual - ref.mes))
+                    : 999; // sin ninguna fecha conocida: se considera crítico
+                r.top5.push({
+                    nombre: c.nombre_apellido || 'Sin nombre',
+                    tienda,
+                    deuda,
+                    avance: factura > 0 ? Math.min(100, Math.max(0, Math.round((depositado / factura) * 100))) : 0,
+                    mesesSinPagar,
+                    ultimoPago: c.__ultimaCuota || null,
+                    nuncaPago: !c.__ultimaCuota
+                });
+            }
+        });
     });
-    selectRegistros.onchange = function() {
-        registrosPorPaginaBusqueda = parseInt(this.value);
-        paginaBusqueda = 1;
-        totalPaginasBusqueda = Math.ceil(datosBusquedaCaracas.length / registrosPorPaginaBusqueda) || 1;
-        renderizarTablaBusqueda();
-    };
-    paginacionDiv.appendChild(selectRegistros);
 
-    tablaContainer.appendChild(paginacionDiv);
+    r.kpis.recuperacion = r.kpis.cartera > 0 ? (r.kpis.cobrado / r.kpis.cartera) * 100 : 0;
+    // v6.4.2: primero meses sin pagar (desc); en empate (todos al día), mayor deuda
+    r.top5.sort((a, b) => (b.mesesSinPagar - a.mesesSinPagar) || (b.deuda - a.deuda));
+    r.top5 = r.top5.slice(0, 5);
+    return r;
 }
 
-function crearBotonPaginacion(texto, onClick, disabled) {
-    const btn = document.createElement('button');
-    btn.textContent = texto;
-    btn.style.cssText = 'padding:8px 14px;border:1px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:#4a5568;transition:all 0.2s;';
-    if (disabled) {
-        btn.style.opacity = '0.4';
-        btn.style.cursor = 'not-allowed';
-        btn.disabled = true;
+// ------------------------------------------------------------
+// Renderizado
+// ------------------------------------------------------------
+function dgDestruirCharts() {
+    dgCharts.forEach((c) => { try { c.destroy(); } catch (e) {} });
+    dgCharts = [];
+}
+
+function dgRender(cont, res, tiendas, datos) {
+    dgDestruirCharts();
+    const esGlobal = tiendas.length > 1;
+    const scopeTxt = esGlobal ? 'Consolidado: 3 tiendas' : 'Tu tienda: ' + DG_NOMBRES_TIENDA[tiendas[0]];
+    const k = res.kpis;
+
+    let html = `
+        <div class="dg-titulo">Resumen ${esGlobal ? 'global' : 'de tienda'} <span class="dg-scope">${scopeTxt}</span></div>
+        <div class="dg-kpis">
+            <div class="dg-kpi"><div class="dg-k-lbl">Cartera total</div><div class="dg-k-num">Bs ${dgFmt.format(k.cartera)}</div><div class="dg-k-sub">${dgFmtInt.format(k.creditos)} créditos activos</div></div>
+            <div class="dg-kpi k-verde"><div class="dg-k-lbl">Cobrado total</div><div class="dg-k-num">Bs ${dgFmt.format(k.cobrado)}</div><div class="dg-k-sub up">${dgFmtInt.format(k.cuotasCobradas)} cuotas cobradas</div></div>
+            <div class="dg-kpi k-ambar"><div class="dg-k-lbl">Deuda pendiente</div><div class="dg-k-num">Bs ${dgFmt.format(k.deuda)}</div><div class="dg-k-sub warn">${dgFmtInt.format(k.deudores)} deudores activos</div></div>
+            <div class="dg-kpi k-dorado"><div class="dg-k-lbl">% Recuperación</div><div class="dg-k-num">${k.recuperacion.toFixed(1).replace('.', ',')}%</div><div class="dg-k-sub">cobrado / facturado</div></div>
+        </div>
+        <div class="dg-fila f-3-2">
+            <div class="dg-card"><h3>${esGlobal ? 'Comparativa por tienda' : 'Resumen de tu tienda'}</h3><div class="dg-fuente">Facturado vs cobrado vs deuda</div><div id="dgChartComparativa"></div></div>
+            <div class="dg-card"><h3>Estado de cartera</h3><div class="dg-fuente">Créditos al día, incompletos y sin pago</div><div id="dgChartDistribucion"></div></div>
+        </div>
+        <div class="dg-fila f-2-3">
+            <div class="dg-card"><h3>Top 5 — Mayor tiempo sin pagar</h3><div class="dg-fuente">Ordenado por meses sin pagar; en empate, por mayor deuda</div><div id="dgTop5"></div></div>
+            <div class="dg-card"><h3>Evolución de cobros ${new Date().getFullYear()}</h3><div class="dg-fuente">Cuotas cobradas por mes</div><div id="dgChartEvolucion"></div></div>
+        </div>
+        <div class="dg-fila f-radiales ${tiendas.length === 1 ? 'f-rad-1' : ''}" id="dgRadiales">
+            ${tiendas.map((t, i) => `<div class="dg-card"><h3>Cobranza del mes — ${DG_NOMBRES_TIENDA[t]}</h3><div class="dg-fuente">Créditos vigentes con cobro este mes</div><div id="dgRadial${i}"></div></div>`).join('')}
+        </div>`;
+
+    cont.innerHTML = html;
+
+    if (typeof ApexCharts === 'undefined') {
+        cont.insertAdjacentHTML('beforeend', '<div class="dg-error">ApexCharts no está disponible; los KPIs y tablas funcionan, los gráficos no.</div>');
     } else {
-        btn.onmouseover = function() { this.style.background = '#1a365d'; this.style.color = 'white'; this.style.borderColor = '#1a365d'; };
-        btn.onmouseout = function() { this.style.background = 'white'; this.style.color = '#4a5568'; this.style.borderColor = '#e2e8f0'; };
-        btn.onclick = onClick;
-    }
-    return btn;
-}
+        // P2: comparativa
+        dgCharts.push(new ApexCharts(document.getElementById('dgChartComparativa'), {
+            chart: { type: 'bar', height: 290, toolbar: { show: false }, fontFamily: 'Segoe UI, sans-serif' },
+            series: [
+                { name: 'Facturado', data: res.porTienda.map((t) => Math.round(t.facturado * 100) / 100) },
+                { name: 'Cobrado', data: res.porTienda.map((t) => Math.round(t.cobrado * 100) / 100) },
+                { name: 'Deuda', data: res.porTienda.map((t) => Math.round(t.deuda * 100) / 100) }
+            ],
+            xaxis: { categories: res.porTienda.map((t) => DG_NOMBRES_TIENDA[t.tienda]) },
+            colors: ['#16324f', '#27ae60', '#c0392b'],
+            plotOptions: { bar: { columnWidth: '58%', borderRadius: 4 } },
+            dataLabels: { enabled: false },
+            legend: { position: 'top' },
+            yaxis: { labels: { formatter: (v) => dgCompacto(v) } },
+            tooltip: { y: { formatter: (v) => 'Bs ' + dgFmt.format(v) } },
+            noData: { text: 'Sin datos' }
+        }));
+        dgCharts[dgCharts.length - 1].render();
 
-function irAPaginaBusqueda(pagina) {
-    if (pagina < 1 || pagina > totalPaginasBusqueda) return;
-    paginaBusqueda = pagina;
-    renderizarTablaBusqueda();
-    // Scroll suave al inicio de la tabla
-    const tablaContainer = document.getElementById('busq-tabla-container');
-    if (tablaContainer) tablaContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+        // P3: distribución
+        const d = res.distribucion;
+        dgCharts.push(new ApexCharts(document.getElementById('dgChartDistribucion'), {
+            chart: { type: 'donut', height: 290, fontFamily: 'Segoe UI, sans-serif' },
+            series: [d.alDia, d.incompleto, d.noPago],
+            labels: ['Al día', 'Incompleto', 'No pagó'],
+            colors: ['#27ae60', '#e67e22', '#c0392b'],
+            legend: { position: 'bottom' },
+            dataLabels: { formatter: (v) => v.toFixed(1) + '%' },
+            plotOptions: { pie: { donut: { size: '58%' } } },
+            noData: { text: 'Sin datos' }
+        }));
+        dgCharts[dgCharts.length - 1].render();
 
-function limpiarFiltrosBusqueda() {
-    document.getElementById('busq-fecha-desde').value = '';
-    document.getElementById('busq-fecha-hasta').value = '';
-    document.getElementById('busq-estado').value = 'todos';
-    document.getElementById('busq-monto-min').value = '';
-    document.getElementById('busq-monto-max').value = '';
-    document.getElementById('busq-nombre').value = '';
+        // P4: evolución
+        dgCharts.push(new ApexCharts(document.getElementById('dgChartEvolucion'), {
+            chart: { type: 'area', height: 290, stacked: esGlobal, toolbar: { show: false }, fontFamily: 'Segoe UI, sans-serif' },
+            series: tiendas.map((t) => ({
+                name: DG_NOMBRES_TIENDA[t],
+                data: (res.evolucion[t] || []).map((v) => Math.round(v * 100) / 100)
+            })),
+            xaxis: { categories: DG_MESES },
+            colors: tiendas.map((t) => DG_COLORES_TIENDA[t]),
+            stroke: { curve: 'smooth', width: 2 },
+            fill: { type: 'gradient', gradient: { opacityFrom: 0.45, opacityTo: 0.05 } },
+            dataLabels: { enabled: false },
+            legend: { position: 'top' },
+            yaxis: { labels: { formatter: (v) => dgCompacto(v) } },
+            tooltip: { y: { formatter: (v) => 'Bs ' + dgFmt.format(v) } },
+            noData: { text: 'Sin cobros registrados este año' }
+        }));
+        dgCharts[dgCharts.length - 1].render();
 
-    document.getElementById('busq-resumen').style.display = 'none';
-    document.getElementById('busq-tabla-container').style.display = 'none';
-    document.getElementById('busq-graficos').style.display = 'none';
-    document.getElementById('busq-exportar').style.display = 'none';
-
-    // Limpiar paginación
-    const paginacionAnterior = document.getElementById('busq-paginacion');
-    if (paginacionAnterior) paginacionAnterior.remove();
-    paginaBusqueda = 1;
-    totalPaginasBusqueda = 1;
-}
-
-function exportarBusquedaExcel() {
-    if (datosBusquedaCaracas.length === 0) {
-        mostrarAlerta('No hay datos para exportar', 'error');
-        return;
-    }
-
-    const datosExcel = datosBusquedaCaracas.map(row => ({
-        'Nro Factura': row.nro_factura || '',
-        'Cliente': row.nombre_apellido || '',
-        'Cédula': row.cedula || '',
-        'Monto Factura': parseFloat(row.monto_factura) || 0,
-        'Cuotas': row.cuotas || '',
-        'Depositado': parseFloat(row.monto_depositados) || 0,
-        'Deuda': parseFloat(row.deuda) || 0,
-        'Estado': calcularEstadoBusqueda(row).texto,
-        'Fecha Factura': row.fecha_factura || ''
-    }));
-
-    datosExcel.push({});
-    datosExcel.push({
-        'Nro Factura': 'RESUMEN',
-        'Cliente': 'Total Clientes: ' + resumenBusquedaCaracas.total_clientes,
-        'Monto Factura': resumenBusquedaCaracas.total_facturado,
-        'Depositado': resumenBusquedaCaracas.total_depositado,
-        'Deuda': resumenBusquedaCaracas.total_deuda,
-        'Estado': 'Clientes Mora: ' + resumenBusquedaCaracas.clientes_mora
-    });
-
-    const ws = XLSX.utils.json_to_sheet(datosExcel);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Reporte Caracas');
-    ws['!cols'] = [{wch:12},{wch:30},{wch:15},{wch:15},{wch:10},{wch:15},{wch:15},{wch:12},{wch:15}];
-    XLSX.writeFile(wb, 'busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    mostrarAlerta('Excel exportado correctamente', 'success');
-}
-
-function exportarBusquedaPDF() {
-    if (datosBusquedaCaracas.length === 0) {
-        mostrarAlerta('No hay datos para exportar', 'error');
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4');
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 14;
-    const contentWidth = pageWidth - (margin * 2);
-
-    // ============================================
-    // FUNCION PARA CARGAR LOGO COMO BASE64
-    // ============================================
-    function cargarLogoComoBase64(url) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = 'Anonymous';
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                resolve(canvas.toDataURL('image/png'));
-            };
-            img.onerror = function() {
-                reject(new Error('No se pudo cargar el logo'));
-            };
-            img.src = url;
+        // P6: radiales
+        res.radiales.forEach((rad, i) => {
+            dgCharts.push(new ApexCharts(document.getElementById('dgRadial' + i), {
+                chart: { type: 'radialBar', height: 190, fontFamily: 'Segoe UI, sans-serif' },
+                series: [rad.pct],
+                colors: [DG_COLORES_TIENDA[rad.tienda]],
+                plotOptions: { radialBar: {
+                    hollow: { size: '52%' },
+                    track: { background: '#eef1f5' },
+                    dataLabels: {
+                        name: { show: true, fontSize: '11px', color: '#7a8a99' },
+                        value: { fontSize: '22px', fontWeight: 700, color: '#16324f', formatter: (v) => v + '%' }
+                    }
+                } },
+                labels: [rad.conCobro + ' de ' + rad.vigentes + ' créditos']
+            }));
+            dgCharts[dgCharts.length - 1].render();
         });
     }
 
-    // ============================================
-    // GENERAR PDF
-    // ============================================
-    async function generarPDF() {
-        let logoBase64 = null;
-        try {
-            logoBase64 = await cargarLogoComoBase64('assets/logo.png');
-        } catch (e) {
-            console.log('Logo no disponible, continuando sin logo');
-        }
+    // P5: top 5 deudores (tabla, sin dependencia de gráficos)
+    const top5El = document.getElementById('dgTop5');
+    if (res.top5.length === 0) {
+        top5El.innerHTML = '<div class="dg-vacio">Sin deudores en este momento.</div>';
+    } else {
+        const MESES_LARGO = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        top5El.innerHTML = `<table class="dg-tabla">
+            <thead><tr><th>Cliente</th>${esGlobal ? '<th>Tienda</th>' : ''}<th>Sin pagar</th><th style="text-align:right">Deuda</th><th style="width:70px">Avance</th></tr></thead>
+            <tbody>${res.top5.map((x) => {
+                const sev = x.mesesSinPagar >= 2 ? '#c0392b' : (x.mesesSinPagar === 1 ? '#e67e22' : '#27ae60');
+                const txtMeses = x.mesesSinPagar >= 999 ? '—' : x.mesesSinPagar + (x.mesesSinPagar === 1 ? ' mes' : ' meses');
+                const detalle = x.nuncaPago
+                    ? 'sin pagos registrados'
+                    : (x.ultimoPago ? 'último: ' + MESES_LARGO[x.ultimoPago.mes] + ' ' + x.ultimoPago.anio : '');
+                return `
+                <tr>
+                    <td><strong>${dgEscape(x.nombre)}</strong></td>
+                    ${esGlobal ? `<td><span class="dg-tag ${x.tienda}">${DG_NOMBRES_TIENDA[x.tienda]}</span></td>` : ''}
+                    <td><span class="dg-tag" style="background:${sev}1a;color:${sev}">${txtMeses}</span><div style="font-size:9.5px;color:#93a1b0;margin-top:2px">${detalle}</div></td>
+                    <td class="num">Bs ${dgFmt.format(x.deuda)}</td>
+                    <td><div style="font-size:10px;color:#7a8a99">${x.avance}%</div><div class="dg-prog"><div style="width:${x.avance}%;background:${x.avance > 60 ? '#27ae60' : x.avance > 40 ? '#e67e22' : '#c0392b'}"></div></div></td>
+                </tr>`;
+            }).join('')}
+            </tbody></table>`;
+    }
+}
 
-        // --- ENCABEZADO ---
-        let currentY = 12;
+// ------------------------------------------------------------
+// Punto de entrada
+// ------------------------------------------------------------
+async function initDashboardGlobal() {
+    const cont = document.getElementById('dashboardGlobal');
+    if (!cont) return;
 
-        // Logo
-        if (logoBase64) {
-            doc.addImage(logoBase64, 'PNG', margin, currentY, 50, 38);
-        }
-
-        // Titulo centrado (al lado del logo, centrado verticalmente)
-        doc.setFontSize(20);
-        doc.setTextColor(26, 54, 93);
-        doc.setFont('helvetica', 'bold');
-        const titulo = 'Gestion de Creditos Inversora IPSFA C.A';
-        const tituloWidth = doc.getTextWidth(titulo);
-        doc.text(titulo, (pageWidth - tituloWidth) / 2, currentY + 16);
-
-        // Subtitulo centrado
-        doc.setFontSize(11);
-        doc.setTextColor(100, 100, 100);
-        doc.setFont('helvetica', 'normal');
-        const subtitulo = 'Reporte de Busqueda Tienda Caracas';
-        const subtituloWidth = doc.getTextWidth(subtitulo);
-        doc.text(subtitulo, (pageWidth - subtituloWidth) / 2, currentY + 24);
-
-        // Fecha y total centrados
-        doc.setFontSize(10);
-        doc.setTextColor(80, 80, 80);
-        const fechaTexto = 'Fecha: ' + new Date().toLocaleDateString('es-VE') + '  |  Hora: ' + new Date().toLocaleTimeString('es-VE') + '  |  Total Registros: ' + datosBusquedaCaracas.length;
-        const fechaWidth = doc.getTextWidth(fechaTexto);
-        doc.text(fechaTexto, (pageWidth - fechaWidth) / 2, currentY + 32);
-
-        currentY += 48;
-
-        // Linea separadora
-        doc.setDrawColor(26, 54, 93);
-        doc.setLineWidth(0.5);
-        doc.line(margin, currentY, pageWidth - margin, currentY);
-
-        currentY += 8;
-
-        // --- TABLA DE DATOS (sin Cuotas y sin Estado) ---
-        const headers = [['Nro', 'Factura', 'Cliente', 'Cedula', 'Telefono', 'Monto', 'Depositado', 'Deuda', 'Fecha']];
-        const rows = datosBusquedaCaracas.map((row, i) => [
-            i + 1, 
-            row.nro_factura || '-', 
-            row.nombre_apellido || '-', 
-            row.cedula || '-', 
-            row.telefono || '-',
-            formatCurrency(row.monto_factura || 0), 
-            formatCurrency(row.monto_depositados || 0), 
-            formatCurrency(row.deuda || 0),
-            formatearFecha(row.fecha_factura)
-        ]);
-
-        // Calcular anchos de columnas proporcionales al ancho total
-        const colNro = 10;
-        const colFactura = 18;
-        const colCliente = 50;
-        const colCedula = 22;
-        const colTelefono = 25;
-        const colMonto = 28;
-        const colDepositado = 28;
-        const colDeuda = 28;
-        const colFecha = 22;
-        const totalColWidth = colNro + colFactura + colCliente + colCedula + colTelefono + colMonto + colDepositado + colDeuda + colFecha;
-
-        // Ajustar al ancho del contenido
-        const scaleFactor = contentWidth / totalColWidth;
-
-        doc.autoTable({
-            head: headers, 
-            body: rows, 
-            startY: currentY, 
-            theme: 'striped',
-            headStyles: { 
-                fillColor: [26, 54, 93], 
-                textColor: [255, 255, 255], 
-                fontSize: 9, 
-                fontStyle: 'bold',
-                halign: 'center',
-                valign: 'middle'
-            },
-            bodyStyles: { 
-                fontSize: 8, 
-                textColor: [50, 50, 50],
-                valign: 'middle'
-            },
-            alternateRowStyles: { fillColor: [240, 248, 255] },
-            margin: { top: 20, left: margin, right: margin },
-            styles: { 
-                overflow: 'linebreak', 
-                cellWidth: 'wrap',
-                lineColor: [200, 200, 200],
-                lineWidth: 0.1
-            },
-            columnStyles: { 
-                0: {cellWidth: colNro * scaleFactor, halign: 'center'}, 
-                1: {cellWidth: colFactura * scaleFactor, halign: 'center'}, 
-                2: {cellWidth: colCliente * scaleFactor, halign: 'left'}, 
-                3: {cellWidth: colCedula * scaleFactor, halign: 'center'}, 
-                4: {cellWidth: colTelefono * scaleFactor, halign: 'center'},
-                5: {cellWidth: colMonto * scaleFactor, halign: 'right'}, 
-                6: {cellWidth: colDepositado * scaleFactor, halign: 'right'}, 
-                7: {cellWidth: colDeuda * scaleFactor, halign: 'right'}, 
-                8: {cellWidth: colFecha * scaleFactor, halign: 'center'}
-            },
-            didDrawPage: function(data) {
-                doc.setFontSize(8);
-                doc.setTextColor(150, 150, 150);
-                doc.text('Inversora IPSFA - Sistema de Creditos', margin, pageHeight - 10);
-                doc.text('Pagina ' + data.pageNumber, pageWidth - margin - 20, pageHeight - 10);
-            }
-        });
-
-        // --- LEYENDA DE SUMATORIAS AL FINAL ---
-        const finalY = doc.lastAutoTable.finalY + 10;
-
-        // Calcular sumatorias
-        const totalFacturado = datosBusquedaCaracas.reduce((sum, r) => sum + (parseFloat(r.monto_factura) || 0), 0);
-        const totalDepositado = datosBusquedaCaracas.reduce((sum, r) => sum + (parseFloat(r.monto_depositados) || 0), 0);
-        const totalDeuda = datosBusquedaCaracas.reduce((sum, r) => sum + (parseFloat(r.deuda) || 0), 0);
-
-        // Verificar si hay espacio suficiente, si no, agregar nueva página
-        if (finalY + 50 > pageHeight - 20) {
-            doc.addPage();
-            currentY = 20;
-        } else {
-            currentY = finalY;
-        }
-
-        // Fondo del resumen (mismo ancho que la tabla)
-        const resumenHeight = 42;
-        doc.setFillColor(26, 54, 93);
-        doc.rect(margin, currentY, contentWidth, resumenHeight, 'F');
-
-        // Titulo del resumen centrado
-        doc.setFontSize(13);
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        const tituloResumen = 'TOTALES DEL REPORTE';
-        const tituloResumenWidth = doc.getTextWidth(tituloResumen);
-        doc.text(tituloResumen, (pageWidth - tituloResumenWidth) / 2, currentY + 8);
-
-        // Linea separadora
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.3);
-        doc.line(margin + 5, currentY + 12, pageWidth - margin - 5, currentY + 12);
-
-        // Tres columnas de sumatorias distribuidas equitativamente
-        const colWidth = contentWidth / 3;
-        const col1X = margin + 10;
-        const col2X = margin + colWidth + 10;
-        const col3X = margin + (colWidth * 2) + 10;
-
-        // Etiquetas
-        doc.setFontSize(9);
-        doc.setTextColor(200, 200, 200);
-        doc.setFont('helvetica', 'normal');
-        doc.text('TOTAL MONTO FACTURADO', col1X, currentY + 20);
-        doc.text('TOTAL DEPOSITADO', col2X, currentY + 20);
-        doc.text('TOTAL DEUDA PENDIENTE', col3X, currentY + 20);
-
-        // Valores
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(251, 191, 36); // Amarillo
-        doc.text(formatCurrency(totalFacturado), col1X, currentY + 30);
-
-        doc.setTextColor(74, 222, 128); // Verde
-        doc.text(formatCurrency(totalDepositado), col2X, currentY + 30);
-
-        doc.setTextColor(248, 113, 113); // Rojo
-        doc.text(formatCurrency(totalDeuda), col3X, currentY + 30);
-
-        // Total clientes centrado
-        doc.setFontSize(9);
-        doc.setTextColor(200, 200, 200);
-        doc.setFont('helvetica', 'normal');
-        const clientesTexto = datosBusquedaCaracas.length + ' clientes en el reporte';
-        const clientesWidth = doc.getTextWidth(clientesTexto);
-        doc.text(clientesTexto, (pageWidth - clientesWidth) / 2, currentY + 38);
-
-        doc.save('busqueda_caracas_' + new Date().toISOString().split('T')[0] + '.pdf');
-        mostrarAlerta('PDF exportado correctamente', 'success');
+    const tiendas = dgTiendasVisibles();
+    if (tiendas.length === 0) {
+        cont.innerHTML = '<div class="dg-error">Tu usuario no tiene una tienda asignada; contacta al administrador para ver este resumen.</div>';
+        return;
     }
 
-    generarPDF().catch(err => {
-        console.error('Error generando PDF:', err);
-        mostrarAlerta('Error al generar PDF: ' + err.message, 'error');
-    });
-}function volverMenuPrincipalCaracas() {
-    document.getElementById('tc-base-datos').style.display = 'none';
-    document.getElementById('tc-conciliaciones').style.display = 'none';
-    document.getElementById('tc-busqueda').style.display = 'none';
-    document.getElementById('tc-menu-principal').style.display = 'grid';
-}
-
-
-
-// ============================================
-// REPORTES TIENDA MARACAIBO (INTEGRADO EN PANEL)
-// ============================================
-
-let datosBusquedaMaracaibo = [];
-let resumenBusquedaMaracaibo = {};
-let paginaBusquedaMB = 1;
-let registrosPorPaginaBusquedaMB = 10;
-let totalPaginasBusquedaMB = 1;
-
-function mostrarBusquedaMaracaibo() {
-    document.getElementById('tmb-menu-principal').style.display = 'none';
-    document.getElementById('tmb-base-datos').style.display = 'none';
-    document.getElementById('tmb-conciliaciones').style.display = 'none';
-    document.getElementById('tmb-busqueda').style.display = 'block';
-
-    // Set fechas por defecto
-    const hoy = new Date();
-    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    document.getElementById('busqmb-fecha-desde').value = primerDia.toISOString().split('T')[0];
-    document.getElementById('busqmb-fecha-hasta').value = hoy.toISOString().split('T')[0];
-}
-
-async function generarBusquedaMaracaibo() {
-    showLoading(true);
-
+    cont.innerHTML = '<div class="dg-cargando"><span class="dg-spinner"></span> Cargando resumen...</div>';
     try {
-        const filtros = {
-            fecha_desde: document.getElementById('busqmb-fecha-desde').value || null,
-            fecha_hasta: document.getElementById('busqmb-fecha-hasta').value || null,
-            estado: document.getElementById('busqmb-estado').value,
-            monto_min: document.getElementById('busqmb-monto-min').value || null,
-            monto_max: document.getElementById('busqmb-monto-max').value || null,
-            nombre_cliente: document.getElementById('busqmb-nombre').value || null
-        };
-
-        const response = await fetch('/api/reportes/maracaibo', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify(filtros)
-        });
-
-        const data = await response.json();
-
-        if (!data.exito) {
-            throw new Error(data.error || 'Error al generar reporte');
-        }
-
-        datosBusquedaMaracaibo = data.datos || [];
-        resumenBusquedaMaracaibo = data.resumen || {};
-
-        // Mostrar resumen
-        document.getElementById('busqmb-resumen').style.display = 'grid';
-        document.getElementById('busqmb-res-total').textContent = formatNumber(resumenBusquedaMaracaibo.total_clientes || 0);
-        document.getElementById('busqmb-res-deuda').textContent = formatCurrency(resumenBusquedaMaracaibo.total_deuda || 0);
-        document.getElementById('busqmb-res-pagado').textContent = formatCurrency(resumenBusquedaMaracaibo.total_depositado || 0);
-        document.getElementById('busqmb-res-mora').textContent = formatNumber(resumenBusquedaMaracaibo.clientes_mora || 0);
-        document.getElementById('busqmb-res-promedio').textContent = formatCurrency(resumenBusquedaMaracaibo.promedio_deuda || 0);
-
-        // Mostrar tabla
-        document.getElementById('busqmb-tabla-container').style.display = 'block';
-        document.getElementById('busqmb-contador').textContent = datosBusquedaMaracaibo.length + ' registros';
-
-        // Inicializar paginación
-        paginaBusquedaMB = 1;
-        registrosPorPaginaBusquedaMB = 10;
-        totalPaginasBusquedaMB = Math.ceil(datosBusquedaMaracaibo.length / registrosPorPaginaBusquedaMB) || 1;
-
-        renderizarTablaBusquedaMB();
-
-        // Mostrar gráficos
-        document.getElementById('busqmb-graficos').style.display = 'grid';
-        renderizarGraficosBusquedaMB();
-
-        // Mostrar exportar
-        document.getElementById('busqmb-exportar').style.display = 'block';
-
-        mostrarAlerta('Busqueda generada: ' + data.total + ' registros', 'success');
-
+        const datos = await dgCargarDatos(tiendas);
+        const res = dgCalcular(datos);
+        dgRender(cont, res, tiendas, datos);
     } catch (e) {
-        console.error('Error:', e);
-        mostrarAlerta('Error: ' + e.message, 'error');
-    } finally {
-        showLoading(false);
+        console.error('Dashboard global:', e);
+        cont.innerHTML = '<div class="dg-error">No se pudo cargar el resumen. Verifica tu conexión y vuelve a entrar al panel.</div>';
     }
 }
-function calcularEstadoBusquedaMB(row) {
-    const deuda = parseFloat(row.deuda) || 0;
-    const depositado = parseFloat(row.monto_depositados) || 0;
-    const total = parseFloat(row.monto_factura) || 0;
-    const fecha = new Date(row.fecha_factura);
-    const dias = (new Date() - fecha) / (1000 * 60 * 60 * 24);
 
-    if (deuda <= 0 || depositado >= total) {
-        return { texto: 'Pagado', style: 'background:#d1fae5;color:#059669;' };
-    }
-    if (dias > 30 && deuda > 0) {
-        return { texto: 'En Mora', style: 'background:#fee2e2;color:#dc2626;' };
-    }
-    return { texto: 'Pendiente', style: 'background:#fef3c7;color:#d97706;' };
-}
-
-function renderizarTablaBusquedaMB() {
-    const tbody = document.getElementById('busqmb-tbody');
-    const contador = document.getElementById('busqmb-contador');
-    if (!tbody) return;
-
-    const inicio = (paginaBusquedaMB - 1) * registrosPorPaginaBusquedaMB;
-    const fin = inicio + registrosPorPaginaBusquedaMB;
-    const datosPagina = datosBusquedaMaracaibo.slice(inicio, fin);
-    totalPaginasBusquedaMB = Math.ceil(datosBusquedaMaracaibo.length / registrosPorPaginaBusquedaMB) || 1;
-
-    if (contador) {
-        contador.textContent = datosBusquedaMaracaibo.length + ' registros (Pagina ' + paginaBusquedaMB + ' de ' + totalPaginasBusquedaMB + ')';
-    }
-
-    if (datosPagina.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#718096;">No hay registros que coincidan con los filtros</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = datosPagina.map((row, i) => {
-        const estado = calcularEstadoBusquedaMB(row);
-        const numeroReal = inicio + i + 1;
-        return `<tr>
-            <td>${numeroReal}</td>
-            <td>${row.nro_factura || '-'}</td>
-            <td>${row.nombre_apellido || '-'}</td>
-            <td>${row.cedula || '-'}</td>
-            <td style="text-align:right;font-family:monospace;font-weight:600;">${formatCurrency(row.monto_factura || 0)}</td>
-            <td>${row.cuotas || '-'}</td>
-            <td style="text-align:right;font-family:monospace;color:#38a169;">${formatCurrency(row.monto_depositados || 0)}</td>
-            <td style="text-align:right;font-family:monospace;color:#e53e3e;">${formatCurrency(row.deuda || 0)}</td>
-            <td><span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;${estado.style}">${estado.texto}</span></td>
-            <td>${formatearFecha(row.fecha_factura)}</td>
-        </tr>`;
-    }).join('');
-
-    actualizarControlesPaginacionBusquedaMB();
-}
-
-function actualizarControlesPaginacionBusquedaMB() {
-    const paginacionAnterior = document.getElementById('busqmb-paginacion');
-    if (paginacionAnterior) paginacionAnterior.remove();
-
-    if (totalPaginasBusquedaMB <= 1) return;
-
-    const tablaContainer = document.getElementById('busqmb-tabla-container');
-    if (!tablaContainer) return;
-
-    const paginacionDiv = document.createElement('div');
-    paginacionDiv.id = 'busqmb-paginacion';
-    paginacionDiv.style.cssText = 'display:flex;justify-content:center;align-items:center;gap:8px;padding:15px;border-top:1px solid #e2e8f0;';
-
-    const btnPrimera = crearBotonPaginacion('|<', () => irAPaginaBusquedaMB(1), paginaBusquedaMB === 1);
-    paginacionDiv.appendChild(btnPrimera);
-
-    const btnAnterior = crearBotonPaginacion('<', () => irAPaginaBusquedaMB(paginaBusquedaMB - 1), paginaBusquedaMB === 1);
-    paginacionDiv.appendChild(btnAnterior);
-
-    const infoPagina = document.createElement('span');
-    infoPagina.style.cssText = 'font-size:13px;color:#64748b;font-weight:500;margin:0 10px;';
-    infoPagina.textContent = 'Pagina ' + paginaBusquedaMB + ' de ' + totalPaginasBusquedaMB;
-    paginacionDiv.appendChild(infoPagina);
-
-    const btnSiguiente = crearBotonPaginacion('>', () => irAPaginaBusquedaMB(paginaBusquedaMB + 1), paginaBusquedaMB >= totalPaginasBusquedaMB);
-    paginacionDiv.appendChild(btnSiguiente);
-
-    const btnUltima = crearBotonPaginacion('>|', () => irAPaginaBusquedaMB(totalPaginasBusquedaMB), paginaBusquedaMB >= totalPaginasBusquedaMB);
-    paginacionDiv.appendChild(btnUltima);
-
-    const selectLabel = document.createElement('span');
-    selectLabel.style.cssText = 'font-size:12px;color:#718096;margin-left:15px;';
-    selectLabel.textContent = 'Mostrar:';
-    paginacionDiv.appendChild(selectLabel);
-
-    const selectRegistros = document.createElement('select');
-    selectRegistros.style.cssText = 'padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;';
-    [10, 25, 50, 100].forEach(num => {
-        const option = document.createElement('option');
-        option.value = num;
-        option.textContent = num;
-        if (num === registrosPorPaginaBusquedaMB) option.selected = true;
-        selectRegistros.appendChild(option);
-    });
-    selectRegistros.onchange = function() {
-        registrosPorPaginaBusquedaMB = parseInt(this.value);
-        paginaBusquedaMB = 1;
-        totalPaginasBusquedaMB = Math.ceil(datosBusquedaMaracaibo.length / registrosPorPaginaBusquedaMB) || 1;
-        renderizarTablaBusquedaMB();
-    };
-    paginacionDiv.appendChild(selectRegistros);
-
-    tablaContainer.appendChild(paginacionDiv);
-}
-
-function irAPaginaBusquedaMB(pagina) {
-    if (pagina < 1 || pagina > totalPaginasBusquedaMB) return;
-    paginaBusquedaMB = pagina;
-    renderizarTablaBusquedaMB();
-    const tablaContainer = document.getElementById('busqmb-tabla-container');
-    if (tablaContainer) tablaContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function renderizarGraficosBusquedaMB() {
-    const porEstado = {
-        pendiente: datosBusquedaMaracaibo.filter(r => calcularEstadoBusquedaMB(r).texto === 'Pendiente').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0),
-        pagado: datosBusquedaMaracaibo.filter(r => calcularEstadoBusquedaMB(r).texto === 'Pagado').reduce((s, r) => s + (parseFloat(r.monto_depositados) || 0), 0),
-        mora: datosBusquedaMaracaibo.filter(r => calcularEstadoBusquedaMB(r).texto === 'En Mora').reduce((s, r) => s + (parseFloat(r.deuda) || 0), 0)
-    };
-
-    const maxValor = Math.max(porEstado.pendiente, porEstado.pagado, porEstado.mora, 1);
-
-    document.getElementById('busqmb-graf-barras').innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pendiente</div>
-                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
-                    <div style="height:100%;width:${(porEstado.pendiente/maxValor*100)}%;background:linear-gradient(90deg,#f6e05e,#d69e2e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
-                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pendiente)}</span>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">Pagado</div>
-                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
-                    <div style="height:100%;width:${(porEstado.pagado/maxValor*100)}%;background:linear-gradient(90deg,#68d391,#38a169);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
-                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.pagado)}</span>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:100px;font-size:13px;color:#4a5568;text-align:right;">En Mora</div>
-                <div style="flex:1;height:28px;background:#edf2f7;border-radius:6px;overflow:hidden;">
-                    <div style="height:100%;width:${(porEstado.mora/maxValor*100)}%;background:linear-gradient(90deg,#fc8181,#e53e3e);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;transition:width 0.8s ease;">
-                        <span style="font-size:11px;font-weight:600;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.2);">${formatCurrency(porEstado.mora)}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const total = resumenBusquedaMaracaibo.total_facturado || 1;
-    const pagadoPct = ((resumenBusquedaMaracaibo.total_depositado || 0) / total * 100).toFixed(1);
-    const pendientePct = ((resumenBusquedaMaracaibo.total_deuda || 0) / total * 100).toFixed(1);
-
-    document.getElementById('busqmb-graf-pastel').innerHTML = `
-        <div style="position:relative;width:180px;height:180px;">
-            <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg);">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="20"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#48bb78" stroke-width="20" 
-                    stroke-dasharray="${pagadoPct * 2.51} 251" stroke-linecap="round"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#f56565" stroke-width="20" 
-                    stroke-dasharray="${pendientePct * 2.51} 251" 
-                    stroke-dashoffset="${-pagadoPct * 2.51}" stroke-linecap="round"/>
-            </svg>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-                <div style="width:16px;height:16px;border-radius:4px;background:#48bb78;"></div>
-                <span style="color:#4a5568;">Pagado</span>
-                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pagadoPct}%</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-                <div style="width:16px;height:16px;border-radius:4px;background:#f56565;"></div>
-                <span style="color:#4a5568;">Pendiente</span>
-                <span style="font-weight:600;color:#1a365d;margin-left:auto;">${pendientePct}%</span>
-            </div>
-        </div>
-    `;
-}
-
-function limpiarFiltrosBusquedaMaracaibo() {
-    document.getElementById('busqmb-fecha-desde').value = '';
-    document.getElementById('busqmb-fecha-hasta').value = '';
-    document.getElementById('busqmb-estado').value = 'todos';
-    document.getElementById('busqmb-monto-min').value = '';
-    document.getElementById('busqmb-monto-max').value = '';
-    document.getElementById('busqmb-nombre').value = '';
-
-    document.getElementById('busqmb-resumen').style.display = 'none';
-    document.getElementById('busqmb-tabla-container').style.display = 'none';
-    document.getElementById('busqmb-graficos').style.display = 'none';
-    document.getElementById('busqmb-exportar').style.display = 'none';
-
-    const paginacionAnterior = document.getElementById('busqmb-paginacion');
-    if (paginacionAnterior) paginacionAnterior.remove();
-    paginaBusquedaMB = 1;
-    totalPaginasBusquedaMB = 1;
-}
-
-function exportarBusquedaExcelMaracaibo() {
-    if (datosBusquedaMaracaibo.length === 0) {
-        mostrarAlerta('No hay datos para exportar', 'error');
-        return;
-    }
-
-    const datosExcel = datosBusquedaMaracaibo.map(row => ({
-        'Nro Factura': row.nro_factura || '',
-        'Cliente': row.nombre_apellido || '',
-        'Cedula': row.cedula || '',
-        'Monto Factura': parseFloat(row.monto_factura) || 0,
-        'Cuotas': row.cuotas || '',
-        'Depositado': parseFloat(row.monto_depositados) || 0,
-        'Deuda': parseFloat(row.deuda) || 0,
-        'Estado': calcularEstadoBusquedaMB(row).texto,
-        'Fecha Factura': row.fecha_factura || ''
-    }));
-
-    datosExcel.push({});
-    datosExcel.push({
-        'Nro Factura': 'RESUMEN',
-        'Cliente': 'Total Clientes: ' + resumenBusquedaMaracaibo.total_clientes,
-        'Monto Factura': resumenBusquedaMaracaibo.total_facturado,
-        'Depositado': resumenBusquedaMaracaibo.total_depositado,
-        'Deuda': resumenBusquedaMaracaibo.total_deuda,
-        'Estado': 'Clientes Mora: ' + resumenBusquedaMaracaibo.clientes_mora
-    });
-
-    const ws = XLSX.utils.json_to_sheet(datosExcel);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Reporte Maracaibo');
-    ws['!cols'] = [{wch:12},{wch:30},{wch:15},{wch:15},{wch:10},{wch:15},{wch:15},{wch:12},{wch:15}];
-    XLSX.writeFile(wb, 'busqueda_maracaibo_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    mostrarAlerta('Excel exportado correctamente', 'success');
-}
-
-function exportarBusquedaPDFMaracaibo() {
-    if (datosBusquedaMaracaibo.length === 0) {
-        mostrarAlerta('No hay datos para exportar', 'error');
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4');
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 14;
-    const contentWidth = pageWidth - (margin * 2);
-
-    // ============================================
-    // FUNCION PARA CARGAR LOGO COMO BASE64
-    // ============================================
-    function cargarLogoComoBase64(url) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = 'Anonymous';
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                resolve(canvas.toDataURL('image/png'));
-            };
-            img.onerror = function() {
-                reject(new Error('No se pudo cargar el logo'));
-            };
-            img.src = url;
-        });
-    }
-
-    // ============================================
-    // GENERAR PDF
-    // ============================================
-    async function generarPDF() {
-        let logoBase64 = null;
-        try {
-            logoBase64 = await cargarLogoComoBase64('assets/logo.png');
-        } catch (e) {
-            console.log('Logo no disponible, continuando sin logo');
-        }
-
-        // --- ENCABEZADO ---
-        let currentY = 12;
-
-        // Logo
-        if (logoBase64) {
-            doc.addImage(logoBase64, 'PNG', margin, currentY, 50, 38);
-        }
-
-        // Titulo centrado (al lado del logo, centrado verticalmente)
-        doc.setFontSize(20);
-        doc.setTextColor(26, 54, 93);
-        doc.setFont('helvetica', 'bold');
-        const titulo = 'Gestion de Creditos Inversora IPSFA C.A';
-        const tituloWidth = doc.getTextWidth(titulo);
-        doc.text(titulo, (pageWidth - tituloWidth) / 2, currentY + 16);
-
-        // Subtitulo centrado
-        doc.setFontSize(11);
-        doc.setTextColor(100, 100, 100);
-        doc.setFont('helvetica', 'normal');
-        const subtitulo = 'Reporte de Busqueda Tienda Maracaibo';
-        const subtituloWidth = doc.getTextWidth(subtitulo);
-        doc.text(subtitulo, (pageWidth - subtituloWidth) / 2, currentY + 24);
-
-        // Fecha y total centrados
-        doc.setFontSize(10);
-        doc.setTextColor(80, 80, 80);
-        const fechaTexto = 'Fecha: ' + new Date().toLocaleDateString('es-VE') + '  |  Hora: ' + new Date().toLocaleTimeString('es-VE') + '  |  Total Registros: ' + datosBusquedaMaracaibo.length;
-        const fechaWidth = doc.getTextWidth(fechaTexto);
-        doc.text(fechaTexto, (pageWidth - fechaWidth) / 2, currentY + 32);
-
-        currentY += 48;
-
-        // Linea separadora
-        doc.setDrawColor(26, 54, 93);
-        doc.setLineWidth(0.5);
-        doc.line(margin, currentY, pageWidth - margin, currentY);
-
-        currentY += 8;
-
-        // --- TABLA DE DATOS (sin Estado) ---
-        const headers = [['Nro', 'Factura', 'Cliente', 'Cedula', 'Telefono', 'Monto', 'Depositado', 'Deuda', 'Fecha']];
-        const rows = datosBusquedaMaracaibo.map((row, i) => [
-            i + 1, 
-            row.nro_factura || '-', 
-            row.nombre_apellido || '-', 
-            row.cedula || '-', 
-            row.telefono || '-',
-            formatCurrency(row.monto_factura || 0), 
-            formatCurrency(row.monto_depositados || 0), 
-            formatCurrency(row.deuda || 0),
-            formatearFecha(row.fecha_factura)
-        ]);
-
-        // Calcular anchos de columnas proporcionales al ancho total
-        const colNro = 10;
-        const colFactura = 18;
-        const colCliente = 50;
-        const colCedula = 22;
-        const colTelefono = 25;
-        const colMonto = 28;
-        const colDepositado = 28;
-        const colDeuda = 28;
-        const colFecha = 22;
-        const totalColWidth = colNro + colFactura + colCliente + colCedula + colTelefono + colMonto + colDepositado + colDeuda + colFecha;
-
-        // Ajustar al ancho del contenido
-        const scaleFactor = contentWidth / totalColWidth;
-
-        doc.autoTable({
-            head: headers, 
-            body: rows, 
-            startY: currentY, 
-            theme: 'striped',
-            headStyles: { 
-                fillColor: [26, 54, 93], 
-                textColor: [255, 255, 255], 
-                fontSize: 9, 
-                fontStyle: 'bold',
-                halign: 'center',
-                valign: 'middle'
-            },
-            bodyStyles: { 
-                fontSize: 8, 
-                textColor: [50, 50, 50],
-                valign: 'middle'
-            },
-            alternateRowStyles: { fillColor: [240, 248, 255] },
-            margin: { top: 20, left: margin, right: margin },
-            styles: { 
-                overflow: 'linebreak', 
-                cellWidth: 'wrap',
-                lineColor: [200, 200, 200],
-                lineWidth: 0.1
-            },
-            columnStyles: { 
-                0: {cellWidth: colNro * scaleFactor, halign: 'center'}, 
-                1: {cellWidth: colFactura * scaleFactor, halign: 'center'}, 
-                2: {cellWidth: colCliente * scaleFactor, halign: 'left'}, 
-                3: {cellWidth: colCedula * scaleFactor, halign: 'center'}, 
-                4: {cellWidth: colTelefono * scaleFactor, halign: 'center'},
-                5: {cellWidth: colMonto * scaleFactor, halign: 'right'}, 
-                6: {cellWidth: colDepositado * scaleFactor, halign: 'right'}, 
-                7: {cellWidth: colDeuda * scaleFactor, halign: 'right'}, 
-                8: {cellWidth: colFecha * scaleFactor, halign: 'center'}
-            },
-            didDrawPage: function(data) {
-                doc.setFontSize(8);
-                doc.setTextColor(150, 150, 150);
-                doc.text('Inversora IPSFA - Sistema de Creditos', margin, pageHeight - 10);
-                doc.text('Pagina ' + data.pageNumber, pageWidth - margin - 20, pageHeight - 10);
-            }
-        });
-
-        // --- LEYENDA DE SUMATORIAS AL FINAL ---
-        const finalY = doc.lastAutoTable.finalY + 10;
-
-        // Calcular sumatorias
-        const totalFacturado = datosBusquedaMaracaibo.reduce((sum, r) => sum + (parseFloat(r.monto_factura) || 0), 0);
-        const totalDepositado = datosBusquedaMaracaibo.reduce((sum, r) => sum + (parseFloat(r.monto_depositados) || 0), 0);
-        const totalDeuda = datosBusquedaMaracaibo.reduce((sum, r) => sum + (parseFloat(r.deuda) || 0), 0);
-
-        // Verificar si hay espacio suficiente, si no, agregar nueva pagina
-        if (finalY + 50 > pageHeight - 20) {
-            doc.addPage();
-            currentY = 20;
-        } else {
-            currentY = finalY;
-        }
-
-        // Fondo del resumen (mismo ancho que la tabla)
-        const resumenHeight = 42;
-        doc.setFillColor(26, 54, 93);
-        doc.rect(margin, currentY, contentWidth, resumenHeight, 'F');
-
-        // Titulo del resumen centrado
-        doc.setFontSize(13);
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        const tituloResumen = 'TOTALES DEL REPORTE';
-        const tituloResumenWidth = doc.getTextWidth(tituloResumen);
-        doc.text(tituloResumen, (pageWidth - tituloResumenWidth) / 2, currentY + 8);
-
-        // Linea separadora
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.3);
-        doc.line(margin + 5, currentY + 12, pageWidth - margin - 5, currentY + 12);
-
-        // Tres columnas de sumatorias distribuidas equitativamente
-        const colWidth = contentWidth / 3;
-        const col1X = margin + 10;
-        const col2X = margin + colWidth + 10;
-        const col3X = margin + (colWidth * 2) + 10;
-
-        // Etiquetas
-        doc.setFontSize(9);
-        doc.setTextColor(200, 200, 200);
-        doc.setFont('helvetica', 'normal');
-        doc.text('TOTAL MONTO FACTURADO', col1X, currentY + 20);
-        doc.text('TOTAL DEPOSITADO', col2X, currentY + 20);
-        doc.text('TOTAL DEUDA PENDIENTE', col3X, currentY + 20);
-
-        // Valores
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(251, 191, 36); // Amarillo
-        doc.text(formatCurrency(totalFacturado), col1X, currentY + 30);
-
-        doc.setTextColor(74, 222, 128); // Verde
-        doc.text(formatCurrency(totalDepositado), col2X, currentY + 30);
-
-        doc.setTextColor(248, 113, 113); // Rojo
-        doc.text(formatCurrency(totalDeuda), col3X, currentY + 30);
-
-        // Total clientes centrado
-        doc.setFontSize(9);
-        doc.setTextColor(200, 200, 200);
-        doc.setFont('helvetica', 'normal');
-        const clientesTexto = datosBusquedaMaracaibo.length + ' clientes en el reporte';
-        const clientesWidth = doc.getTextWidth(clientesTexto);
-        doc.text(clientesTexto, (pageWidth - clientesWidth) / 2, currentY + 38);
-
-        doc.save('busqueda_maracaibo_' + new Date().toISOString().split('T')[0] + '.pdf');
-        mostrarAlerta('PDF exportado correctamente', 'success');
-    }
-
-    generarPDF().catch(err => {
-        console.error('Error generando PDF:', err);
-        mostrarAlerta('Error al generar PDF: ' + err.message, 'error');
-    });
-}
-
-function volverMenuPrincipalMaracaibo() {
-    document.getElementById('tmb-base-datos').style.display = 'none';
-    document.getElementById('tmb-conciliaciones').style.display = 'none';
-    document.getElementById('tmb-busqueda').style.display = 'none';
-    document.getElementById('tmb-menu-principal').style.display = 'grid';
-}
+// Carga inicial: el panel principal es la sección por defecto
+document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('dashboardGlobal')) initDashboardGlobal();
+});
+// ============================================================
+// DASHBOARD GLOBAL v6.4 — FIN
+// ============================================================

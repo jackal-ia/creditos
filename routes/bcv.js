@@ -10,7 +10,7 @@ router.get('/actual', verificarToken, async (req, res) => {
         const data = await response.json();
         res.json({ exito: true, tasa: data });
     } catch (err) {
-        res.status(500).json({ error: 'Error obteniendo tasa BCV', detalle: err.message });
+        res.status(500).json({ error: 'Error obteniendo tasa BCV' });
     }
 });
 
@@ -20,7 +20,7 @@ router.get('/anterior', verificarToken, async (req, res) => {
         const data = await response.json();
         res.json({ exito: true, tasa: data });
     } catch (err) {
-        res.status(500).json({ error: 'Error obteniendo tasa anterior', detalle: err.message });
+        res.status(500).json({ error: 'Error obteniendo tasa anterior' });
     }
 });
 
@@ -30,7 +30,7 @@ router.get('/fechas', verificarToken, async (req, res) => {
         const data = await response.json();
         res.json({ exito: true, fechas: data });
     } catch (err) {
-        res.status(500).json({ error: 'Error obteniendo fechas', detalle: err.message });
+        res.status(500).json({ error: 'Error obteniendo fechas' });
     }
 });
 
@@ -96,7 +96,7 @@ router.get('/historial/:year', verificarToken, async (req, res) => {
         const data = await response.json();
         res.json({ exito: true, historial: data });
     } catch (err) {
-        res.status(500).json({ error: 'Error obteniendo historial', detalle: err.message });
+        res.status(500).json({ error: 'Error obteniendo historial' });
     }
 });
 

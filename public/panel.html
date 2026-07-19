@@ -291,30 +291,40 @@
                         </div>
                     </div>
                 </div>
-                <div class="card card-actividades" id="widget-actividades">
-                    <div class="card-header">
-                        <div class="card-icon actividades-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <!-- v6.7 — Widget Mis Actividades rediseñado -->
+                <div class="card card-actividades aw" id="widget-actividades">
+                    <div class="aw-cab">
+                        <div class="aw-ico">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M9 11l3 3L22 4"></path>
                                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
                             </svg>
                         </div>
-                        <div class="card-title-group">
+                        <div class="aw-tit">
                             <h3>Mis Actividades</h3>
-                            <span class="card-subtitle">Pendientes de hoy</span>
+                            <span>Pendientes de hoy</span>
+                        </div>
+                        <div class="aw-tiendas" id="widgetTiendaDots">
+                            <button type="button" data-t="todas" class="todas on" title="Todas las tiendas" onclick="filtrarWidgetTienda('todas')">✦</button>
+                            <button type="button" data-t="caracas" title="Caracas" onclick="filtrarWidgetTienda('caracas')"><span class="ag2-punto caracas"></span></button>
+                            <button type="button" data-t="maracay" title="Maracay" onclick="filtrarWidgetTienda('maracay')"><span class="ag2-punto maracay"></span></button>
+                            <button type="button" data-t="maracaibo" title="Maracaibo" onclick="filtrarWidgetTienda('maracaibo')"><span class="ag2-punto maracaibo"></span></button>
                         </div>
                     </div>
-                    <div class="actividades-widget-content">
-                        <div class="actividades-widget-list" id="actividadesWidgetList">
-                            <p class="actividades-widget-empty">Cargando...</p>
-                        </div>
-                        <div class="actividades-widget-footer">
-                            <span class="actividades-widget-count" id="actividadesWidgetCount">0 pendientes</span>
-                            <a href="#" onclick="mostrarSeccion('reportes'); return false;" class="actividades-widget-link">Ver todas →</a>
-                        </div>
+                    <div class="aw-prog">
+                        <div class="txt"><span>Avance del día</span><strong id="widgetAvanceTxt">0/0</strong></div>
+                        <div class="aw-riel"><div class="aw-relleno" id="widgetAvanceBar" style="width:0%"></div></div>
+                    </div>
+                    <div class="aw-lista" id="actividadesWidgetList">
+                        <p class="aw-cargando">Cargando...</p>
+                    </div>
+                    <div class="aw-mas" id="widgetMas"></div>
+                    <div class="aw-pie">
+                        <span id="actividadesWidgetCount">0 pendientes</span>
+                        <a href="#" onclick="mostrarSeccion('reportes'); return false;">Ver todas <i class="fas fa-arrow-right"></i></a>
                     </div>
                 </div>
-                <div class="card card-placeholder">
+                <div class="card card-placeholder" id="cardProximoModulo">
                     <div class="card-header">
                         <div class="card-icon placeholder-icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -332,9 +342,19 @@
                         <p>Espacio reservado para futuros modulos del sistema.</p>
                     </div>
                 </div>
-                
-                
-            
+
+
+
+            </div>
+
+            <!-- DASHBOARD GLOBAL (v6.4)
+                 Administrador: consolidado de las 3 tiendas.
+                 Operador: solo su tienda asignada.
+                 El contenido lo genera initDashboardGlobal() en panel.js -->
+            <div id="dashboardGlobal" class="dg-contenedor">
+                <div class="dg-cargando">
+                    <span class="dg-spinner"></span> Cargando resumen...
+                </div>
             </div>
         </div>
 
@@ -479,794 +499,178 @@
         </div>
 
         <!-- TIENDA CARACAS -->
+        <!-- ========== SECCIÓN: TIENDA CARACAS ========== -->
+        <!-- El contenido lo genera el módulo genérico js/tienda-spa.js -->
         <div class="content-area hidden" id="contentClientes">
-            <div class="tienda-caracas-container">
-
-
-                <div id="tc-menu-principal" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; padding: 40px; max-width: 700px; margin: 0 auto;">
-                    <button onclick="mostrarBaseDatos()" class="tc-menu-btn">Base de Datos</button>
-                    <button onclick="mostrarConciliaciones()" class="tc-menu-btn">Conciliaciones Bancarias</button>
-                    <button onclick="mostrarSeccion('estadisticas', 'caracas')" class="tc-menu-btn">Estadisticas</button>
-                    <button onclick="mostrarBusqueda()" class="tc-menu-btn"><i class="fas fa-chart-bar"></i> Reportes</button>
-                </div>
-                <div id="tc-base-datos" style="display: none;">
-                    <button onclick="mostrarMenuPrincipal()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div class="quick-filters">
-                        <button class="filter-btn active" data-filter="all" onclick="applyQuickFilter('all')">Todos <span class="badge" id="count-all">130</span></button>
-                        <button class="filter-btn" data-filter="deudores" onclick="applyQuickFilter('deudores')">Deudores <span class="badge badge-danger" id="count-deudores">0</span></button>
-                        <button class="filter-btn" data-filter="incompletos" onclick="applyQuickFilter('incompletos')">Cuotas Incompletas <span class="badge badge-warning" id="count-incompletos">0</span></button>
-                        <button class="filter-btn" data-filter="aldia" onclick="applyQuickFilter('aldia')">Al Dia <span class="badge badge-success" id="count-aldia">0</span></button>
-                        <button class="filter-btn" data-filter="abiertas" onclick="applyQuickFilter('abiertas')">Facturas Abiertas <span class="badge badge-info" id="count-abiertas">0</span></button>
-                        <button class="filter-btn" data-filter="canceladas" onclick="applyQuickFilter('canceladas')">Facturas Canceladas <span class="badge badge-secondary" id="count-canceladas">0</span></button>
-                    </div>
-                    <div class="advanced-search">
-                        <div class="search-row">
-                            <div class="search-field"><input type="text" id="search-general" placeholder="Buscar por nombre..." oninput="debouncedFilter()"></div>
-                            <div class="search-field"><input type="text" id="search-factura" placeholder="N Factura" oninput="debouncedFilter()"></div>
-                            <div class="search-field"><input type="text" id="search-cedula" placeholder="Cedula" oninput="debouncedFilter()"></div>
-                        </div>
-                        <div class="search-row">
-                            <div class="search-field date-field">
-                                <input type="date" id="fecha-desde" onchange="applyFilters()">
-                                <span>a</span>
-                                <input type="date" id="fecha-hasta" onchange="applyFilters()">
-                            </div>
-                            <div class="search-field">
-                                <input type="number" id="monto-min" placeholder="Monto minimo" oninput="debouncedFilter()">
-                                <span>-</span>
-                                <input type="number" id="monto-max" placeholder="Monto maximo" oninput="debouncedFilter()">
-                            </div>
-                            <button class="btn-search" onclick="applyFilters()">&#128269; Buscar</button>
-                            <button class="btn-clear" onclick="clearFilters()">&#10060; Limpiar</button>
-                        </div>
-                    </div>
-                    <div class="summary-cards">
-                        <div class="summary-card"><span class="number" id="total-clientes">130</span><span class="label">Total Clientes</span></div>
-                        <div class="summary-card"><span class="number" id="total-facturado">$0</span><span class="label">Total Facturado</span></div>
-                        <div class="summary-card danger"><span class="number" id="total-deuda">$0</span><span class="label">Total Deuda</span></div>
-                        <div class="summary-card success"><span class="number" id="total-recaudado">$0</span><span class="label">Total Recaudado</span></div>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table" id="tabla-clientes">
-                            <thead><tr><th>N</th><th>Fact.</th><th>Cliente</th><th>Monto (Bs)</th><th>Fecha</th><th>Cedula</th><th>Cuotas</th><th>Depositado (Bs)</th><th>Deuda (Bs)</th><th>Estado</th><th>Acc.</th></tr></thead>
-                            <tbody id="tabla-body"></tbody>
-                        </table>
-                    </div>
-                    <div class="pagination">
-                        <button id="btn-primero" onclick="goToPage(1)" disabled>|&lt;</button>
-                        <button id="btn-anterior" onclick="goToPage(currentPage - 1)" disabled>&lt;</button>
-                        <span id="pagina-info">Pagina 1 de 1</span>
-                        <button id="btn-siguiente" onclick="goToPage(currentPage + 1)">&gt;</button>
-                        <button id="btn-ultimo" onclick="goToPage(getTotalPages())">&gt;|</button>
-                        <select id="registros-por-pagina" onchange="changeItemsPerPage()">
-                            <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
-                        </select>
-                    </div>
-                    <div class="export-buttons">
-                        <button class="btn-export excel" onclick="exportToExcel()">&#128190; Exportar Excel</button>
-                        <button class="btn-export pdf" onclick="exportToPDF()">&#128196; Exportar PDF</button>
-                        <button class="btn-export print" onclick="printTable()">&#128424; Imprimir</button>
-                    </div>
-                </div>
-                <div id="tc-conciliaciones" style="display: none;">
-                    <button onclick="mostrarMenuPrincipal()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div class="section-header"><h3>Conciliaciones Bancarias</h3><p>Registro de depositos bancarios por numero de factura</p></div>
-                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
-                        <input type="text" id="conc-factura-buscar" placeholder="Ingrese N de factura..." onkeypress="if(event.key==='Enter')buscarFacturaConciliacion()">
-                        <button onclick="buscarFacturaConciliacion()">&#128269; Buscar Factura</button>
-                    </div>
-                    <div id="conc-mensaje-inicial" class="card" style="padding: 40px; text-align: center;">
-                        <p>Ingrese un numero de factura para buscar</p>
-                    </div>
-                    <div id="conc-no-encontrada" class="card" style="display: none; padding: 40px; text-align: center; background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-left: 4px solid #ed8936;">
-                        <div style="font-size: 48px; margin-bottom: 15px;">&#128269;</div>
-                        <h4 style="color: #ed8936; margin-bottom: 10px;">Factura No Encontrada</h4>
-                        <p style="color: #666; margin-bottom: 20px;">La factura <strong id="conc-no-encontrada-numero" style="color: #1a3a5c;"></strong> no existe en la base de datos.</p>
-                        <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Puede registrarla como un nuevo cliente usando el formulario a continuacion.</p>
-                        <button onclick="mostrarFormularioNuevoRegistro()" style="padding: 12px 28px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128221; Registrar Nuevo Cliente</button>
-                        <button onclick="volverABuscarFactura()" style="padding: 12px 28px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                    </div>
-                    <div id="conc-resultado-encontrada" style="display: none;">
-                        <div class="card">
-                            <h4>&#128196; Informacion de la Factura</h4>
-                            <div class="info-row"><span class="info-label">N° Factura:</span><span class="info-value" id="conc-info-factura">-</span></div>
-                            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value" id="conc-info-nombre">-</span></div>
-                            <div class="info-row"><span class="info-label">Cedula:</span><span class="info-value" id="conc-info-cedula">-</span></div>
-                            <div class="info-row"><span class="info-label">Monto Factura:</span><span class="info-value" id="conc-info-monto">-</span></div>
-                            <div class="info-row"><span class="info-label">Deuda:</span><span class="info-value" id="conc-info-deuda">-</span></div>
-                            <div class="info-row"><span class="info-label">Cuotas:</span><span class="info-value" id="conc-info-cuotas">-</span></div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128178; Historial de Cuotas</h4>
-                            <div class="table-container">
-                                <table class="data-table" id="conc-tabla-cuotas">
-                                    <thead><tr><th>Cuota</th><th>Monto (Bs)</th><th>Referencia</th><th>Fecha</th><th>Tasa</th><th>Dolar</th></tr></thead>
-                                    <tbody id="conc-tabla-cuotas-body"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128181; Registrar Nueva Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Cuota</label><input type="number" id="conc-cuota-numero" readonly></div>
-                                <div class="form-group"><label>Monto (Bs)</label><input type="number" step="0.01" id="conc-cuota-monto" oninput="calcularDolarConciliacion()"></div>
-                                <div class="form-group"><label>Referencia</label><input type="text" id="conc-cuota-ref"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Fecha Deposito</label><input type="date" id="conc-cuota-fecha" onchange="obtenerTasaPorFechaConciliacion()"></div>
-                                <div class="form-group"><label>Tasa BCV</label><input type="number" step="0.0001" id="conc-cuota-tasa" oninput="calcularDolarConciliacion()"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="conc-cuota-dolar" readonly></div>
-                            </div>
-                            <div id="conc-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button onclick="guardarCuotaConciliacion()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Cuota</button>
-                                <button onclick="volverABuscarFactura()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="conc-resultado-nueva" style="display: none;">
-                        <div class="card">
-                            <h4>&#128221; Nuevo Registro</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Factura *</label><input type="text" id="conc-nueva-factura" readonly></div>
-                                <div class="form-group"><label>Fecha Factura *</label><input type="date" id="conc-nueva-fecha-factura"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Nombre y Apellido *</label><input type="text" id="conc-nueva-nombre"></div>
-                                <div class="form-group"><label>Cedula</label><input type="text" id="conc-nueva-cedula"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto Factura (Bs) *</label><input type="number" step="0.01" id="conc-nueva-monto"></div>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128181; Primera Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto (Bs) *</label><input type="number" step="0.01" id="conc-nueva-cuota-monto" oninput="calcularDolarNuevaConciliacion()"></div>
-                                <div class="form-group"><label>Referencia *</label><input type="text" id="conc-nueva-cuota-ref"></div>
-                                <div class="form-group"><label>Fecha Deposito *</label><input type="date" id="conc-nueva-cuota-fecha" onchange="obtenerTasaNuevaConciliacion()"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Tasa BCV *</label><input type="number" step="0.0001" id="conc-nueva-cuota-tasa" oninput="calcularDolarNuevaConciliacion()"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="conc-nueva-cuota-dolar" readonly></div>
-                            </div>
-                            <div id="conc-nueva-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button onclick="guardarNuevaConciliacion()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Registro</button>
-                                <button onclick="volverABuscarFactura()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- REPORTES TIENDA CARACAS -->
-                <div id="tc-busqueda" style="display: none;">
-                    <button onclick="volverMenuPrincipalCaracas()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white; border-radius: 12px;">
-                        <h2><i class="fas fa-chart-bar"></i> Reportes Tienda Caracas</h2>
-                        <p style="opacity: 0.9; margin-top: 5px;">Genera reportes personalizados con filtros avanzados</p>
-                    </div>
-
-                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
-                        <h4 style="margin-bottom: 15px; color: #1a365d;"><i class="fas fa-filter"></i> Filtros del Reporte</h4>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group"><label>Fecha Desde</label><input type="date" id="busq-fecha-desde"></div>
-                            <div class="form-group"><label>Fecha Hasta</label><input type="date" id="busq-fecha-hasta"></div>
-                            <div class="form-group"><label>Estado</label><select id="busq-estado"><option value="todos">Todos</option><option value="pendiente">Pendiente</option><option value="pagado">Pagado</option><option value="mora">En Mora</option><option value="abiertas">Facturas Abiertas</option><option value="canceladas">Facturas Canceladas</option></select></div>
-                            <div class="form-group"><label>Monto Deuda Min</label><input type="number" id="busq-monto-min" placeholder="0.00"></div>
-                            <div class="form-group"><label>Monto Deuda Max</label><input type="number" id="busq-monto-max" placeholder="9999999"></div>
-                            <div class="form-group"><label>Nombre Cliente</label><input type="text" id="busq-nombre" placeholder="Buscar cliente..."></div>
-                        </div>
-                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button onclick="limpiarFiltrosBusqueda()" style="padding: 10px 20px; background: #edf2f7; color: #4a5568; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"><i class="fas fa-eraser"></i> Limpiar</button>
-                            <button onclick="generarBusquedaCaracas()" style="padding: 10px 24px; background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);"><i class="fas fa-sync-alt"></i> Generar Reporte</button>
-                        </div>
-                    </div>
-
-                    <div id="busq-resumen" style="display: none; margin-bottom: 20px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-                            <div class="card" style="border-left: 4px solid #4299e1; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-total">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Clientes</div></div>
-                            <div class="card" style="border-left: 4px solid #f56565; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-deuda">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Deuda Total</div></div>
-                            <div class="card" style="border-left: 4px solid #48bb78; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-pagado">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Pagado</div></div>
-                            <div class="card" style="border-left: 4px solid #ed8936; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-mora">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Clientes en Mora</div></div>
-                            <div class="card" style="border-left: 4px solid #9f7aea; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busq-res-promedio">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Promedio Deuda</div></div>
-                        </div>
-                    </div>
-
-                    <div class="card" id="busq-tabla-container" style="display: none; margin-bottom: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
-                            <h4 style="color: #1a365d;"><i class="fas fa-list"></i> Resultados</h4>
-                            <span style="font-size: 13px; color: #718096; background: #edf2f7; padding: 6px 14px; border-radius: 20px;" id="busq-contador">0 registros</span>
-                        </div>
-                        <div style="overflow-x: auto;">
-                            <table class="data-table" id="busq-tabla">
-                                <thead><tr style="background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white;"><th>Nro</th><th>Factura</th><th>Cliente</th><th>Cédula</th><th>Monto</th><th>Cuotas</th><th>Depositado</th><th>Deuda</th><th>Estado</th><th>Fecha</th></tr></thead>
-                                <tbody id="busq-tbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div id="busq-graficos" style="display: none; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-bar"></i> Deuda por Estado</h4><div id="busq-graf-barras"></div></div>
-                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-pie"></i> Distribución de Pagos</h4><div id="busq-graf-pastel" style="display: flex; align-items: center; justify-content: center; gap: 30px;"></div></div>
-                    </div>
-
-                    <div id="busq-exportar" style="display: none; text-align: center; padding: 20px; border-top: 1px solid #e2e8f0;">
-                        <div style="display: inline-flex; gap: 20px;">
-                            <button onclick="exportarBusquedaExcel()" style="padding: 15px 30px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; color: #15803d; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-excel" style="font-size: 32px; color: #22c55e;"></i><span>Exportar Excel</span><small style="font-size: 11px; opacity: 0.7;">.xlsx</small></button>
-                            <button onclick="exportarBusquedaPDF()" style="padding: 15px 30px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; color: #b91c1c; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-pdf" style="font-size: 32px; color: #ef4444;"></i><span>Exportar PDF</span><small style="font-size: 11px; opacity: 0.7;">.pdf</small></button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
         </div>
 
+        <!-- ========== SECCIÓN: TIENDA MARACAY ========== -->
+        <!-- El contenido lo genera el módulo genérico js/tienda-spa.js -->
         <div class="content-area hidden" id="contentMaracay">
-            <div class="tienda-maracay-container">
-
-
-                <div id="tm-menu-principal" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; padding: 40px; max-width: 700px; margin: 0 auto;">
-                    <button onclick="mostrarBaseDatosMaracay()" class="tm-menu-btn">Base de Datos</button>
-                    <button onclick="mostrarConciliacionesMaracay()" class="tm-menu-btn">Conciliaciones Bancarias</button>
-                    <button onclick="mostrarSeccion('estadisticas', 'maracay')" class="tm-menu-btn">Estadisticas</button>
-                    <button onclick="mostrarBusquedaMaracay()" class="tm-menu-btn"><i class="fas fa-chart-bar"></i> Reportes</button>
-                </div>
-                <div id="tm-base-datos" style="display: none;">
-                    <button onclick="mostrarMenuPrincipalMaracay()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div class="quick-filters">
-                        <button class="filter-btn active" data-filter="all" onclick="applyQuickFilterM('all')">Todos <span class="badge" id="count-all-m">130</span></button>
-                        <button class="filter-btn" data-filter="deudores" onclick="applyQuickFilterM('deudores')">Deudores <span class="badge badge-danger" id="count-deudores-m">0</span></button>
-                        <button class="filter-btn" data-filter="incompletos" onclick="applyQuickFilterM('incompletos')">Cuotas Incompletas <span class="badge badge-warning" id="count-incompletos-m">0</span></button>
-                        <button class="filter-btn" data-filter="aldia" onclick="applyQuickFilterM('aldia')">Al Dia <span class="badge badge-success" id="count-aldia-m">0</span></button>
-                        <button class="filter-btn" data-filter="abiertas" onclick="applyQuickFilterM('abiertas')">Facturas Abiertas <span class="badge badge-info" id="count-abiertas-m">0</span></button>
-                        <button class="filter-btn" data-filter="canceladas" onclick="applyQuickFilterM('canceladas')">Facturas Canceladas <span class="badge badge-secondary" id="count-canceladas-m">0</span></button>
-                    </div>
-                    <div class="advanced-search">
-                        <div class="search-row">
-                            <div class="search-field"><input type="text" id="search-general-m" placeholder="Buscar por nombre..." oninput="debouncedFilterM()"></div>
-                            <div class="search-field"><input type="text" id="search-factura-m" placeholder="N Factura" oninput="debouncedFilterM()"></div>
-                            <div class="search-field"><input type="text" id="search-cedula-m" placeholder="Cedula" oninput="debouncedFilterM()"></div>
-                        </div>
-                        <div class="search-row">
-                            <div class="search-field date-field">
-                                <input type="date" id="fecha-desde-m" onchange="applyFiltersM()">
-                                <span>a</span>
-                                <input type="date" id="fecha-hasta-m" onchange="applyFiltersM()">
-                            </div>
-                            <div class="search-field">
-                                <input type="number" id="monto-min-m" placeholder="Monto minimo" oninput="debouncedFilterM()">
-                                <span>-</span>
-                                <input type="number" id="monto-max-m" placeholder="Monto maximo" oninput="debouncedFilterM()">
-                            </div>
-                            <button class="btn-search" onclick="applyFiltersM()">&#128269; Buscar</button>
-                            <button class="btn-clear" onclick="clearFiltersM()">&#10060; Limpiar</button>
-                        </div>
-                    </div>
-                    <div class="summary-cards">
-                        <div class="summary-card"><span class="number" id="total-clientes-m">130</span><span class="label">Total Clientes</span></div>
-                        <div class="summary-card"><span class="number" id="total-facturado-m">$0</span><span class="label">Total Facturado</span></div>
-                        <div class="summary-card danger"><span class="number" id="total-deuda-m">$0</span><span class="label">Total Deuda</span></div>
-                        <div class="summary-card success"><span class="number" id="total-recaudado-m">$0</span><span class="label">Total Recaudado</span></div>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table" id="tabla-clientes-m">
-                            <thead><tr><th>N</th><th>Fact.</th><th>Cliente</th><th>Monto (Bs)</th><th>Fecha</th><th>Cedula</th><th>Cuotas</th><th>Depositado (Bs)</th><th>Deuda (Bs)</th><th>Estado</th><th>Acc.</th></tr></thead>
-                            <tbody id="tabla-body-m"></tbody>
-                        </table>
-                    </div>
-                    <div class="pagination">
-                        <button id="btn-primero-m" onclick="goToPageM(1)" disabled>|&lt;</button>
-                        <button id="btn-anterior-m" onclick="goToPageM(currentPage - 1)" disabled>&lt;</button>
-                        <span id="pagina-info-m">Pagina 1 de 1</span>
-                        <button id="btn-siguiente-m" onclick="goToPageM(currentPage + 1)">&gt;</button>
-                        <button id="btn-ultimo-m" onclick="goToPageM(getTotalPagesM())">&gt;|</button>
-                        <select id="registros-por-pagina-m" onchange="changeItemsPerPageM()">
-                            <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
-                        </select>
-                    </div>
-                    <div class="export-buttons">
-                        <button class="btn-export excel" onclick="exportToExcelM()">&#128190; Exportar Excel</button>
-                        <button class="btn-export pdf" onclick="exportToPDFM()">&#128196; Exportar PDF</button>
-                        <button class="btn-export print" onclick="printTableM()">&#128424; Imprimir</button>
-                    </div>
-                </div>
-                <div id="tm-conciliaciones" style="display: none;">
-                    <button onclick="mostrarMenuPrincipalMaracay()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div class="section-header"><h3>Conciliaciones Bancarias</h3><p>Registro de depositos bancarios por numero de factura</p></div>
-                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
-                        <input type="text" id="concm-factura-buscar" placeholder="Ingrese N de factura..." onkeypress="if(event.key==='Enter')buscarFacturaConciliacionM()">
-                        <button onclick="buscarFacturaConciliacionM()">&#128269; Buscar Factura</button>
-                    </div>
-                    <div id="concm-mensaje-inicial" class="card" style="padding: 40px; text-align: center;">
-                        <p>Ingrese un numero de factura para buscar</p>
-                    </div>
-                    <div id="concm-no-encontrada" class="card" style="display: none; padding: 40px; text-align: center; background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-left: 4px solid #ed8936;">
-                        <div style="font-size: 48px; margin-bottom: 15px;">&#128269;</div>
-                        <h4 style="color: #ed8936; margin-bottom: 10px;">Factura No Encontrada</h4>
-                        <p style="color: #666; margin-bottom: 20px;">La factura <strong id="concm-no-encontrada-numero" style="color: #1a3a5c;"></strong> no existe en la base de datos.</p>
-                        <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Puede registrarla como un nuevo cliente usando el formulario a continuacion.</p>
-                        <button onclick="mostrarFormularioNuevoRegistroM()" style="padding: 12px 28px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128221; Registrar Nuevo Cliente</button>
-                        <button onclick="volverABuscarFacturaM()" style="padding: 12px 28px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                    </div>
-                    <div id="concm-resultado-encontrada" style="display: none;">
-                        <div class="card">
-                            <h4>&#128196; Informacion de la Factura</h4>
-                            <div class="info-row"><span class="info-label">N° Factura:</span><span class="info-value" id="concm-info-factura">-</span></div>
-                            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value" id="concm-info-nombre">-</span></div>
-                            <div class="info-row"><span class="info-label">Cedula:</span><span class="info-value" id="concm-info-cedula">-</span></div>
-                            <div class="info-row"><span class="info-label">Monto Factura:</span><span class="info-value" id="concm-info-monto">-</span></div>
-                            <div class="info-row"><span class="info-label">Deuda:</span><span class="info-value" id="concm-info-deuda">-</span></div>
-                            <div class="info-row"><span class="info-label">Cuotas:</span><span class="info-value" id="concm-info-cuotas">-</span></div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128178; Historial de Cuotas</h4>
-                            <div class="table-container">
-                                <table class="data-table" id="concm-tabla-cuotas">
-                                    <thead><tr><th>Cuota</th><th>Monto (Bs)</th><th>Referencia</th><th>Fecha</th><th>Tasa</th><th>Dolar</th></tr></thead>
-                                    <tbody id="concm-tabla-cuotas-body"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128181; Registrar Nueva Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Cuota</label><input type="number" id="concm-cuota-numero" readonly></div>
-                                <div class="form-group"><label>Monto (Bs)</label><input type="number" step="0.01" id="concm-cuota-monto" oninput="calcularDolarConciliacionM()"></div>
-                                <div class="form-group"><label>Referencia</label><input type="text" id="concm-cuota-ref"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Fecha Deposito</label><input type="date" id="concm-cuota-fecha" onchange="obtenerTasaPorFechaConciliacionM()"></div>
-                                <div class="form-group"><label>Tasa BCV</label><input type="number" step="0.0001" id="concm-cuota-tasa" oninput="calcularDolarConciliacionM()"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="concm-cuota-dolar" readonly></div>
-                            </div>
-                            <div id="concm-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button onclick="guardarCuotaConciliacionM()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Cuota</button>
-                                <button onclick="volverABuscarFacturaM()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="concm-resultado-nueva" style="display: none;">
-                        <div class="card">
-                            <h4>&#128221; Nuevo Registro</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Factura *</label><input type="text" id="concm-nueva-factura" readonly></div>
-                                <div class="form-group"><label>Fecha Factura *</label><input type="date" id="concm-nueva-fecha-factura"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Nombre y Apellido *</label><input type="text" id="concm-nueva-nombre"></div>
-                                <div class="form-group"><label>Cedula</label><input type="text" id="concm-nueva-cedula"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto Factura (Bs) *</label><input type="number" step="0.01" id="concm-nueva-monto"></div>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128181; Primera Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto (Bs) *</label><input type="number" step="0.01" id="concm-nueva-cuota-monto" oninput="calcularDolarNuevaConciliacionM()"></div>
-                                <div class="form-group"><label>Referencia *</label><input type="text" id="concm-nueva-cuota-ref"></div>
-                                <div class="form-group"><label>Fecha Deposito *</label><input type="date" id="concm-nueva-cuota-fecha" onchange="obtenerTasaNuevaConciliacionM()"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Tasa BCV *</label><input type="number" step="0.0001" id="concm-nueva-cuota-tasa" oninput="calcularDolarNuevaConciliacionM()"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="concm-nueva-cuota-dolar" readonly></div>
-                            </div>
-                            <div id="concm-nueva-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button onclick="guardarNuevaConciliacionM()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Registro</button>
-                                <button onclick="volverABuscarFacturaM()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- REPORTES TIENDA CARACAS -->
-                <div id="tm-busqueda" style="display: none;">
-                    <button onclick="volverMenuPrincipalMaracay()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white; border-radius: 12px;">
-                        <h2><i class="fas fa-chart-bar"></i> Reportes Tienda Maracay</h2>
-                        <p style="opacity: 0.9; margin-top: 5px;">Genera reportes personalizados con filtros avanzados</p>
-                    </div>
-
-                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
-                        <h4 style="margin-bottom: 15px; color: #1a365d;"><i class="fas fa-filter"></i> Filtros del Reporte</h4>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group"><label>Fecha Desde</label><input type="date" id="busqm-fecha-desde"></div>
-                            <div class="form-group"><label>Fecha Hasta</label><input type="date" id="busqm-fecha-hasta"></div>
-                            <div class="form-group"><label>Estado</label><select id="busqm-estado"><option value="todos">Todos</option><option value="pendiente">Pendiente</option><option value="pagado">Pagado</option><option value="mora">En Mora</option><option value="abiertas">Facturas Abiertas</option><option value="canceladas">Facturas Canceladas</option></select></div>
-                            <div class="form-group"><label>Monto Deuda Min</label><input type="number" id="busqm-monto-min" placeholder="0.00"></div>
-                            <div class="form-group"><label>Monto Deuda Max</label><input type="number" id="busqm-monto-max" placeholder="9999999"></div>
-                            <div class="form-group"><label>Nombre Cliente</label><input type="text" id="busqm-nombre" placeholder="Buscar cliente..."></div>
-                        </div>
-                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button onclick="limpiarFiltrosBusquedaMaracay()" style="padding: 10px 20px; background: #edf2f7; color: #4a5568; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"><i class="fas fa-eraser"></i> Limpiar</button>
-                            <button onclick="generarBusquedaMaracay()" style="padding: 10px 24px; background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);"><i class="fas fa-sync-alt"></i> Generar Reporte</button>
-                        </div>
-                    </div>
-
-                    <div id="busqm-resumen" style="display: none; margin-bottom: 20px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-                            <div class="card" style="border-left: 4px solid #4299e1; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqm-res-total">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Clientes</div></div>
-                            <div class="card" style="border-left: 4px solid #f56565; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqm-res-deuda">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Deuda Total</div></div>
-                            <div class="card" style="border-left: 4px solid #48bb78; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqm-res-pagado">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Pagado</div></div>
-                            <div class="card" style="border-left: 4px solid #ed8936; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqm-res-mora">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Clientes en Mora</div></div>
-                            <div class="card" style="border-left: 4px solid #9f7aea; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqm-res-promedio">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Promedio Deuda</div></div>
-                        </div>
-                    </div>
-
-                    <div class="card" id="busqm-tabla-container" style="display: none; margin-bottom: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
-                            <h4 style="color: #1a365d;"><i class="fas fa-list"></i> Resultados</h4>
-                            <span style="font-size: 13px; color: #718096; background: #edf2f7; padding: 6px 14px; border-radius: 20px;" id="busqm-contador">0 registros</span>
-                        </div>
-                        <div style="overflow-x: auto;">
-                            <table class="data-table" id="busqm-tabla">
-                                <thead><tr style="background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white;"><th>Nro</th><th>Factura</th><th>Cliente</th><th>Cédula</th><th>Monto</th><th>Cuotas</th><th>Depositado</th><th>Deuda</th><th>Estado</th><th>Fecha</th></tr></thead>
-                                <tbody id="busqm-tbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div id="busqm-graficos" style="display: none; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-bar"></i> Deuda por Estado</h4><div id="busqm-graf-barras"></div></div>
-                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-pie"></i> Distribución de Pagos</h4><div id="busqm-graf-pastel" style="display: flex; align-items: center; justify-content: center; gap: 30px;"></div></div>
-                    </div>
-
-                    <div id="busqm-exportar" style="display: none; text-align: center; padding: 20px; border-top: 1px solid #e2e8f0;">
-                        <div style="display: inline-flex; gap: 20px;">
-                            <button onclick="exportarBusquedaExcelMaracay()" style="padding: 15px 30px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; color: #15803d; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-excel" style="font-size: 32px; color: #22c55e;"></i><span>Exportar Excel</span><small style="font-size: 11px; opacity: 0.7;">.xlsx</small></button>
-                            <button onclick="exportarBusquedaPDFMaracay()" style="padding: 15px 30px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; color: #b91c1c; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-pdf" style="font-size: 32px; color: #ef4444;"></i><span>Exportar PDF</span><small style="font-size: 11px; opacity: 0.7;">.pdf</small></button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
         </div>
 
-        
-
-        <!-- TIENDA MARACAY -->
-        <div class="content-area hidden" id="contentCreditos">
-            <div class="section-header"><h3>Tienda Maracay</h3><p>Gestion de tienda Maracay - En desarrollo</p></div>
-            <div class="card placeholder-card"><p>Este modulo estara disponible proximamente.</p></div>
-        </div>
-
-        <!-- TIENDA MARACAIBO -->
+        <!-- ========== SECCIÓN: TIENDA MARACAIBO ========== -->
+        <!-- El contenido lo genera el módulo genérico js/tienda-spa.js -->
         <div class="content-area hidden" id="contentPagos">
-            <div class="tienda-maracaibo-container">
-
-                <div id="tmb-menu-principal" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; padding: 40px; max-width: 700px; margin: 0 auto;">
-                    <button onclick="mostrarBaseDatosMaracaibo()" class="tmb-menu-btn">Base de Datos</button>
-                    <button onclick="mostrarConciliacionesMaracaibo()" class="tmb-menu-btn">Conciliaciones Bancarias</button>
-                    <button onclick="mostrarSeccion('estadisticas', 'maracaibo')" class="tmb-menu-btn">Estadisticas</button>
-                    <button onclick="mostrarBusquedaMaracaibo()" class="tmb-menu-btn"><i class="fas fa-chart-bar"></i> Reportes</button>
-                </div>
-                <div id="tmb-base-datos" style="display: none;">
-                    <button onclick="mostrarMenuPrincipalMaracaibo()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div class="quick-filters">
-                        <button class="filter-btn active" data-filter="all" onclick="applyQuickFilterMB('all')">Todos <span class="badge" id="count-all-mb">0</span></button>
-                        <button class="filter-btn" data-filter="deudores" onclick="applyQuickFilterMB('deudores')">Deudores <span class="badge badge-danger" id="count-deudores-mb">0</span></button>
-                        <button class="filter-btn" data-filter="incompletos" onclick="applyQuickFilterMB('incompletos')">Cuotas Incompletas <span class="badge badge-warning" id="count-incompletos-mb">0</span></button>
-                        <button class="filter-btn" data-filter="aldia" onclick="applyQuickFilterMB('aldia')">Al Dia <span class="badge badge-success" id="count-aldia-mb">0</span></button>
-                        <button class="filter-btn" data-filter="abiertas" onclick="applyQuickFilterMB('abiertas')">Facturas Abiertas <span class="badge badge-info" id="count-abiertas-mb">0</span></button>
-                        <button class="filter-btn" data-filter="canceladas" onclick="applyQuickFilterMB('canceladas')">Facturas Canceladas <span class="badge badge-secondary" id="count-canceladas-mb">0</span></button>
-                    </div>
-                    <div class="advanced-search">
-                        <div class="search-row">
-                            <div class="search-field"><input type="text" id="search-general-mb" placeholder="Buscar por nombre..." oninput="debouncedFilterMB()"></div>
-                            <div class="search-field"><input type="text" id="search-factura-mb" placeholder="N Factura" oninput="debouncedFilterMB()"></div>
-                            <div class="search-field"><input type="text" id="search-cedula-mb" placeholder="Cedula" oninput="debouncedFilterMB()"></div>
-                        </div>
-                        <div class="search-row">
-                            <div class="search-field date-field">
-                                <input type="date" id="fecha-desde-mb" onchange="applyFiltersMB()">
-                                <span>a</span>
-                                <input type="date" id="fecha-hasta-mb" onchange="applyFiltersMB()">
-                            </div>
-                            <div class="search-field">
-                                <input type="number" id="monto-min-mb" placeholder="Monto minimo" oninput="debouncedFilterMB()">
-                                <span>-</span>
-                                <input type="number" id="monto-max-mb" placeholder="Monto maximo" oninput="debouncedFilterMB()">
-                            </div>
-                            <button class="btn-search" onclick="applyFiltersMB()">&#128269; Buscar</button>
-                            <button class="btn-clear" onclick="clearFiltersMB()">&#10060; Limpiar</button>
-                        </div>
-                    </div>
-                    <div class="summary-cards">
-                        <div class="summary-card"><span class="number" id="total-clientes-mb">0</span><span class="label">Total Clientes</span></div>
-                        <div class="summary-card"><span class="number" id="total-facturado-mb">$0</span><span class="label">Total Facturado</span></div>
-                        <div class="summary-card danger"><span class="number" id="total-deuda-mb">$0</span><span class="label">Total Deuda</span></div>
-                        <div class="summary-card success"><span class="number" id="total-recaudado-mb">$0</span><span class="label">Total Recaudado</span></div>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table" id="tabla-clientes-mb">
-                            <thead><tr><th>N</th><th>Fact.</th><th>Cliente</th><th>Monto (Bs)</th><th>Fecha</th><th>Cedula</th><th>Cuotas</th><th>Depositado (Bs)</th><th>Deuda (Bs)</th><th>Estado</th><th>Acc.</th></tr></thead>
-                            <tbody id="tabla-body-mb"></tbody>
-                        </table>
-                    </div>
-                    <div class="pagination">
-                        <button id="btn-primero-mb" onclick="goToPageMB(1)" disabled>|&lt;</button>
-                        <button id="btn-anterior-mb" onclick="goToPageMB(currentPageMB - 1)" disabled>&lt;</button>
-                        <span id="pagina-info-mb">Pagina 1 de 1</span>
-                        <button id="btn-siguiente-mb" onclick="goToPageMB(currentPageMB + 1)">&gt;</button>
-                        <button id="btn-ultimo-mb" onclick="goToPageMB(getTotalPagesMB())">&gt;|</button>
-                        <select id="registros-por-pagina-mb" onchange="changeItemsPerPageMB()">
-                            <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
-                        </select>
-                    </div>
-                    <div class="export-buttons">
-                        <button class="btn-export excel" onclick="exportToExcelMB()">&#128190; Exportar Excel</button>
-                        <button class="btn-export pdf" onclick="exportToPDFMB()">&#128196; Exportar PDF</button>
-                        <button class="btn-export print" onclick="printTableMB()">&#128424; Imprimir</button>
-                    </div>
-                </div>
-                <div id="tmb-conciliaciones" style="display: none;">
-                    <button onclick="mostrarMenuPrincipalMaracaibo()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div class="section-header"><h3>Conciliaciones Bancarias</h3><p>Registro de depositos bancarios por numero de factura</p></div>
-                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
-                        <input type="text" id="concmb-factura-buscar" placeholder="Ingrese N de factura..." onkeypress="if(event.key==='Enter')buscarFacturaConciliacionMB()">
-                        <button onclick="buscarFacturaConciliacionMB()">&#128269; Buscar Factura</button>
-                    </div>
-                    <div id="concmb-mensaje-inicial" class="card" style="padding: 40px; text-align: center;">
-                        <p>Ingrese un numero de factura para buscar</p>
-                    </div>
-                    <div id="concmb-no-encontrada" class="card" style="display: none; padding: 40px; text-align: center; background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-left: 4px solid #ed8936;">
-                        <div style="font-size: 48px; margin-bottom: 15px;">&#128269;</div>
-                        <h4 style="color: #ed8936; margin-bottom: 10px;">Factura No Encontrada</h4>
-                        <p style="color: #666; margin-bottom: 20px;">La factura <strong id="concmb-no-encontrada-numero" style="color: #1a3a5c;"></strong> no existe en la base de datos.</p>
-                        <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Puede registrarla como un nuevo cliente usando el formulario a continuacion.</p>
-                        <button onclick="mostrarFormularioNuevoRegistroMB()" style="padding: 12px 28px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128221; Registrar Nuevo Cliente</button>
-                        <button onclick="volverABuscarFacturaMB()" style="padding: 12px 28px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                    </div>
-                    <div id="concmb-resultado-encontrada" style="display: none;">
-                        <div class="card">
-                            <h4>&#128196; Informacion de la Factura</h4>
-                            <div class="info-row"><span class="info-label">N° Factura:</span><span class="info-value" id="concmb-info-factura">-</span></div>
-                            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value" id="concmb-info-nombre">-</span></div>
-                            <div class="info-row"><span class="info-label">Cedula:</span><span class="info-value" id="concmb-info-cedula">-</span></div>
-                            <div class="info-row"><span class="info-label">Monto Factura:</span><span class="info-value" id="concmb-info-monto">-</span></div>
-                            <div class="info-row"><span class="info-label">Deuda:</span><span class="info-value" id="concmb-info-deuda">-</span></div>
-                            <div class="info-row"><span class="info-label">Cuotas:</span><span class="info-value" id="concmb-info-cuotas">-</span></div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128178; Historial de Cuotas</h4>
-                            <div class="table-container">
-                                <table class="data-table" id="concmb-tabla-cuotas">
-                                    <thead><tr><th>Cuota</th><th>Monto (Bs)</th><th>Referencia</th><th>Fecha</th><th>Tasa</th><th>Dolar</th></tr></thead>
-                                    <tbody id="concmb-tabla-cuotas-body"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128181; Registrar Nueva Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Cuota</label><input type="number" id="concmb-cuota-numero" readonly></div>
-                                <div class="form-group"><label>Monto (Bs)</label><input type="number" step="0.01" id="concmb-cuota-monto" oninput="calcularDolarConciliacionMB()"></div>
-                                <div class="form-group"><label>Referencia</label><input type="text" id="concmb-cuota-ref"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Fecha Deposito</label><input type="date" id="concmb-cuota-fecha" onchange="obtenerTasaPorFechaConciliacionMB()"></div>
-                                <div class="form-group"><label>Tasa BCV</label><input type="number" step="0.0001" id="concmb-cuota-tasa" oninput="calcularDolarConciliacionMB()"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="concmb-cuota-dolar" readonly></div>
-                            </div>
-                            <div id="concmb-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button onclick="guardarCuotaConciliacionMB()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Cuota</button>
-                                <button onclick="volverABuscarFacturaMB()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="concmb-resultado-nueva" style="display: none;">
-                        <div class="card">
-                            <h4>&#128221; Nuevo Registro</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Factura *</label><input type="text" id="concmb-nueva-factura" readonly></div>
-                                <div class="form-group"><label>Fecha Factura *</label><input type="date" id="concmb-nueva-fecha-factura"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Nombre y Apellido *</label><input type="text" id="concmb-nueva-nombre"></div>
-                                <div class="form-group"><label>Cedula</label><input type="text" id="concmb-nueva-cedula"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto Factura (Bs) *</label><input type="number" step="0.01" id="concmb-nueva-monto"></div>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h4>&#128181; Primera Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto (Bs) *</label><input type="number" step="0.01" id="concmb-nueva-cuota-monto" oninput="calcularDolarNuevaConciliacionMB()"></div>
-                                <div class="form-group"><label>Referencia *</label><input type="text" id="concmb-nueva-cuota-ref"></div>
-                                <div class="form-group"><label>Fecha Deposito *</label><input type="date" id="concmb-nueva-cuota-fecha" onchange="obtenerTasaNuevaConciliacionMB()"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Tasa BCV *</label><input type="number" step="0.0001" id="concmb-nueva-cuota-tasa" oninput="calcularDolarNuevaConciliacionMB()"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="concmb-nueva-cuota-dolar" readonly></div>
-                            </div>
-                            <div id="concmb-nueva-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button onclick="guardarNuevaConciliacionMB()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Registro</button>
-                                <button onclick="volverABuscarFacturaMB()" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- REPORTES TIENDA MARACAIBO -->
-                <div id="tmb-busqueda" style="display: none;">
-                    <button onclick="volverMenuPrincipalMaracaibo()" class="btn-volver">&#8592; Volver al Menu</button>
-                    <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white; border-radius: 12px;">
-                        <h2><i class="fas fa-chart-bar"></i> Reportes Tienda Maracaibo</h2>
-                        <p style="opacity: 0.9; margin-top: 5px;">Genera reportes personalizados con filtros avanzados</p>
-                    </div>
-
-                    <div class="card" style="margin-bottom: 20px; padding: 25px;">
-                        <h4 style="margin-bottom: 15px; color: #1a365d;"><i class="fas fa-filter"></i> Filtros del Reporte</h4>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group"><label>Fecha Desde</label><input type="date" id="busqmb-fecha-desde"></div>
-                            <div class="form-group"><label>Fecha Hasta</label><input type="date" id="busqmb-fecha-hasta"></div>
-                            <div class="form-group"><label>Estado</label><select id="busqmb-estado"><option value="todos">Todos</option><option value="pendiente">Pendiente</option><option value="pagado">Pagado</option><option value="mora">En Mora</option><option value="abiertas">Facturas Abiertas</option><option value="canceladas">Facturas Canceladas</option></select></div>
-                            <div class="form-group"><label>Monto Deuda Min</label><input type="number" id="busqmb-monto-min" placeholder="0.00"></div>
-                            <div class="form-group"><label>Monto Deuda Max</label><input type="number" id="busqmb-monto-max" placeholder="9999999"></div>
-                            <div class="form-group"><label>Nombre Cliente</label><input type="text" id="busqmb-nombre" placeholder="Buscar cliente..."></div>
-                        </div>
-                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button onclick="limpiarFiltrosBusquedaMaracaibo()" style="padding: 10px 20px; background: #edf2f7; color: #4a5568; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"><i class="fas fa-eraser"></i> Limpiar</button>
-                            <button onclick="generarBusquedaMaracaibo()" style="padding: 10px 24px; background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);"><i class="fas fa-sync-alt"></i> Generar Reporte</button>
-                        </div>
-                    </div>
-
-                    <div id="busqmb-resumen" style="display: none; margin-bottom: 20px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-                            <div class="card" style="border-left: 4px solid #4299e1; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqmb-res-total">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Clientes</div></div>
-                            <div class="card" style="border-left: 4px solid #f56565; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqmb-res-deuda">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Deuda Total</div></div>
-                            <div class="card" style="border-left: 4px solid #48bb78; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqmb-res-pagado">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Pagado</div></div>
-                            <div class="card" style="border-left: 4px solid #ed8936; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqmb-res-mora">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Clientes en Mora</div></div>
-                            <div class="card" style="border-left: 4px solid #9f7aea; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="busqmb-res-promedio">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Promedio Deuda</div></div>
-                        </div>
-                    </div>
-
-                    <div class="card" id="busqmb-tabla-container" style="display: none; margin-bottom: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
-                            <h4 style="color: #1a365d;"><i class="fas fa-list"></i> Resultados</h4>
-                            <span style="font-size: 13px; color: #718096; background: #edf2f7; padding: 6px 14px; border-radius: 20px;" id="busqmb-contador">0 registros</span>
-                        </div>
-                        <div style="overflow-x: auto;">
-                            <table class="data-table" id="busqmb-tabla">
-                                <thead><tr style="background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white;"><th>Nro</th><th>Factura</th><th>Cliente</th><th>Cedula</th><th>Monto</th><th>Cuotas</th><th>Depositado</th><th>Deuda</th><th>Estado</th><th>Fecha</th></tr></thead>
-                                <tbody id="busqmb-tbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div id="busqmb-graficos" style="display: none; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-bar"></i> Deuda por Estado</h4><div id="busqmb-graf-barras"></div></div>
-                        <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-pie"></i> Distribución de Pagos</h4><div id="busqmb-graf-pastel" style="display: flex; align-items: center; justify-content: center; gap: 30px;"></div></div>
-                    </div>
-
-                    <div id="busqmb-exportar" style="display: none; text-align: center; padding: 20px; border-top: 1px solid #e2e8f0;">
-                        <div style="display: inline-flex; gap: 20px;">
-                            <button onclick="exportarBusquedaExcelMaracaibo()" style="padding: 15px 30px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; color: #15803d; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-excel" style="font-size: 32px; color: #22c55e;"></i><span>Exportar Excel</span><small style="font-size: 11px; opacity: 0.7;">.xlsx</small></button>
-                            <button onclick="exportarBusquedaPDFMaracaibo()" style="padding: 15px 30px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; color: #b91c1c; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-pdf" style="font-size: 32px; color: #ef4444;"></i><span>Exportar PDF</span><small style="font-size: 11px; opacity: 0.7;">.pdf</small></button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
         </div>
 
         <!-- REPORTES -->
         <div class="content-area hidden" id="contentReportes">
-            <div class="agenda-container">
-                <!-- Header de la agenda -->
-                <div class="agenda-header">
-                    <div class="agenda-title-group">
-                        <h3><i class="fas fa-clipboard-list"></i> Mi Agenda de Hoy</h3>
-                        <span class="agenda-fecha" id="agendaFechaHoy">---</span>
+            <!-- v6.7 — Agenda rediseñada (corporativa, con filtro por tienda) -->
+            <div class="agenda-container ag2">
+                <div class="ag2-hero">
+                    <div class="ag2-hero-izq">
+                        <div class="ag2-miga"><i class="fas fa-th-large"></i> Panel &nbsp;·&nbsp; Actividades</div>
+                        <h3><span class="ag2-h-ico"><i class="fas fa-calendar-check"></i></span> Mi Agenda de Hoy</h3>
+                        <span class="ag2-fecha"><i class="far fa-calendar"></i> <span id="agendaFechaHoy">---</span></span>
                     </div>
-                    <div class="agenda-stats">
-                        <div class="agenda-stat">
-                            <span class="stat-num" id="agendaTotal">0</span>
-                            <span class="stat-label">Total</span>
-                        </div>
-                        <div class="agenda-stat">
-                            <span class="stat-num" id="agendaPendientes">0</span>
-                            <span class="stat-label">Pendientes</span>
-                        </div>
-                        <div class="agenda-stat">
-                            <span class="stat-num" id="agendaCompletadas">0</span>
-                            <span class="stat-label">Completadas</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Formulario para nueva actividad -->
-                <div class="agenda-form-card">
-                    <h4><i class="fas fa-plus-circle"></i> Nueva Actividad</h4>
-                    <div class="agenda-form-row">
-                        <div class="agenda-form-group" style="flex:2;">
-                            <label>Descripción</label>
-                            <input type="text" id="agendaDescripcion" placeholder="Escribe la actividad a realizar..." maxlength="200">
-                        </div>
-                        <div class="agenda-form-group agenda-hora">
-                            <label>Hora</label>
-                            <input type="time" id="agendaHora">
-                        </div>
-                        <div class="agenda-form-group agenda-prioridad">
-                            <label>Prioridad</label>
-                            <select id="agendaPrioridad">
-                                <option value="baja">Baja</option>
-                                <option value="media" selected>Media</option>
-                                <option value="alta">Alta</option>
-                                <option value="urgente">Urgente</option>
-                            </select>
-                        </div>
-                        <div class="agenda-form-group" style="min-width:150px;">
-                            <label>Tienda</label>
-                            <select id="agendaTienda">
-                                <option value="caracas">Tienda Caracas</option>
-                                <option value="maracay">Tienda Maracay</option>
-                                <option value="maracaibo">Tienda Maracaibo</option>
-                            </select>
-                        </div>
-                        <button class="btn-agenda-add" onclick="agregarActividad()">
-                            <i class="fas fa-plus"></i> Agregar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Lista de actividades -->
-                <div class="agenda-lista-card">
-                    <div class="agenda-lista-header">
-                        <h4><i class="fas fa-tasks"></i> Actividades del Día</h4>
-                        <div class="agenda-filtros">
-                            <button class="agenda-filter active" data-filter="todas" onclick="filtrarActividades('todas')">Todas</button>
-                            <button class="agenda-filter" data-filter="pendientes" onclick="filtrarActividades('pendientes')">Pendientes</button>
-                            <button class="agenda-filter" data-filter="completadas" onclick="filtrarActividades('completadas')">Completadas</button>
-                        </div>
-                    </div>
-                    <div class="agenda-lista" id="agendaLista">
-                        <div class="agenda-empty">
-                            <i class="fas fa-clipboard-check"></i>
-                            <p>No hay actividades para hoy</p>
-                            <span>Agrega tu primera actividad usando el formulario de arriba</span>
+                    <div class="ag2-hero-stats">
+                        <div class="ag2-hstat"><span class="v" id="agendaTotal">0</span><span class="l">Total</span></div>
+                        <div class="ag2-hstat pen"><span class="v" id="agendaPendientes">0</span><span class="l">Pendientes</span></div>
+                        <div class="ag2-hstat com"><span class="v" id="agendaCompletadas">0</span><span class="l">Completadas</span></div>
+                        <div class="ag2-hring">
+                            <svg viewBox="0 0 42 42">
+                                <circle class="pista" cx="21" cy="21" r="17" fill="none" stroke-width="5"></circle>
+                                <circle class="arco" id="agendaArco" cx="21" cy="21" r="17" fill="none" stroke-width="5"
+                                        stroke-dasharray="106.8" stroke-dashoffset="106.8"></circle>
+                            </svg>
+                            <div class="txt"><span class="v" id="agendaAvance">0%</span><span class="l">Avance</span></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Historial de actividades completadas -->
-                <div class="agenda-historial-card">
-                    <div class="agenda-historial-header">
-                        <h4><i class="fas fa-history"></i> Historial de Actividades</h4>
-                        <select id="agendaFiltroFecha" onchange="paginaHistorial = 1; cargarHistorialActividades();">
+                <div class="ag2-barra-tienda" id="agendaBarraTienda">
+                    <span class="ag2-bt-label"><i class="fas fa-store"></i> Tienda</span>
+                    <div class="ag2-seg" id="agendaSegTienda">
+                        <button type="button" data-t="todas" class="on" onclick="filtrarAgendaTienda('todas')"><i class="fas fa-border-all"></i> Todas</button>
+                        <button type="button" data-t="caracas" onclick="filtrarAgendaTienda('caracas')"><span class="ag2-punto caracas"></span> Caracas</button>
+                        <button type="button" data-t="maracay" onclick="filtrarAgendaTienda('maracay')"><span class="ag2-punto maracay"></span> Maracay</button>
+                        <button type="button" data-t="maracaibo" onclick="filtrarAgendaTienda('maracaibo')"><span class="ag2-punto maracaibo"></span> Maracaibo</button>
+                    </div>
+                    <span class="ag2-bt-resumen" id="agendaResumenTienda"></span>
+                </div>
+
+                <div class="ag2-grid">
+                    <div>
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-plus"></i> Nueva Actividad</span>
+                            </div>
+                            <div class="ag2-card-cuerpo">
+                                <div class="ag2-forma">
+                                    <div class="ag2-campo">
+                                        <label>Descripción</label>
+                                        <div class="ag2-inp-ico"><i class="fas fa-pen"></i>
+                                            <input type="text" id="agendaDescripcion" class="ag2-inp" placeholder="Escribe la actividad a realizar..." maxlength="200">
+                                        </div>
+                                    </div>
+                                    <div class="ag2-campo">
+                                        <label>Hora</label>
+                                        <input type="time" id="agendaHora" class="ag2-inp">
+                                    </div>
+                                    <div class="ag2-campo">
+                                        <label>Prioridad</label>
+                                        <input type="hidden" id="agendaPrioridad" value="media">
+                                        <div class="ag2-prios" id="agendaPrios">
+                                            <button type="button" data-p="baja" onclick="setAgendaPrioridad('baja')">Baja</button>
+                                            <button type="button" data-p="media" class="on" onclick="setAgendaPrioridad('media')">Media</button>
+                                            <button type="button" data-p="alta" onclick="setAgendaPrioridad('alta')">Alta</button>
+                                            <button type="button" data-p="urgente" onclick="setAgendaPrioridad('urgente')">Urgente</button>
+                                        </div>
+                                    </div>
+                                    <div class="ag2-campo">
+                                        <label>Tienda</label>
+                                        <select id="agendaTienda" class="ag2-inp">
+                                            <option value="caracas">Caracas</option>
+                                            <option value="maracay">Maracay</option>
+                                            <option value="maracaibo">Maracaibo</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" class="ag2-btn-pri" onclick="agregarActividad()"><i class="fas fa-plus"></i> Agregar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-list-check"></i> Actividades del Día</span>
+                                <div class="ag2-pills" id="agendaPills">
+                                    <button type="button" class="agenda-filter" data-filter="todas" onclick="filtrarActividades('todas')">Todas</button>
+                                    <button type="button" class="agenda-filter active" data-filter="pendientes" onclick="filtrarActividades('pendientes')">Pendientes</button>
+                                    <button type="button" class="agenda-filter" data-filter="completadas" onclick="filtrarActividades('completadas')">Completadas</button>
+                                </div>
+                            </div>
+                            <div class="ag2-lista" id="agendaLista">
+                                <div class="ag2-vacia">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    <p>No hay actividades para hoy</p>
+                                    <span>Agrega tu primera actividad usando el formulario de arriba</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-chart-simple"></i> Avance por Tienda</span>
+                            </div>
+                            <div class="ag2-card-cuerpo">
+                                <div class="ag2-prog-tienda" id="agendaProgTiendas"></div>
+                            </div>
+                        </div>
+
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="far fa-clock"></i> Próxima Actividad</span>
+                            </div>
+                            <div class="ag2-card-cuerpo" id="agendaProxima"></div>
+                        </div>
+
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-chart-column"></i> Esta Semana</span>
+                                <span class="ag2-card-nota">completadas</span>
+                            </div>
+                            <div class="ag2-card-cuerpo">
+                                <div class="ag2-semana" id="agendaSemana"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ag2-card ag2-hist-card">
+                    <div class="ag2-card-cab">
+                        <span class="ag2-card-tit"><i class="fas fa-clock-rotate-left"></i> Historial de Actividades</span>
+                        <select id="agendaFiltroFecha" class="ag2-inp ag2-sel-mini" onchange="paginaHistorial = 1; cargarHistorialActividades();">
                             <option value="hoy">Hoy</option>
                             <option value="ayer">Ayer</option>
                             <option value="semana">Esta semana</option>
                             <option value="mes">Este mes</option>
                         </select>
                     </div>
-                    <div class="agenda-historial" id="agendaHistorial">
-                        <div class="agenda-empty">
+                    <div class="ag2-hist" id="agendaHistorial">
+                        <div class="ag2-vacia">
                             <i class="fas fa-inbox"></i>
                             <p>No hay actividades en el historial</p>
                         </div>
                     </div>
-                <div class="agenda-historial-paginacion" id="agendaHistorialPaginacion" style="display:none; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 10px;">
-                    <button class="btn-pagina" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        <i class="fas fa-chevron-left"></i> Anterior
-                    </button>
-                    <span id="infoPaginaHistorial" style="font-size: 0.85rem; color: #718096; font-weight: 500;">Página 1 de 1</span>
-                    <button class="btn-pagina" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)" style="padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #4a5568; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s;">
-                        Siguiente <i class="fas fa-chevron-right"></i>
-                    </button>
+                    <div class="ag2-pagina" id="agendaHistorialPaginacion" style="display:none;">
+                        <span class="info" id="infoPaginaHistorial">Página 1 de 1</span>
+                        <div class="ag2-pagbtns">
+                            <button type="button" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)"><i class="fas fa-chevron-left"></i> Anterior</button>
+                            <button type="button" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)">Siguiente <i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
                 </div>
-
-                </div>
-                
             </div>
         </div>
 
         <!-- ESTADISTICAS (INTEGRADO EN PANEL) -->
         <div class="content-area hidden" id="contentEstadisticas">
             <div class="estadisticas-container">
+                <!-- v6.5.1 — regreso al menú de la tienda de origen -->
+                <button type="button" class="btn-volver btn-volver-menu-est" onclick="volverAlMenuTienda()">&#8592; Volver al Menú</button>
                 <div class="filtros-bar">
                     <div class="filtro-group">
                         <label>Tienda</label>
@@ -1415,7 +819,7 @@
                 <div class="form-grid">
                     <div class="form-group"><label>Nombre completo *</label><input type="text" id="usuarioNombre" required maxlength="100"></div>
                     <div class="form-group"><label>Email *</label><input type="email" id="usuarioEmail" required></div>
-                    <div class="form-group" id="grupoPassword"><label>Contrasena *</label><input type="password" id="usuarioPassword" required minlength="6"></div>
+                    <div class="form-group" id="grupoPassword"><label>Contrasena *</label><input type="password" id="usuarioPassword" minlength="6"></div>
                     <div class="form-group"><label>Rol *</label><select id="usuarioRol" required><option value="operador">Operador</option><option value="administrador">Administrador</option></select></div>
                     <div class="form-group" id="grupoIp"><label id="ipLabel">IP Asignada <span style="color:#e53e3e;">*</span></label><input type="text" id="usuarioIp" required placeholder="Ej: 192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$"><small id="ipHelp">Obligatorio para operadores</small></div>
                     <div class="form-group" id="grupoTienda"><label>Tienda Asignada <span style="color:#e53e3e;">*</span></label><select id="usuarioTienda" required><option value="">Seleccionar tienda...</option><option value="caracas">Tienda Caracas</option><option value="maracay">Tienda Maracay</option><option value="maracaibo">Tienda Maracaibo</option></select><small id="tiendaHelp">Obligatoria para operadores</small></div>
@@ -1475,151 +879,11 @@
 </div>
 
 
-<!-- FUNCIONES DE NAVEGACION TIENDA CARACAS Y MARACAY - AGREGADAS -->
-<script>
-// ==================== TIENDA CARACAS ====================
-function mostrarBaseDatos() {
-    const menu = document.getElementById('tc-menu-principal');
-    const baseDatos = document.getElementById('tc-base-datos');
-    const conciliaciones = document.getElementById('tc-conciliaciones');
-    const busqueda = document.getElementById('tc-busqueda');
-
-    if (menu) menu.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'none';
-    if (baseDatos) baseDatos.style.display = 'block';
-}
-
-function mostrarConciliaciones() {
-    const menu = document.getElementById('tc-menu-principal');
-    const baseDatos = document.getElementById('tc-base-datos');
-    const conciliaciones = document.getElementById('tc-conciliaciones');
-    const busqueda = document.getElementById('tc-busqueda');
-
-    if (menu) menu.style.display = 'none';
-    if (baseDatos) baseDatos.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'block';
-}
-
-function mostrarBusqueda() {
-    const menu = document.getElementById('tc-menu-principal');
-    const baseDatos = document.getElementById('tc-base-datos');
-    const conciliaciones = document.getElementById('tc-conciliaciones');
-    const busqueda = document.getElementById('tc-busqueda');
-
-    if (menu) menu.style.display = 'none';
-    if (baseDatos) baseDatos.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'block';
-}
-
-function mostrarMenuPrincipal() {
-    const menu = document.getElementById('tc-menu-principal');
-    const baseDatos = document.getElementById('tc-base-datos');
-    const conciliaciones = document.getElementById('tc-conciliaciones');
-    const busqueda = document.getElementById('tc-busqueda');
-
-    if (menu) menu.style.display = 'grid';
-    if (baseDatos) baseDatos.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'none';
-}
-
-function volverMenuPrincipalCaracas() {
-    mostrarMenuPrincipal();
-}
-
-function volverABuscarFactura() {
-    document.getElementById('conc-resultado-encontrada').style.display = 'none';
-    document.getElementById('conc-resultado-nueva').style.display = 'none';
-    document.getElementById('conc-mensaje-inicial').style.display = 'block';
-    document.getElementById('conc-factura-buscar').value = '';
-    document.getElementById('conc-factura-buscar').focus();
-}
-
-function mostrarFormularioNuevoRegistro() {
-    const noEncontrada = document.getElementById('conc-no-encontrada');
-    const nroFactura = document.getElementById('conc-factura-buscar')?.value.trim() || '';
-
-    if (noEncontrada) noEncontrada.style.display = 'none';
-    mostrarNuevoRegistro(nroFactura);
-}
-
-// ==================== TIENDA MARACAY ====================
-function mostrarBaseDatosMaracay() {
-    const menu = document.getElementById('tm-menu-principal');
-    const baseDatos = document.getElementById('tm-base-datos');
-    const conciliaciones = document.getElementById('tm-conciliaciones');
-    const busqueda = document.getElementById('tm-busqueda');
-
-    if (menu) menu.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'none';
-    if (baseDatos) baseDatos.style.display = 'block';
-}
-
-function mostrarConciliacionesMaracay() {
-    const menu = document.getElementById('tm-menu-principal');
-    const baseDatos = document.getElementById('tm-base-datos');
-    const conciliaciones = document.getElementById('tm-conciliaciones');
-    const busqueda = document.getElementById('tm-busqueda');
-
-    if (menu) menu.style.display = 'none';
-    if (baseDatos) baseDatos.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'block';
-}
-
-function mostrarBusquedaMaracay() {
-    const menu = document.getElementById('tm-menu-principal');
-    const baseDatos = document.getElementById('tm-base-datos');
-    const conciliaciones = document.getElementById('tm-conciliaciones');
-    const busqueda = document.getElementById('tm-busqueda');
-
-    if (menu) menu.style.display = 'none';
-    if (baseDatos) baseDatos.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'block';
-}
-
-function mostrarMenuPrincipalMaracay() {
-    const menu = document.getElementById('tm-menu-principal');
-    const baseDatos = document.getElementById('tm-base-datos');
-    const conciliaciones = document.getElementById('tm-conciliaciones');
-    const busqueda = document.getElementById('tm-busqueda');
-
-    if (menu) menu.style.display = 'grid';
-    if (baseDatos) baseDatos.style.display = 'none';
-    if (conciliaciones) conciliaciones.style.display = 'none';
-    if (busqueda) busqueda.style.display = 'none';
-}
-
-function volverMenuPrincipalMaracay() {
-    mostrarMenuPrincipalMaracay();
-}
-
-function volverABuscarFacturaM() {
-    document.getElementById('concm-resultado-encontrada').style.display = 'none';
-    document.getElementById('concm-resultado-nueva').style.display = 'none';
-    document.getElementById('concm-mensaje-inicial').style.display = 'block';
-    document.getElementById('concm-factura-buscar').value = '';
-    document.getElementById('concm-factura-buscar').focus();
-}
-
-function mostrarFormularioNuevoRegistroM() {
-    const noEncontrada = document.getElementById('concm-no-encontrada');
-    const nroFactura = document.getElementById('concm-factura-buscar')?.value.trim() || '';
-
-    if (noEncontrada) noEncontrada.style.display = 'none';
-    mostrarNuevoRegistroM(nroFactura);
-}
-</script>
+    <!-- SheetJS para exportar Excel (agregado en refactor: antes no estaba cargado) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script src="js/panel.js"></script>
-<script src="js/tienda-caracas-spa.js"></script>
-<script src="js/tienda-maracay-spa.js"></script>
-<script src="js/tienda-maracaibo-spa.js"></script>
+    <script src="js/tienda-spa.js"></script>
 
     <!-- jsPDF para exportar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
