@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe Técnico Sistema de Créditos IPSFA v6.7</title>
+<style>
+@page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+@page :first { margin-top: 8mm; }
+
+:root {
+  --primary: #1a3a5c;
+  --secondary: #2c5282;
+  --accent: #3182ce;
+  --success: #38a169;
+  --warning: #d69e2e;
+  --danger: #e53e3e;
+  --text: #2d3748;
+  --text-light: #718096;
+  --bg: #f7fafc;
+  --border: #e2e8f0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+}
+
+/* Portada */
+.cover {
+  page-break-after: always;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 50%, #3182ce 100%);
+  color: white;
+  padding: 40px;
+}
+.cover-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 6px 20px;
+  font-size: 9pt;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+}
+.cover h1 { font-size: 28pt; font-weight: 700; margin: 0 0 15px 0; line-height: 1.2; }
+.cover h2 { font-size: 14pt; font-weight: 400; margin: 0 0 40px 0; opacity: 0.9; }
+.cover-meta {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+  font-size: 10pt;
+  opacity: 0.85;
+}
+.cover-meta div { text-align: center; }
+.cover-meta .label { font-size: 8pt; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+.cover-meta .value { font-size: 12pt; font-weight: 600; margin-top: 4px; }
+.cover-version {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 9pt;
+}
+
+/* Índice */
+.toc-page { page-break-after: always; padding: 20px 0; }
+.toc-title { font-size: 18pt; font-weight: 700; color: var(--primary); margin-bottom: 25px; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+.toc-item { display: flex; align-items: baseline; margin: 7px 0; font-size: 10pt; }
+.toc-item.level-1 { font-weight: 600; font-size: 11pt; margin-top: 14px; color: var(--primary); }
+.toc-item.level-2 { padding-left: 20px; }
+.toc-dots { flex: 1; border-bottom: 1px dotted var(--border); margin: 0 8px 4px 8px; min-width: 20px; }
+.toc-page-num { font-weight: 600; color: var(--accent); min-width: 25px; text-align: right; }
+
+/* Secciones */
+.section { page-break-before: always; padding: 15px 0; }
+.section:first-of-type { page-break-before: auto; }
+
+h1.section-title { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+h2 { font-size: 12pt; font-weight: 600; color: var(--secondary); margin: 18px 0 10px 0; }
+h3 { font-size: 11pt; font-weight: 600; color: var(--text); margin: 14px 0 8px 0; }
+p { margin: 8px 0; text-align: justify; }
+
+/* Tablas */
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 8.5pt; page-break-inside: avoid; }
+th { background: var(--primary); color: white; font-weight: 600; padding: 7px 8px; text-align: left; border: 1px solid var(--primary); }
+td { padding: 5px 8px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) { background: #f8fafc; }
+td.num { text-align: right; font-family: "Consolas", monospace; }
+td.center { text-align: center; }
+td.status-ok { color: var(--success); font-weight: 600; }
+td.status-warn { color: var(--warning); font-weight: 600; }
+td.status-err { color: var(--danger); font-weight: 600; }
+
+/* Info boxes */
+.info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.warn-box { background: #fffaf0; border-left: 4px solid var(--warning); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+
+/* Code */
+code { font-family: "Consolas", "Courier New", monospace; font-size: 8.5pt; background: #edf2f7; padding: 1px 4px; border-radius: 3px; color: #2d3748; }
+pre { background: #1a202c; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; overflow-x: auto; font-size: 7.5pt; line-height: 1.35; margin: 10px 0; page-break-inside: avoid; }
+pre code { background: transparent; color: inherit; padding: 0; }
+
+/* Version timeline */
+.version-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.version-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.version-badge { background: var(--accent); color: white; font-size: 7.5pt; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.5px; }
+.version-date { font-size: 8.5pt; color: var(--text-light); }
+.version-title { font-weight: 600; font-size: 10pt; color: var(--primary); margin-bottom: 4px; }
+
+/* Metric cards */
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.metric-card { background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
+.metric-value { font-size: 16pt; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.metric-label { font-size: 7.5pt; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+/* Lists */
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 3px 0; }
+
+/* Page breaks */
+.page-break { page-break-before: always; }
+.no-break { page-break-inside: avoid; }
+
+/* Diagram */
+.diagram-box { border: 2px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; color: var(--text-light); margin: 12px 0; page-break-inside: avoid; }
+
+/* Compact table */
+.table-compact td, .table-compact th { padding: 4px 6px; font-size: 8pt; }
+
+/* Highlight */
+tr.highlight { background: #fffaf0 !important; }
+
+/* Footer */
+.footer { font-size: 7.5pt; color: var(--text-light); text-align: center; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 15px; }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-badge">Documento Técnico</div>
+  <h1>Informe Técnico</h1>
+  <h2>Sistema de Créditos IPSFA</h2>
+  <div style="font-size: 36pt; font-weight: 700; margin: 20px 0;">v6.7</div>
+  <div class="cover-meta">
+    <div><div class="label">Elaborado por</div><div class="value">Asistente Técnico IPSFA</div></div>
+    <div><div class="label">Fecha</div><div class="value">Julio 2026</div></div>
+    <div><div class="label">Clasificación</div><div class="value">Interno / Operativo</div></div>
+  </div>
+  <div class="cover-version">
+    <div style="font-size: 8pt; opacity: 0.7;">Historial de versiones</div>
+    <div style="font-size: 9pt; font-weight: 600; margin-top: 4px;">v5 &rarr; v6.0 &rarr; v6.1 &rarr; v6.2 &rarr; v6.3 &rarr; v6.4 &rarr; v6.5 &rarr; v6.6 &rarr; v6.7</div>
+  </div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="toc-page">
+  <div class="toc-title">Índice de Contenidos</div>
+  <div class="toc-item level-1"><span>1. Resumen Ejecutivo</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.1 Alcance del informe</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.2 Estado actual del sistema</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.3 Evolución de versiones v6.x</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-1"><span>2. Arquitectura del Sistema</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>2.1 Pila tecnológica</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>2.2 Diagrama de capas</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>2.3 Flujo de autenticación</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-1"><span>3. Estructura del Proyecto</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>3.1 Árbol de archivos</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>3.2 Inventario de endpoints</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-item level-1"><span>4. Base de Datos</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-item level-2"><span>4.1 Esquema relacional</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-item level-2"><span>4.2 Tablas de tienda</span><span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+  <div class="toc-item level-2"><span>4.3 Funciones y vistas</span><span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+  <div class="toc-item level-2"><span>4.4 Triggers y auditoría</span><span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+  <div class="toc-item level-1"><span>5. API REST</span><span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-item level-2"><span>5.1 Autenticación</span><span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-item level-2"><span>5.2 Tiendas</span><span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+  <div class="toc-item level-2"><span>5.3 Estadísticas</span><span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+  <div class="toc-item level-2"><span>5.4 Actividades</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>5.5 Reportes y BCV</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-1"><span>6. Seguridad v6.1</span><span class="toc-dots"></span><span class="toc-page-num">17</span></div>
+  <div class="toc-item level-2"><span>6.1 Matriz de autenticación</span><span class="toc-dots"></span><span class="toc-page-num">17</span></div>
+  <div class="toc-item level-2"><span>6.2 JWT + revocación</span><span class="toc-dots"></span><span class="toc-page-num">18</span></div>
+  <div class="toc-item level-2"><span>6.3 Roles y permisos</span><span class="toc-dots"></span><span class="toc-page-num">18</span></div>
+  <div class="toc-item level-2"><span>6.4 Protección de red</span><span class="toc-dots"></span><span class="toc-page-num">19</span></div>
+  <div class="toc-item level-1"><span>7. Frontend</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+  <div class="toc-item level-2"><span>7.1 Login</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+  <div class="toc-item level-2"><span>7.2 Panel SPA</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+  <div class="toc-item level-2"><span>7.3 Módulo de tiendas genérico</span><span class="toc-dots"></span><span class="toc-page-num">21</span></div>
+  <div class="toc-item level-1"><span>8. Refactorización v6.0</span><span class="toc-dots"></span><span class="toc-page-num">22</span></div>
+  <div class="toc-item level-2"><span>8.1 Métricas antes/después</span><span class="toc-dots"></span><span class="toc-page-num">22</span></div>
+  <div class="toc-item level-2"><span>8.2 Patrón genérico</span><span class="toc-dots"></span><span class="toc-page-num">22</span></div>
+  <div class="toc-item level-1"><span>9. Módulo de Estadísticas v6.2</span><span class="toc-dots"></span><span class="toc-page-num">23</span></div>
+  <div class="toc-item level-1"><span>10. Dashboard Global v6.4</span><span class="toc-dots"></span><span class="toc-page-num">24</span></div>
+  <div class="toc-item level-1"><span>11. Rediseños de UI v6.5&ndash;v6.7</span><span class="toc-dots"></span><span class="toc-page-num">25</span></div>
+  <div class="toc-item level-2"><span>11.1 Vista de tienda (v6.5)</span><span class="toc-dots"></span><span class="toc-page-num">25</span></div>
+  <div class="toc-item level-2"><span>11.2 Modal cliente corporativo (v6.6)</span><span class="toc-dots"></span><span class="toc-page-num">26</span></div>
+  <div class="toc-item level-2"><span>11.3 Zona de actividades (v6.7)</span><span class="toc-dots"></span><span class="toc-page-num">26</span></div>
+  <div class="toc-item level-1"><span>12. Despliegue</span><span class="toc-dots"></span><span class="toc-page-num">27</span></div>
+  <div class="toc-item level-1"><span>13. Hallazgos y Recomendaciones</span><span class="toc-dots"></span><span class="toc-page-num">28</span></div>
+  <div class="toc-item level-1"><span>14. Anexos</span><span class="toc-dots"></span><span class="toc-page-num">30</span></div>
+  <div class="toc-item level-2"><span>Anexo A: Variables de entorno</span><span class="toc-dots"></span><span class="toc-page-num">30</span></div>
+  <div class="toc-item level-2"><span>Anexo B: Migraciones SQL</span><span class="toc-dots"></span><span class="toc-page-num">30</span></div>
+  <div class="toc-item level-2"><span>Anexo C: Convenciones de IDs</span><span class="toc-dots"></span><span class="toc-page-num">31</span></div>
+</div>
+
+<!-- SECCIÓN 1: RESUMEN EJECUTIVO -->
+<div class="section">
+<h1 class="section-title">1. Resumen Ejecutivo</h1>
+
+<h2>1.1 Alcance del informe</h2>
+<p>Este documento describe el estado técnico completo del <strong>Sistema de Créditos IPSFA</strong> tras la serie de mejoras implementadas desde mayo hasta julio de 2026 (versiones v6.0 a v6.7). Cubre arquitectura, base de datos, API REST, seguridad, frontend, refactorizaciones y rediseños de interfaz.</p>
+
+<p>El sistema gestiona créditos de equipos para personal militar a través de tres tiendas (Caracas, Maracay, Maracaibo), con roles de administrador y operador, autenticación JWT, conciliación bancaria, generación de reportes y seguimiento de actividades.</p>
+
+<h2>1.2 Estado actual del sistema</h2>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="metric-value">3</div><div class="metric-label">Tiendas activas</div></div>
+  <div class="metric-card"><div class="metric-value">37</div><div class="metric-label">Endpoints API</div></div>
+  <div class="metric-card"><div class="metric-value">8</div><div class="metric-label">Tablas PostgreSQL</div></div>
+  <div class="metric-card"><div class="metric-value">2</div><div class="metric-label">Roles (Admin/Op)</div></div>
+</div>
+
+<table class="table-compact">
+<tr><th>Componente</th><th>Estado</th><th>Versión</th><th>Observación</th></tr>
+<tr><td>Backend Node.js</td><td class="status-ok">Operativo</td><td>v6.7</td><td>Express + routers genéricos</td></tr>
+<tr><td>Frontend SPA</td><td class="status-ok">Operativo</td><td>v6.7</td><td>Panel + tiendas + actividades</td></tr>
+<tr><td>Base de datos</td><td class="status-ok">Operativa</td><td>PostgreSQL 16</td><td>8 tablas + funciones + triggers</td></tr>
+<tr><td>Autenticación</td><td class="status-ok">Protegida</td><td>JWT v6.1</td><td>Token revocable, rate-limit</td></tr>
+<tr><td>Estadísticas</td><td class="status-warn">Parcial</td><td>v6.2</td><td>Página creada, funciones SQL listas</td></tr>
+<tr><td>Conciliaciones</td><td class="status-ok">Operativo</td><td>v6.5</td><td>Badge de pendientes en vista tienda</td></tr>
+<tr><td>Dashboard</td><td class="status-ok">Operativo</td><td>v6.4.3</td><td>6 widgets, control por rol</td></tr>
+<tr><td>Actividades</td><td class="status-ok">Operativo</td><td>v6.7</td><td>Rediseño completo con filtros</td></tr>
+</table>
+
+<h2>1.3 Evolución de versiones v6.x</h2>
+<p>Desde el informe v5 (marzo 2026), el sistema evolucionó en 12 entregas que resolvieron deuda técnica, cerraron brechas de seguridad y modernizaron la experiencia de usuario.</p>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.0</span><span class="version-date">Mayo 2026</span></div>
+  <div class="version-title">Refactorización a Módulo Genérico de Tiendas</div>
+  <p style="font-size:8.5pt;margin:0;">Reemplazó ~7.500 líneas de código duplicado (3 SPAs + 3 bloques de endpoints) por un único módulo genérico de 2.876 líneas. Eliminó 3 archivos de ~1.500 líneas cada uno. Corrigió bugs latentes: navegación de Maracay rota, reportes inexistentes, Maracay sin CSS, paginación de Maracaibo con variable no global, dependencia oculta de utilidades.</p>
+</div>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.1</span><span class="version-date">Mayo 2026</span></div>
+  <div class="version-title">Auditoría y Corrección de Seguridad</div>
+  <p style="font-size:8.5pt;margin:0;">Cerró 6 vulnerabilidades críticas: CRUD de tiendas sin autenticación, estadísticas abiertas, reset de contraseña que devolvía token, JWT_SECRET débil, IP falseable por header X-Forwarded-For, credenciales hardcodeadas. Agregó rate-limit, revocación de tokens, validación de IP real del socket.</p>
+</div>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.2</span><span class="version-date">Mayo 2026</span></div>
+  <div class="version-title">Módulo de Estadísticas (Página Faltante)</div>
+  <p style="font-size:8.5pt;margin:0;">Creó public/estadisticas.html (antes ruta huérfana en server.js que servía archivo inexistente). 4 funciones SQL + vista multi-tienda (antes solo leía Caracas). 6 KPIs, gráfico de evolución anual, dona de distribución, tabla de deudores con exportación Excel 3 hojas.</p>
+</div>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.3</span><span class="version-date">Mayo 2026</span></div>
+  <div class="version-title">Datos Bancarios con Auto-detección</div>
+  <p style="font-size:8.5pt;margin:0;">Agregó campos numero_cuenta y banco a las 3 tablas de tienda. Auto-detecta el banco por los primeros 4 dígitos (28 bancos venezolanos). Validación de 20 dígitos, solo numérico. Aplica a las 3 tiendas automáticamente por arquitectura genérica.</p>
+</div>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.4</span><span class="version-date">Mayo 2026</span></div>
+  <div class="version-title">Dashboard Global del Panel</div>
+  <p style="font-size:8.5pt;margin:0;">6 widgets: KPIs globales, comparativa por tienda, estado de cartera, evolución de cobros, Top 5 deudores, cuotas del mes. Control por rol: admin ve consolidado de 3 tiendas; operador solo la suya. Caché de 5 minutos, doble capa de seguridad (frontend + backend).</p>
+</div>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.5</span><span class="version-date">Mayo 2026</span></div>
+  <div class="version-title">Rediseño Vista de Tienda</div>
+  <p style="font-size:8.5pt;margin:0;">Tarjetas de módulo interactivas con iconos animados, métricas en vivo, badge de conciliaciones pendientes. Accesos rápidos: Nuevo cliente, Registrar pago, Exportar cartera, Ver reportes. Resumen operativo con KPIs, cobranza del mes, alertas, evolución 6 meses, estado de cartera, mayor tiempo sin pagar, últimos pagos.</p>
+</div>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.6</span><span class="version-date">Junio 2026</span></div>
+  <div class="version-title">Modal Editar Cliente — Diseño Corporativo</div>
+  <p style="font-size:8.5pt;margin:0;">Modal en 2 columnas que cabe completo en 1366×768 sin scroll. Izquierda: datos + bancarios + montos destacados. Derecha: cuotas como tabla compacta con totales. Eliminar cuotas en línea (checkbox por fila + barra de eliminación). Header corporativo con chip de tienda. Operador 100% solo lectura.</p>
+</div>
+
+<div class="version-card">
+  <div class="version-header"><span class="version-badge">v6.7</span><span class="version-date">Julio 2026</span></div>
+  <div class="version-title">Zona de Actividades — Rediseño Completo</div>
+  <p style="font-size:8.5pt;margin:0;">Hero con KPIs + anillo de avance %. Filtro por tienda con colores (segmented control). Prioridad segmentada (Baja/Media/Alta/Urgente). Lista con borde lateral por tienda, checkbox animado, chips. Sidebar: Avance por Tienda, Próxima Actividad, Esta Semana. Historial como tabla corporativa. Widget del dashboard rediseñado. 192/192 pruebas.</p>
+</div>
+</div>
+
+<!-- SECCIÓN 2: ARQUITECTURA -->
+<div class="section">
+<h1 class="section-title">2. Arquitectura del Sistema</h1>
+
+<h2>2.1 Pila tecnológica</h2>
+<table>
+<tr><th>Capa</th><th>Tecnología</th><th>Versión</th><th>Propósito</th></tr>
+<tr><td>Servidor</td><td>Node.js</td><td>18.x+</td><td>Runtime de backend</td></tr>
+<tr><td>Framework</td><td>Express.js</td><td>4.x</td><td>Router HTTP + middleware</td></tr>
+<tr><td>Base de datos</td><td>PostgreSQL</td><td>16</td><td>Datos relacional + funciones SQL</td></tr>
+<tr><td>Driver BD</td><td>node-pg (pg)</td><td>8.x</td><td>Pool de conexiones</td></tr>
+<tr><td>Auth</td><td>jsonwebtoken</td><td>9.x</td><td>JWT firmado HS256</td></tr>
+<tr><td>Hash</td><td>bcryptjs</td><td>3.x</td><td>Contraseñas (12 rounds)</td></tr>
+<tr><td>Rate limit</td><td>express-rate-limit</td><td>7.x</td><td>Protección anti fuerza bruta</td></tr>
+<tr><td>Frontend</td><td>Vanilla JS</td><td>ES6</td><td>SPA sin framework</td></tr>
+<tr><td>Gráficos</td><td>ApexCharts</td><td>3.x</td><td>Dashboards y reportes</td></tr>
+<tr><td>Export</td><td>SheetJS (XLSX)</td><td>0.20.x</td><td>Excel desde navegador</td></tr>
+<tr><td>PDF</td><td>jsPDF + autoTable</td><td>2.x</td><td>Reportes impresos</td></tr>
+</table>
+
+<h2>2.2 Diagrama de capas</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENTE (Navegador)                                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │  Login   │  │  Panel   │  │  Tienda  │  │Estadíst. │   │
+│  │  HTML    │  │  SPA     │  │  SPA     │  │  HTML    │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
+│       │             │             │             │           │
+│       └─────────────┴─────┬─────┴─────────────┘           │
+│                             │                               │
+│                    localStorage (token JWT)                 │
+└─────────────────────────────┬───────────────────────────────┘
+                              │ HTTP/HTTPS
+┌─────────────────────────────┼───────────────────────────────┐
+│  SERVIDOR Node.js           │                               │
+│  ┌──────────────────────────┴──────────────────────────┐   │
+│  │              Express.js (app)                       │   │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │   │
+│  │  │  auth   │ │ tiendas │ │reportes │ │estadíst.│  │   │
+│  │  │ router  │ │ router  │ │ router  │ │ router  │  │   │
+│  │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘  │   │
+│  │       └───────────┴─────┬─────┴───────────┘       │   │
+│  │                         │                          │   │
+│  │  ┌──────────────────────┴──────────────────────┐   │   │
+│  │  │  Middleware: verificarToken + rate-limit    │   │   │
+│  │  │  + validación de tienda por whitelist     │   │   │
+│  │  └──────────────────────┬──────────────────────┘   │   │
+│  │                         │                          │   │
+│  │  ┌──────────────────────┴──────────────────────┐   │   │
+│  │  │  PostgreSQL Pool (node-pg)                  │   │   │
+│  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐      │   │   │
+│  │  │  │ usuarios│ │tiendas* │ │activ.   │      │   │   │
+│  │  │  │ sesiones│ │3 tablas │ │estadíst.│      │   │   │
+│  │  │  └─────────┘ └─────────┘ └─────────┘      │   │   │
+│  │  └───────────────────────────────────────────┘   │   │
+│  └────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+
+<h2>2.3 Flujo de autenticación</h2>
+<ol>
+<li>Usuario ingresa credenciales en <code>login.html</code></li>
+<li>POST <code>/api/auth/login</code> &rarr; verifica bcrypt + IP real del socket</li>
+<li>Backend genera JWT con <code>{id, usuario, rol, tienda, token_version}</code></li>
+<li>Token se almacena en <code>localStorage</code> + variable global <code>window.token</code></li>
+<li>Panel.js monta interceptor: todas las llamadas fetch envían <code>Authorization: Bearer &lt;token&gt;</code></li>
+<li>Middleware <code>verificarToken</code> valida firma + busca <code>token_version</code> en BD (revocación)</li>
+<li>Logout: POST <code>/api/auth/logout</code> &rarr; incrementa <code>token_version</code> en BD &rarr; token muere en todas las pestañas</li>
+</ol>
+<div class="info-box"><strong>Nota de seguridad:</strong> La revocación funciona porque el token JWT incluye token_version. Al hacer logout, el backend incrementa este valor en la tabla usuarios. Cualquier token con la versión antigua es rechazado, incluso en pestañas abiertas o tokens robados.</div>
+</div>
+
+<!-- SECCIÓN 3: ESTRUCTURA DEL PROYECTO -->
+<div class="section">
+<h1 class="section-title">3. Estructura del Proyecto</h1>
+
+<h2>3.1 Árbol de archivos (v6.7)</h2>
+<pre>
+creditos/
+├── server.js                          # 123 líneas (era 663)
+├── package.json
+├── .env                                 # JWT_SECRET rotado
+├── .env.example                         # Plantilla sin valores
+├── instalar-*.bat                       # Instaladores SQL
+│
+├── config/
+│   └── database.js                      # Pool PostgreSQL desde .env
+│
+├── middleware/
+│   └── auth.js                          # verificarToken + soloAdmin + auditoría
+│
+├── routes/
+│   ├── auth.js                          # Login, logout, rate-limit, IP real
+│   ├── usuarios.js                      # CRUD usuarios + revocación
+│   ├── tiendas.js                       # CRUD genérico /api/tiendas/:tienda
+│   ├── reportes.js                      # Reportes por tienda
+│   ├── estadisticas.js                  # Estadísticas con auth (v6.2)
+│   ├── actividades.js                   # CRUD actividades + filtro tienda
+│   └── bcv.js                           # Tasa BCV
+│
+├── database/
+│   ├── estadisticas.sql                 # 4 funciones + vista
+│   ├── estadisticas-v2.sql              # Multi-tienda
+│   ├── migracion-consistencia-v6.2.sql  # Homologación
+│   ├── migracion-datos-bancarios-v6.3.sql # Campos bancarios
+│   └── migracion-seguridad-v6.1.sql     # token_version + auditoría
+│
+└── public/
+    ├── login.html
+    ├── estadisticas.html                # v6.2 (antes no existía)
+    ├── css/
+    │   ├── login.css
+    │   ├── panel.css                    # Dashboard + agenda + modal
+    │   └── tienda-caracas.css           # Legacy
+    └── js/
+        ├── login.js
+        ├── panel.js                     # Dashboard v6.4.3 + agenda v6.7
+        ├── tienda-spa.js                # Módulo genérico v6.6
+        ├── reportes.js                  # Legacy
+        ├── reportes-caracas.js          # v6.2
+        └── tienda-caracas.js            # Legacy
+</pre>
+
+<h2>3.2 Inventario de endpoints</h2>
+<table class="table-compact">
+<tr><th>Módulo</th><th>Método</th><th>Ruta</th><th>Auth</th><th>Rol</th><th>Descripción</th></tr>
+<tr><td rowspan="4">Auth</td><td>POST</td><td>/api/auth/login</td><td>&mdash;</td><td>&mdash;</td><td>Login + JWT (rate-limit)</td></tr>
+<tr><td>POST</td><td>/api/auth/logout</td><td>&check;</td><td>&mdash;</td><td>Revoca token</td></tr>
+<tr><td>GET</td><td>/api/auth/perfil</td><td>&check;</td><td>&mdash;</td><td>Perfil del usuario</td></tr>
+<tr><td>GET</td><td>/api/auth/debug/ip</td><td>&check;</td><td>admin</td><td>IP real del socket</td></tr>
+<tr><td rowspan="6">Usuarios</td><td>GET</td><td>/api/usuarios</td><td>&check;</td><td>admin</td><td>Listar todos</td></tr>
+<tr><td>POST</td><td>/api/usuarios</td><td>&check;</td><td>admin</td><td>Crear usuario</td></tr>
+<tr><td>GET</td><td>/api/usuarios/:id</td><td>&check;</td><td>admin</td><td>Ver usuario</td></tr>
+<tr><td>PUT</td><td>/api/usuarios/:id</td><td>&check;</td><td>admin</td><td>Editar + revocar sesiones</td></tr>
+<tr><td>DELETE</td><td>/api/usuarios/:id</td><td>&check;</td><td>admin</td><td>Eliminar usuario</td></tr>
+<tr><td>POST</td><td>/api/usuarios/restablecer</td><td>&mdash;</td><td>&mdash;</td><td>Reset contraseña</td></tr>
+<tr><td rowspan="5">Tiendas</td><td>GET</td><td>/api/tiendas/:tienda</td><td>&check;</td><td>&mdash;</td><td>Listar (op limitado a su tienda)</td></tr>
+<tr><td>POST</td><td>/api/tiendas/:tienda</td><td>&check;</td><td>admin</td><td>Crear cliente</td></tr>
+<tr><td>GET</td><td>/api/tiendas/:tienda/:id</td><td>&check;</td><td>&mdash;</td><td>Ver cliente</td></tr>
+<tr><td>PUT</td><td>/api/tiendas/:tienda/:id</td><td>&check;</td><td>admin</td><td>Editar cliente</td></tr>
+<tr><td>DELETE</td><td>/api/tiendas/:tienda/:id</td><td>&check;</td><td>admin</td><td>Eliminar cliente</td></tr>
+<tr><td rowspan="2">Reportes</td><td>POST</td><td>/api/reportes/:tienda</td><td>&check;</td><td>&mdash;</td><td>Reporte por tienda</td></tr>
+<tr><td>GET</td><td>/api/reportes/exportar/:tienda</td><td>&check;</td><td>&mdash;</td><td>Exportar Excel/PDF</td></tr>
+<tr><td rowspan="5">Estadísticas</td><td>GET</td><td>/api/estadisticas/:tienda</td><td>&check;</td><td>&mdash;</td><td>KPIs de la tienda</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/periodo</td><td>&check;</td><td>&mdash;</td><td>Estadísticas por periodo</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/evolucion</td><td>&check;</td><td>&mdash;</td><td>Evolución mensual</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/deudores</td><td>&check;</td><td>&mdash;</td><td>Top deudores</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/exportar</td><td>&check;</td><td>&mdash;</td><td>Exportar Excel 3 hojas</td></tr>
+<tr><td rowspan="6">Actividades</td><td>GET</td><td>/api/actividades</td><td>&check;</td><td>&mdash;</td><td>Listar (op limitado a su tienda)</td></tr>
+<tr><td>POST</td><td>/api/actividades</td><td>&check;</td><td>&mdash;</td><td>Crear actividad</td></tr>
+<tr><td>GET</td><td>/api/actividades/:id</td><td>&check;</td><td>&mdash;</td><td>Ver actividad</td></tr>
+<tr><td>PUT</td><td>/api/actividades/:id</td><td>&check;</td><td>&mdash;</td><td>Editar actividad</td></tr>
+<tr><td>DELETE</td><td>/api/actividades/:id</td><td>&check;</td><td>&mdash;</td><td>Eliminar actividad</td></tr>
+<tr><td>PATCH</td><td>/api/actividades/:id/completar</td><td>&check;</td><td>&mdash;</td><td>Marcar completada</td></tr>
+<tr><td>BCV</td><td>GET</td><td>/api/bcv/tasa</td><td>&check;</td><td>&mdash;</td><td>Tasa BCV actual</td></tr>
+</table>
+<div class="info-box"><strong>Aliases legacy:</strong> Las rutas /api/tienda-caracas, /api/tienda-maracay y /api/tienda-maracaibo siguen funcionando (redirigen al router genérico). Se mantienen para compatibilidad con integraciones externas.</div>
+</div>
+
+<!-- SECCIÓN 4: BASE DE DATOS -->
+<div class="section">
+<h1 class="section-title">4. Base de Datos</h1>
+
+<h2>4.1 Esquema relacional</h2>
+<table>
+<tr><th>Tabla</th><th>Filas aprox.</th><th>Descripción</th></tr>
+<tr><td>usuarios</td><td>5&ndash;10</td><td>Administradores y operadores</td></tr>
+<tr><td>sesiones</td><td>0</td><td>Esquema muerto (nunca implementado en código)</td></tr>
+<tr><td>reset_tokens</td><td>0&ndash;5</td><td>Tokens de reset de contraseña (temporal)</td></tr>
+<tr><td>auditoria_usuarios</td><td>&mdash;</td><td>Log automático de cambios en usuarios (trigger)</td></tr>
+<tr><td>actividades</td><td>50&ndash;200</td><td>Tareas del equipo por tienda</td></tr>
+<tr><td>tienda_caracas</td><td>100+</td><td>Créditos de la tienda Caracas</td></tr>
+<tr><td>tienda_maracay</td><td>50+</td><td>Créditos de la tienda Maracay</td></tr>
+<tr><td>tienda_maracaibo</td><td>50+</td><td>Créditos de la tienda Maracaibo</td></tr>
+</table>
+
+<h2>4.2 Tablas de tienda (estructura homologada v6.2)</h2>
+<table class="table-compact">
+<tr><th>Columna</th><th>Tipo</th><th>Caracas</th><th>Maracay</th><th>Maracaibo</th><th>Notas</th></tr>
+<tr><td>id</td><td>SERIAL</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td>PK</td></tr>
+<tr><td>nombre_apellido</td><td>VARCHAR</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>cedula</td><td>VARCHAR</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>telefono</td><td>VARCHAR</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>grado</td><td>VARCHAR</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>monto_factura</td><td>NUMERIC</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>monto_depositados</td><td>NUMERIC</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>deuda</td><td>NUMERIC</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td>Calculada</td></tr>
+<tr><td>cuota_inicial</td><td>NUMERIC</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>numero_cuotas</td><td>INTEGER</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>cuota_1_monto &hellip; cuota_11_monto</td><td>NUMERIC</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td>11 cuotas</td></tr>
+<tr><td>cuota_1_fecha &hellip; cuota_11_fecha</td><td>DATE</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>cuota_1_ref &hellip; cuota_11_ref</td><td>VARCHAR</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td>Referencia</td></tr>
+<tr><td>tasa_bcv</td><td>NUMERIC</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>fecha_venta</td><td>DATE</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>vendedor</td><td>VARCHAR</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td></td></tr>
+<tr><td>numero_cuenta</td><td>VARCHAR(20)</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td><strong>v6.3</strong></td></tr>
+<tr><td>banco</td><td>VARCHAR(100)</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td><strong>v6.3</strong></td></tr>
+<tr><td>created_at</td><td>TIMESTAMP</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td><strong>v6.2</strong> (Maracaibo faltaba)</td></tr>
+<tr><td>updated_at</td><td>TIMESTAMP</td><td class="center">&check;</td><td class="center">&check;</td><td class="center">&check;</td><td><strong>v6.2</strong> (trigger homologado)</td></tr>
+</table>
+
+<h2>4.3 Funciones y vistas (v6.2)</h2>
+<table>
+<tr><th>Objeto</th><th>Tipo</th><th>Descripción</th></tr>
+<tr><td>f_estadisticas_periodo(mes, anio, tienda)</td><td>Función</td><td>KPIs del periodo</td></tr>
+<tr><td>f_deudores_mes(mes, anio, tienda)</td><td>Función</td><td>Top deudores del mes</td></tr>
+<tr><td>f_evolucion_pagos(anio, tienda)</td><td>Función</td><td>Evolución mensual</td></tr>
+<tr><td>f_distribucion_pagos(mes, anio, tienda)</td><td>Función</td><td>Distribución por estado</td></tr>
+<tr><td>v_resumen_cuotas_mes</td><td>Vista</td><td>Resumen unificado multi-tienda</td></tr>
+</table>
+<div class="warn-box"><strong>Nota:</strong> Estas funciones existen en <code>database/estadisticas-v2.sql</code> pero deben ejecutarse manualmente en la base de datos con <code>psql -f database/estadisticas-v2.sql</code>.</div>
+
+<h2>4.4 Triggers y auditoría</h2>
+<table>
+<tr><th>Trigger</th><th>Tabla</th><th>Evento</th><th>Acción</th></tr>
+<tr><td>trg_auditoria_usuarios</td><td>usuarios</td><td>INSERT/UPDATE/DELETE</td><td>Inserta en auditoria_usuarios</td></tr>
+<tr><td>trg_updated_at_caracas</td><td>tienda_caracas</td><td>UPDATE</td><td>Actualiza updated_at</td></tr>
+<tr><td>trg_updated_at_maracay</td><td>tienda_maracay</td><td>UPDATE</td><td>Actualiza updated_at</td></tr>
+<tr><td>trg_updated_at_maracaibo</td><td>tienda_maracaibo</td><td>UPDATE</td><td><strong>v6.2</strong> &mdash; homologado</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 5: API REST -->
+<div class="section">
+<h1 class="section-title">5. API REST</h1>
+
+<h2>5.1 Autenticación</h2>
+<table class="table-compact">
+<tr><th>Método</th><th>Ruta</th><th>Auth</th><th>Rol</th><th>Descripción</th></tr>
+<tr><td>POST</td><td>/api/auth/login</td><td>&mdash;</td><td>&mdash;</td><td>Login + JWT (rate-limit: 5/15min)</td></tr>
+<tr><td>POST</td><td>/api/auth/logout</td><td>&check;</td><td>&mdash;</td><td>Revoca token (incrementa token_version)</td></tr>
+<tr><td>GET</td><td>/api/auth/perfil</td><td>&check;</td><td>&mdash;</td><td>Perfil del usuario</td></tr>
+<tr><td>GET</td><td>/api/auth/debug/ip</td><td>&check;</td><td>admin</td><td>IP real del socket</td></tr>
+</table>
+
+<h2>5.2 Tiendas (router genérico v6.0)</h2>
+<table class="table-compact">
+<tr><th>Método</th><th>Ruta</th><th>Auth</th><th>Rol</th><th>Descripción</th></tr>
+<tr><td>GET</td><td>/api/tiendas/:tienda</td><td>&check;</td><td>&mdash;</td><td>Listar (op limitado a su tienda)</td></tr>
+<tr><td>POST</td><td>/api/tiendas/:tienda</td><td>&check;</td><td>admin</td><td>Crear cliente</td></tr>
+<tr><td>GET</td><td>/api/tiendas/:tienda/:id</td><td>&check;</td><td>&mdash;</td><td>Ver cliente</td></tr>
+<tr><td>PUT</td><td>/api/tiendas/:tienda/:id</td><td>&check;</td><td>admin</td><td>Editar cliente</td></tr>
+<tr><td>DELETE</td><td>/api/tiendas/:tienda/:id</td><td>&check;</td><td>admin</td><td>Eliminar cliente</td></tr>
+</table>
+<div class="info-box"><strong>Whitelist de tiendas:</strong> caracas, maracay, maracaibo &mdash; cualquier otro valor devuelve 400. <strong>Aliases legacy:</strong> /api/tienda-caracas, /api/tienda-maracay, /api/tienda-maracaibo siguen funcionando.</div>
+
+<h2>5.3 Estadísticas (v6.2)</h2>
+<table class="table-compact">
+<tr><th>Método</th><th>Ruta</th><th>Auth</th><th>Descripción</th></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda</td><td>&check;</td><td>KPIs de la tienda</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/periodo</td><td>&check;</td><td>Por periodo (mes/año)</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/evolucion</td><td>&check;</td><td>Evolución anual</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/deudores</td><td>&check;</td><td>Top deudores</td></tr>
+<tr><td>GET</td><td>/api/estadisticas/:tienda/exportar</td><td>&check;</td><td>Excel 3 hojas</td></tr>
+</table>
+
+<h2>5.4 Actividades</h2>
+<table class="table-compact">
+<tr><th>Método</th><th>Ruta</th><th>Auth</th><th>Descripción</th></tr>
+<tr><td>GET</td><td>/api/actividades</td><td>&check;</td><td>Listar (op limitado a su tienda)</td></tr>
+<tr><td>POST</td><td>/api/actividades</td><td>&check;</td><td>Crear</td></tr>
+<tr><td>GET</td><td>/api/actividades/:id</td><td>&check;</td><td>Ver</td></tr>
+<tr><td>PUT</td><td>/api/actividades/:id</td><td>&check;</td><td>Editar</td></tr>
+<tr><td>DELETE</td><td>/api/actividades/:id</td><td>&check;</td><td>Eliminar</td></tr>
+<tr><td>PATCH</td><td>/api/actividades/:id/completar</td><td>&check;</td><td>Marcar completada</td></tr>
+</table>
+
+<h2>5.5 Reportes y BCV</h2>
+<table class="table-compact">
+<tr><th>Método</th><th>Ruta</th><th>Auth</th><th>Descripción</th></tr>
+<tr><td>POST</td><td>/api/reportes/:tienda</td><td>&check;</td><td>Reporte por tienda</td></tr>
+<tr><td>GET</td><td>/api/reportes/exportar/:tienda</td><td>&check;</td><td>Exportar Excel/PDF</td></tr>
+<tr><td>GET</td><td>/api/bcv/tasa</td><td>&check;</td><td>Tasa BCV actual</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 6: SEGURIDAD -->
+<div class="section">
+<h1 class="section-title">6. Seguridad v6.1</h1>
+
+<h2>6.1 Matriz de autenticación</h2>
+<table class="table-compact">
+<tr><th>Ruta</th><th>Sin token</th><th>Token válido</th><th>Token revocado</th><th>Usuario desactivado</th></tr>
+<tr><td>/api/auth/login</td><td class="status-ok">&check; Login</td><td>&mdash;</td><td>&mdash;</td><td class="status-err">&cross; Bloqueado</td></tr>
+<tr><td>/api/tiendas/*</td><td class="status-err">&cross; 401</td><td class="status-ok">&check; Acceso</td><td class="status-err">&cross; 401</td><td class="status-err">&cross; 401</td></tr>
+<tr><td>/api/estadisticas/*</td><td class="status-err">&cross; 401</td><td class="status-ok">&check; Acceso</td><td class="status-err">&cross; 401</td><td class="status-err">&cross; 401</td></tr>
+<tr><td>/api/usuarios</td><td class="status-err">&cross; 401</td><td class="status-ok">&check; Solo admin</td><td class="status-err">&cross; 401</td><td class="status-err">&cross; 401</td></tr>
+<tr><td>/api/actividades</td><td class="status-err">&cross; 401</td><td class="status-ok">&check; Según tienda</td><td class="status-err">&cross; 401</td><td class="status-err">&cross; 401</td></tr>
+</table>
+
+<h2>6.2 JWT + revocación</h2>
+<pre>
+Header:  { alg: "HS256", typ: "JWT" }
+Payload: { 
+  id: 1, 
+  usuario: "admin", 
+  rol: "administrador", 
+  tienda: "caracas",
+  token_version: 3, 
+  iat: 1750000000, 
+  exp: 1750032800  // 8 horas
+}
+</pre>
+<ul>
+<li><strong>Firma:</strong> HS256 con JWT_SECRET de 64+ caracteres aleatorios (rotado en v6.1)</li>
+<li><strong>Expiración:</strong> 8 horas (configurable en .env)</li>
+<li><strong>Revocación:</strong> Al logout, <code>UPDATE usuarios SET token_version = token_version + 1 WHERE id = ?</code>. Cualquier token con versión anterior es rechazado.</li>
+<li><strong>Rate limit:</strong> 5 intentos de login cada 15 minutos por IP</li>
+</ul>
+
+<h2>6.3 Roles y permisos</h2>
+<table class="table-compact">
+<tr><th>Acción</th><th>Administrador</th><th>Operador</th></tr>
+<tr><td>Ver tienda asignada</td><td class="status-ok">&check;</td><td class="status-ok">&check;</td></tr>
+<tr><td>Ver otras tiendas</td><td class="status-ok">&check;</td><td class="status-err">&cross; (backend bloquea)</td></tr>
+<tr><td>Crear/editar/eliminar clientes</td><td class="status-ok">&check;</td><td class="status-err">&cross;</td></tr>
+<tr><td>Ver estadísticas</td><td class="status-ok">&check; (todas)</td><td class="status-ok">&check; (solo su tienda)</td></tr>
+<tr><td>Gestionar usuarios</td><td class="status-ok">&check;</td><td class="status-err">&cross;</td></tr>
+<tr><td>Ver actividades</td><td class="status-ok">&check; (todas)</td><td class="status-ok">&check; (solo su tienda)</td></tr>
+<tr><td>Crear actividades</td><td class="status-ok">&check;</td><td class="status-ok">&check; (solo su tienda)</td></tr>
+</table>
+
+<h2>6.4 Protección de red</h2>
+<ul>
+<li><strong>IP real:</strong> <code>req.socket.remoteAddress</code> (no confía en X-Forwarded-For)</li>
+<li><strong>CORS:</strong> Restringido a orígenes específicos (no *)</li>
+<li><strong>Headers:</strong> Sin Server ni X-Powered-By</li>
+<li><strong>Errores:</strong> Sin <code>err.message</code> en respuestas (evita fuga de información)</li>
+</ul>
+</div>
+
+<!-- SECCIÓN 7: FRONTEND -->
+<div class="section">
+<h1 class="section-title">7. Frontend</h1>
+
+<h2>7.1 Login</h2>
+<ul>
+<li>Sin email prellenado (v6.1)</li>
+<li>Animación con tsparticles</li>
+<li>Fix <code>data.user</code> &rarr; <code>data.usuario</code> (v6.1)</li>
+<li>Redirección automática al panel tras login</li>
+</ul>
+
+<h2>7.2 Panel SPA</h2>
+<ul>
+<li><strong>Sidebar:</strong> Menú filtrado por rol (oculta opciones de admin al operador)</li>
+<li><strong>Dashboard v6.4.3:</strong> 6 widgets con datos reales de las 3 tiendas</li>
+<li><strong>Agenda v6.7:</strong> Hero con KPIs, filtro por tienda, prioridad segmentada, lista animada, sidebar con avance/próxima/semana</li>
+<li><strong>Navegación:</strong> <code>mostrarSeccion()</code> gestiona visibilidad de secciones</li>
+</ul>
+
+<h2>7.3 Módulo de tiendas genérico (v6.0 + v6.5 + v6.6)</h2>
+<p><strong>Configuración por tienda:</strong></p>
+<pre>
+{
+  nombre: 'caracas',           // o 'maracay', 'maracaibo'
+  endpoint: '/api/tiendas/caracas',
+  prefijo: 'tc',               // IDs: tc-menu-btn, tc-content, etc.
+  color: '#38a169',            // Verde
+  label: 'Tienda Caracas'
+}
+</pre>
+<p><strong>Vistas del módulo:</strong></p>
+<ul>
+<li><strong>Menú principal (v6.5):</strong> Tarjetas interactivas con métricas en vivo</li>
+<li><strong>Base de datos:</strong> Tabla de clientes con filtros, paginación, exportación</li>
+<li><strong>Conciliaciones:</strong> Registro de pagos, verificación contra cuotas</li>
+<li><strong>Estadísticas internas:</strong> Gráficos de la tienda</li>
+<li><strong>Reportes:</strong> Generación de reportes impresos</li>
+</ul>
+<p><strong>Modal Editar Cliente (v6.6):</strong></p>
+<ul>
+<li>2 columnas, cabe en 1366&times;768</li>
+<li>Izquierda: datos + bancarios + montos</li>
+<li>Derecha: tabla de cuotas con totales</li>
+<li>Eliminar en línea: checkboxes + barra de acción</li>
+</ul>
+</div>
+
+<!-- SECCIÓN 8: REFACTORIZACIÓN -->
+<div class="section">
+<h1 class="section-title">8. Refactorización v6.0</h1>
+
+<h2>8.1 Métricas antes/después</h2>
+<table>
+<tr><th>Métrica</th><th>Antes</th><th>Después</th><th>Reducción</th></tr>
+<tr><td>server.js líneas</td><td>663</td><td>123</td><td class="status-ok">-81%</td></tr>
+<tr><td>panel.html líneas</td><td>1.631</td><td>832</td><td class="status-ok">-49%</td></tr>
+<tr><td>panel.js líneas</td><td>4.183</td><td>2.982</td><td class="status-ok">-29%</td></tr>
+<tr><td>SPAs de tienda</td><td>3 archivos (~4.500 líneas)</td><td>1 archivo (2.876 líneas)</td><td class="status-ok">-36%</td></tr>
+<tr><td>Bloques de endpoints</td><td>3 duplicados (~540 líneas)</td><td>1 genérico</td><td class="status-ok">-67%</td></tr>
+<tr><td>Reportes duplicados en panel.js</td><td>~1.185 líneas</td><td>0 (en módulo genérico)</td><td class="status-ok">-100%</td></tr>
+<tr><td><strong>Total código duplicado eliminado</strong></td><td><strong>~7.500 líneas</strong></td><td><strong>~2.900 líneas</strong></td><td class="status-ok"><strong>-61%</strong></td></tr>
+</table>
+
+<h2>8.2 Patrón genérico</h2>
+<p>La clave de la refactorización fue reemplazar 3 archivos SPA casi idénticos (solo cambiaban sufijos de IDs y endpoints) por una clase <code>TiendaApp</code> que recibe su configuración al instanciarse:</p>
+<pre>
+// Antes: tienda-caracas-spa.js, tienda-maracay-spa.js, tienda-maracaibo-spa.js
+// (~1.500 líneas cada uno, 61 funciones duplicadas)
+
+// Después: tienda-spa.js (2.876 líneas)
+class TiendaApp {
+  constructor(config) {
+    this.nombre = config.nombre;      // 'caracas' | 'maracay' | 'maracaibo'
+    this.prefijo = config.prefijo;    // 'tc' | 'tm' | 'tmb'
+    this.color = config.color;        // '#38a169' | '#805ad5' | '#dd6b20'
+    this.endpoint = config.endpoint;  // '/api/tiendas/...'
+  }
+  // 61 funciones compartidas, IDs generados dinámicamente
+}
+
+// Instanciación en panel.js:
+window.Tiendas = {
+  caracas: new TiendaApp({nombre:'caracas', prefijo:'tc', color:'#38a169', ...}),
+  maracay: new TiendaApp({nombre:'maracay', prefijo:'tm', color:'#805ad5', ...}),
+  maracaibo: new TiendaApp({nombre:'maracaibo', prefijo:'tmb', color:'#dd6b20', ...})
+};
+</pre>
+<div class="success-box"><strong>Ventaja:</strong> Agregar una 4ª tienda (ej. Valencia) requiere solo 1 línea de config + 1 tabla en la BD. Cero código nuevo.</div>
+</div>
+
+<!-- SECCIÓN 9: ESTADÍSTICAS -->
+<div class="section">
+<h1 class="section-title">9. Módulo de Estadísticas v6.2</h1>
+
+<p><strong>Estado:</strong> Página creada y funcional, pero las 4 funciones SQL deben ejecutarse manualmente en la base de datos.</p>
+
+<p><strong>Instalación:</strong></p>
+<pre>"C:\Program Files\PostgreSQLin\psql.exe" -U postgres -d creditos -f database\estadisticas-v2.sql</pre>
+
+<p><strong>Contenido de la página:</strong></p>
+<ul>
+<li>6 KPIs con tarjetas (Cartera, Cobrado, Deuda, Recuperación, etc.)</li>
+<li>Gráfico de evolución anual (área apilada)</li>
+<li>Dona de distribución de pagos</li>
+<li>Tabla de deudores con búsqueda</li>
+<li>Exportación Excel 3 hojas (resumen, deudores, evolución)</li>
+</ul>
+
+<div class="warn-box"><strong>Nota:</strong> La ruta <code>/estadisticas</code> no está enlazada desde el menú del panel. Se accede directamente por URL o mediante un acceso directo.</div>
+</div>
+
+<!-- SECCIÓN 10: DASHBOARD -->
+<div class="section">
+<h1 class="section-title">10. Dashboard Global v6.4</h1>
+
+<p><strong>Widgets implementados:</strong></p>
+<table class="table-compact">
+<tr><th>#</th><th>Widget</th><th>Admin</th><th>Operador</th><th>Fuente de datos</th></tr>
+<tr><td>1</td><td>KPIs globales (4 tarjetas)</td><td>3 tiendas</td><td>1 tienda</td><td>GET /api/tiendas/:tienda</td></tr>
+<tr><td>2</td><td>Comparativa por tienda</td><td>3 barras</td><td>1 barra</td><td>Agregación en navegador</td></tr>
+<tr><td>3</td><td>Estado de cartera (dona)</td><td>Global</td><td>Tienda</td><td>Agregación en navegador</td></tr>
+<tr><td>4</td><td>Evolución de cobros</td><td>3 tiendas</td><td>1 tienda</td><td>Agregación en navegador</td></tr>
+<tr><td>5</td><td>Top 5 deudores</td><td>Con etiqueta de tienda</td><td>Sin etiqueta</td><td>GET /api/tiendas/:tienda</td></tr>
+<tr><td>6</td><td>Cuotas del mes</td><td>3 radiales</td><td>1 radial</td><td>Agregación en navegador</td></tr>
+</table>
+
+<p><strong>Criterio Top 5 (v6.4.2):</strong> Meses sin pagar primero, desempate por deuda.</p>
+<ul>
+<li>Para cada crédito se busca la última cuota pagada y se calculan los meses transcurridos desde ese pago hasta hoy.</li>
+<li>Si nunca ha pagado, se cuenta desde la fecha de la factura.</li>
+<li>Orden: más meses sin pagar primero; solo en empate desempata la mayor deuda.</li>
+<li>Columna "Sin pagar" con semáforo: 🔴 2+ meses · 🟠 1 mes · 🟢 al día.</li>
+</ul>
+</div>
+
+<!-- SECCIÓN 11: REDISEÑOS UI -->
+<div class="section">
+<h1 class="section-title">11. Rediseños de UI v6.5&ndash;v6.7</h1>
+
+<h2>11.1 Vista de tienda (v6.5 + v6.5.1)</h2>
+<ul>
+<li>Tarjetas de módulo interactivas: icono animado, efecto hover (elevación + barra de color + flecha), métricas en vivo</li>
+<li>Badge de conciliaciones pendientes con pulso rojo</li>
+<li>Accesos rápidos: Nuevo cliente, Registrar pago, Exportar cartera, Ver reportes</li>
+<li>Resumen operativo: KPIs, Cobranza del mes con barra de avance, Alertas (morosos / sin cuota este mes / pagos del día), Evolución 6 meses, Estado de cartera, Mayor tiempo sin pagar, Últimos pagos</li>
+<li>Color por tienda automático: verde Caracas, morado Maracay, naranja Maracaibo</li>
+<li><strong>v6.5.1:</strong> Scroll suave al hacer clic en cualquier tarjeta; botón "← Volver al Menú" en Estadísticas del panel</li>
+</ul>
+
+<h2>11.2 Modal cliente corporativo (v6.6)</h2>
+<ul>
+<li>Modal en 2 columnas, cabe completo en 1366&times;768 sin scroll (687px alto)</li>
+<li>Izquierda: datos del cliente + bancarios (auto-detección intacta) + montos destacados (depositado verde / deuda roja)</li>
+<li>Derecha: cuotas como tabla compacta con encabezado y pie fijos + totales (Bs y $ depositados)</li>
+<li>Eliminar cuotas en línea: checkbox por fila &rarr; fila se resalta en rojo + barra con conteo + "Borrar Seleccionadas"</li>
+<li>Header corporativo con chip de tienda en su color</li>
+<li>Operador 100% solo lectura (sin Guardar ni checkboxes)</li>
+</ul>
+
+<h2>11.3 Zona de actividades (v6.7)</h2>
+<ul>
+<li><strong>Hero corporativo:</strong> Total / Pendientes / Completadas + anillo de avance %</li>
+<li><strong>Filtro por tienda:</strong> Segmented control con colores (● Caracas verde, ● Maracay morado, ● Maracaibo naranja). Al elegir tienda, todo se recalcula (KPI, lista, próxima actividad, widget)</li>
+<li><strong>Prioridad segmentada:</strong> Baja / Media / Alta / Urgente con color</li>
+<li><strong>Lista:</strong> Borde lateral por tienda, checkbox animado, chips de hora/prioridad/tienda, acciones (editar/eliminar) al pasar el mouse, completadas al final con tachado</li>
+<li><strong>Sidebar:</strong> Avance por Tienda (3 barras comparadas), Próxima Actividad, Esta Semana (mini gráfico de completadas por día)</li>
+<li><strong>Historial:</strong> Tabla corporativa con badges de tienda/estado y fecha de completada</li>
+<li><strong>Widget del dashboard:</strong> Mini-filtro por puntos de tienda, barra de avance, botón "Nota", "+N más", "Ver todas &rarr;"</li>
+<li><strong>Por rol:</strong> Operador no ve filtros de tienda, select fijado en su tienda</li>
+</ul>
+</div>
+
+<!-- SECCIÓN 12: DESPLIEGUE -->
+<div class="section">
+<h1 class="section-title">12. Despliegue</h1>
+
+<h2>12.1 Configuración actual</h2>
+<table>
+<tr><th>Aspecto</th><th>Valor actual</th><th>Recomendación</th></tr>
+<tr><td>Servidor</td><td>Windows (PC local)</td><td>Mantener o migrar a VPS</td></tr>
+<tr><td>Ejecución</td><td>node server.js en terminal</td><td>Servicio de Windows (nssm)</td></tr>
+<tr><td>Base de datos</td><td>PostgreSQL 16 en localhost</td><td>Mantener</td></tr>
+<tr><td>Acceso</td><td>http://localhost:3000</td><td>HTTPS + dominio</td></tr>
+<tr><td>Backup</td><td>Manual</td><td>Tarea programada diaria</td></tr>
+<tr><td>Acceso remoto</td><td>No configurado</td><td>VPN (Tailscale/WireGuard)</td></tr>
+</table>
+
+<h2>12.2 Plan de producción recomendado</h2>
+<ol>
+<li><strong>Servicio de Windows:</strong> Crear tarea programada o servicio con <code>nssm</code> para auto-inicio al encender la PC</li>
+<li><strong>HTTPS:</strong> Implementar con certificado (Let's Encrypt para dominio público, o autofirmado para red local)</li>
+<li><strong>Reverse proxy:</strong> nginx o IIS para puerto 80/443, redirección a Node.js en 3000</li>
+<li><strong>Backup:</strong> Tarea programada diaria de <code>pg_dump</code> con retención de 30 días</li>
+<li><strong>Acceso remoto:</strong> VPN (Tailscale/WireGuard) en lugar de abrir puertos del router</li>
+<li><strong>Monitorización:</strong> PM2 para reinicio automático si el proceso cae</li>
+</ol>
+</div>
+
+<!-- SECCIÓN 13: HALLAZGOS -->
+<div class="section">
+<h1 class="section-title">13. Hallazgos y Recomendaciones</h1>
+
+<table class="table-compact">
+<tr><th>ID</th><th>Hallazgo</th><th>Prioridad</th><th>Estado</th><th>Acción</th></tr>
+<tr><td>H-01</td><td>Funciones SQL de estadísticas no ejecutadas en BD</td><td class="status-err">Alta</td><td>Pendiente</td><td>Ejecutar estadisticas-v2.sql</td></tr>
+<tr><td>H-02</td><td>Página /estadisticas no enlazada desde el menú</td><td class="status-warn">Media</td><td>Resuelto v6.2</td><td>Agregar enlace manual si se desea</td></tr>
+<tr><td>H-03</td><td>Tabla sesiones esquema muerto</td><td class="status-ok">Baja</td><td>Documentado</td><td>Eliminar en futura versión</td></tr>
+<tr><td>H-04</td><td>tienda-caracas.html y reportes-caracas.html legacy</td><td class="status-ok">Baja</td><td>Documentado</td><td>Eliminar candidatos</td></tr>
+<tr><td>H-05</td><td>Sin HTTPS (clave y token en texto plano)</td><td class="status-err">Alta</td><td>Pendiente</td><td>Implementar certificado</td></tr>
+<tr><td>H-06</td><td>Servidor como ventana de terminal</td><td class="status-warn">Media</td><td>Pendiente</td><td>Crear servicio Windows</td></tr>
+<tr><td>H-07</td><td>Sin backup automatizado</td><td class="status-warn">Media</td><td>Pendiente</td><td>Tarea programada pg_dump</td></tr>
+<tr><td>H-08</td><td>estadisticas.js tenía credenciales hardcodeadas</td><td class="status-ok">Baja</td><td>Resuelto v6.1</td><td>Pool compartido desde database.js</td></tr>
+<tr><td>H-09</td><td>reportes-caracas.js no existía (referencia rota)</td><td class="status-ok">Baja</td><td>Resuelto v6.2</td><td>Archivo creado</td></tr>
+<tr><td>H-10</td><td>Vista de estadísticas solo leía tienda_caracas</td><td class="status-ok">Baja</td><td>Resuelto v6.2</td><td>Vista multi-tienda creada</td></tr>
+<tr><td>H-11</td><td>Maracaibo sin created_at</td><td class="status-ok">Baja</td><td>Resuelto v6.2</td><td>Migración aplicada</td></tr>
+<tr><td>H-12</td><td>Solo Maracay tenía trigger updated_at</td><td class="status-ok">Baja</td><td>Resuelto v6.2</td><td>Triggers homologados</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 14: ANEXOS -->
+<div class="section">
+<h1 class="section-title">14. Anexos</h1>
+
+<h2>Anexo A: Variables de entorno (.env)</h2>
+<pre>
+# Servidor
+PORT=3000
+NODE_ENV=production
+
+# Base de datos
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=creditos
+DB_USER=postgres
+DB_PASSWORD=***
+
+# JWT
+JWT_SECRET=&lt;64+ caracteres aleatorios, rotado en v6.1&gt;
+JWT_EXPIRES_IN=8h
+
+# BCV
+BCV_API_URL=https://bcv.org.ve
+</pre>
+
+<h2>Anexo B: Migraciones SQL disponibles</h2>
+<table class="table-compact">
+<tr><th>Archivo</th><th>Propósito</th><th>Cuándo ejecutar</th></tr>
+<tr><td>migracion-seguridad-v6.1.sql</td><td>token_version, auditoria_usuarios</td><td>Antes de v6.1</td></tr>
+<tr><td>migracion-consistencia-v6.2.sql</td><td>created_at, triggers, índices</td><td>Antes de v6.2</td></tr>
+<tr><td>estadisticas-v2.sql</td><td>4 funciones + vista multi-tienda</td><td>Antes de usar /estadisticas</td></tr>
+<tr><td>migracion-datos-bancarios-v6.3.sql</td><td>numero_cuenta, banco</td><td>Antes de v6.3</td></tr>
+</table>
+
+<h2>Anexo C: Convenciones de IDs por tienda</h2>
+<table class="table-compact">
+<tr><th>Tienda</th><th>Prefijo</th><th>Ejemplo ID</th></tr>
+<tr><td>Caracas</td><td>tc</td><td>tc-menu-btn, tc-content</td></tr>
+<tr><td>Maracay</td><td>tm</td><td>tm-menu-btn, tm-content</td></tr>
+<tr><td>Maracaibo</td><td>tmb</td><td>tmb-menu-btn, tmb-content</td></tr>
+</table>
+
+<h2>Anexo D: Resumen de pruebas por versión</h2>
+<table class="table-compact">
+<tr><th>Versión</th><th>Pruebas</th><th>Resultado</th></tr>
+<tr><td>v6.0</td><td>Sintaxis + IDs cruzados + DOM simulado</td><td>Validado</td></tr>
+<tr><td>v6.1</td><td>Backend simulado (CRUD, aliases, whitelist)</td><td>24/24</td></tr>
+<tr><td>v6.2</td><td>Renderizado página + mock API</td><td>Validado</td></tr>
+<tr><td>v6.3</td><td>Formulario bancario + detección</td><td>17/17</td></tr>
+<tr><td>v6.4</td><td>Agregación + rol + renderizado</td><td>21/21</td></tr>
+<tr><td>v6.4.2</td><td>Top 5 por tiempo sin pagar</td><td>31/31</td></tr>
+<tr><td>v6.4.3</td><td>Parseo de montos + regresión</td><td>47/47</td></tr>
+<tr><td>v6.5</td><td>Menú + widgets + navegación</td><td>49/49</td></tr>
+<tr><td>v6.5.1</td><td>Scroll + botón volver + regresión</td><td>62/62</td></tr>
+<tr><td>v6.6</td><td>Modal + cuotas + eliminar + rol</td><td>128/128</td></tr>
+<tr><td>v6.7</td><td>Agenda + filtro + widget + regresión</td><td>192/192</td></tr>
+</table>
+
+<div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid var(--primary); text-align: center; font-size: 9pt; color: var(--text-light);">
+<p style="text-align: center;"><strong>Fin del documento</strong></p>
+<p style="text-align: center;">Informe Técnico Sistema de Créditos IPSFA v6.7 &mdash; Julio 2026</p>
+<p style="text-align: center;">Documento clasificado como Interno / Operativo</p>
+</div>
+</div>
+
+</body>
+</html>
