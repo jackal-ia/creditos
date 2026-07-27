@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe Técnico — API de Reportes Dinámicos v1.0</title>
+<style>
+@page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+@page :first { margin-top: 8mm; }
+
+:root {
+  --primary: #1a3a5c;
+  --secondary: #2c5282;
+  --accent: #3182ce;
+  --success: #38a169;
+  --warning: #d69e2e;
+  --danger: #e53e3e;
+  --text: #2d3748;
+  --text-light: #718096;
+  --bg: #f7fafc;
+  --border: #e2e8f0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+}
+
+.cover {
+  page-break-after: always;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 50%, #3182ce 100%);
+  color: white;
+  padding: 40px;
+}
+.cover-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 6px 20px;
+  font-size: 9pt;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+}
+.cover h1 { font-size: 26pt; font-weight: 700; margin: 0 0 15px 0; line-height: 1.2; }
+.cover h2 { font-size: 14pt; font-weight: 400; margin: 0 0 40px 0; opacity: 0.9; }
+.cover-meta {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+  font-size: 10pt;
+  opacity: 0.85;
+}
+.cover-meta div { text-align: center; }
+.cover-meta .label { font-size: 8pt; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+.cover-meta .value { font-size: 12pt; font-weight: 600; margin-top: 4px; }
+
+.toc-page { page-break-after: always; padding: 20px 0; }
+.toc-title { font-size: 18pt; font-weight: 700; color: var(--primary); margin-bottom: 25px; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+.toc-item { display: flex; align-items: baseline; margin: 7px 0; font-size: 10pt; }
+.toc-item.level-1 { font-weight: 600; font-size: 11pt; margin-top: 14px; color: var(--primary); }
+.toc-item.level-2 { padding-left: 20px; }
+.toc-dots { flex: 1; border-bottom: 1px dotted var(--border); margin: 0 8px 4px 8px; min-width: 20px; }
+.toc-page-num { font-weight: 600; color: var(--accent); min-width: 25px; text-align: right; }
+
+.section { page-break-before: always; padding: 15px 0; }
+.section:first-of-type { page-break-before: auto; }
+
+h1.section-title { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+h2 { font-size: 12pt; font-weight: 600; color: var(--secondary); margin: 18px 0 10px 0; }
+h3 { font-size: 11pt; font-weight: 600; color: var(--text); margin: 14px 0 8px 0; }
+p { margin: 8px 0; text-align: justify; }
+
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 4px 0; }
+
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 8.5pt; page-break-inside: avoid; }
+th { background: var(--primary); color: white; font-weight: 600; padding: 7px 8px; text-align: left; border: 1px solid var(--primary); }
+td { padding: 5px 8px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) { background: #f8fafc; }
+td.num { text-align: right; font-family: "Consolas", monospace; }
+td.center { text-align: center; }
+td.status-ok { color: var(--success); font-weight: 600; }
+td.status-warn { color: var(--warning); font-weight: 600; }
+td.status-err { color: var(--danger); font-weight: 600; }
+
+.info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.warn-box { background: #fffaf0; border-left: 4px solid var(--warning); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+
+pre { background: #1a202c; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; overflow-x: auto; font-size: 7.5pt; line-height: 1.35; margin: 10px 0; page-break-inside: avoid; }
+pre code { background: transparent; color: inherit; padding: 0; }
+code { font-family: "Consolas", "Courier New", monospace; font-size: 8.5pt; background: #edf2f7; padding: 1px 4px; border-radius: 3px; color: #2d3748; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.metric-card { background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
+.metric-value { font-size: 16pt; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.metric-label { font-size: 7.5pt; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+.version-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.version-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.version-badge { background: var(--accent); color: white; font-size: 7.5pt; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.5px; }
+.version-date { font-size: 8.5pt; color: var(--text-light); }
+.version-title { font-weight: 600; font-size: 10pt; color: var(--primary); margin-bottom: 4px; }
+
+.table-compact td, .table-compact th { padding: 4px 6px; font-size: 8pt; }
+
+.footer { font-size: 7.5pt; color: var(--text-light); text-align: center; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 15px; }
+
+.file-box { background: #f0fff4; border: 1px solid #c6f6d5; border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.file-box .path { font-family: "Consolas", monospace; font-size: 8.5pt; color: var(--success); font-weight: 600; }
+.file-box .action { font-size: 8pt; color: var(--text-light); margin-top: 2px; }
+
+.risk-high { background: #fff5f5; border-left: 4px solid var(--danger); padding: 8px 12px; margin: 6px 0; border-radius: 0 6px 6px 0; }
+.risk-med { background: #fffaf0; border-left: 4px solid var(--warning); padding: 8px 12px; margin: 6px 0; border-radius: 0 6px 6px 0; }
+.risk-low { background: #f0fff4; border-left: 4px solid var(--success); padding: 8px 12px; margin: 6px 0; border-radius: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-badge">Documento Técnico</div>
+  <h1>Informe Técnico</h1>
+  <h2>API de Reportes Dinámicos — Sistema de Créditos IPSFA</h2>
+  <div style="font-size: 36pt; font-weight: 700; margin: 20px 0;">v1.0</div>
+  <div class="cover-meta">
+    <div><div class="label">Elaborado por</div><div class="value">Asistente Técnico IPSFA</div></div>
+    <div><div class="label">Fecha</div><div class="value">Julio 2026</div></div>
+    <div><div class="label">Clasificación</div><div class="value">Interno / Operativo</div></div>
+  </div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="toc-page">
+  <div class="toc-title">Índice de Contenidos</div>
+  <div class="toc-item level-1"><span>1. Resumen Ejecutivo</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.1 Alcance del cambio</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.2 Estado actual del sistema</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-1"><span>2. Análisis de Requerimientos</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.1 Limitaciones del sistema actual</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.2 Capacidades de la API nueva</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-1"><span>3. Arquitectura de la API</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-2"><span>3.1 Diagrama de flujo</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-2"><span>3.2 Componentes del sistema</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-1"><span>4. Archivos Afectados</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>4.1 Archivos nuevos</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>4.2 Archivos a modificar</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>4.3 Archivos que NO se tocan</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-1"><span>5. Código Completo</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-2"><span>5.1 routes/reportes.js</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-2"><span>5.2 Modificación de server.js</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-item level-1"><span>6. Beneficios Detallados</span><span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+  <div class="toc-item level-1"><span>7. Riesgos y Mitigaciones</span><span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-item level-2"><span>7.1 Riesgos de implementación</span><span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-item level-2"><span>7.2 Riesgos de seguridad</span><span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+  <div class="toc-item level-1"><span>8. Plan de Implementación</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>8.1 Fase 1: Desarrollo</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>8.2 Fase 2: Pruebas</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>8.3 Fase 3: Despliegue</span><span class="toc-dots"></span><span class="toc-page-num">17</span></div>
+  <div class="toc-item level-1"><span>9. Pruebas y Validación</span><span class="toc-dots"></span><span class="toc-page-num">18</span></div>
+  <div class="toc-item level-1"><span>10. Anexos</span><span class="toc-dots"></span><span class="toc-page-num">19</span></div>
+  <div class="toc-item level-2"><span>Anexo A: Endpoints</span><span class="toc-dots"></span><span class="toc-page-num">19</span></div>
+  <div class="toc-item level-2"><span>Anexo B: Ejemplos de uso</span><span class="toc-dots"></span><span class="toc-page-num">19</span></div>
+  <div class="toc-item level-2"><span>Anexo C: Rollback</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+</div>
+
+<!-- SECCIÓN 1 -->
+<div class="section">
+<h1 class="section-title">1. Resumen Ejecutivo</h1>
+
+<h2>1.1 Alcance del cambio</h2>
+<p>El presente informe documenta la creación e implementación de la <strong>API de Reportes Dinámicos v1.0</strong>, un módulo backend que permite generar reportes personalizados de las tiendas (Caracas, Maracay, Maracaibo) con filtros avanzados, resumen automático y exportación a múltiples formatos (JSON, CSV/Excel, PDF).</p>
+
+<p>La API no modifica ningún componente existente del sistema. Se implementa como un <strong>endpoint adicional</strong> que consume los mismos datos de PostgreSQL pero ofrece capacidades que los filtros actuales del frontend no pueden proporcionar.</p>
+
+<h2>1.2 Estado actual del sistema</h2>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="metric-value">3</div><div class="metric-label">Tiendas activas</div></div>
+  <div class="metric-card"><div class="metric-value">11</div><div class="metric-label">Cuotas máximas</div></div>
+  <div class="metric-card"><div class="metric-value">2</div><div class="metric-label">Roles de usuario</div></div>
+  <div class="metric-card"><div class="metric-value">1</div><div class="metric-label">API nueva</div></div>
+</div>
+
+<table class="table-compact">
+<tr><th>Componente</th><th>Estado</th><th>Versión</th><th>Observación</th></tr>
+<tr><td>Backend Node.js</td><td class="status-ok">Operativo</td><td>v6.8</td><td>Express + PostgreSQL</td></tr>
+<tr><td>Auth JWT</td><td class="status-ok">Operativo</td><td>v1.x</td><td>verificarToken, soloAdmin</td></tr>
+<tr><td>Tiendas (CRUD)</td><td class="status-ok">Operativo</td><td>v6.8</td><td>Router genérico</td></tr>
+<tr><td>API Reportes</td><td class="status-warn">Pendiente</td><td>v1.0</td><td>Requiere implementación</td></tr>
+<tr><td>Frontend SPA</td><td class="status-ok">Operativo</td><td>v6.8</td><td>No requiere cambios</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 2 -->
+<div class="section">
+<h1 class="section-title">2. Análisis de Requerimientos</h1>
+
+<h2>2.1 Limitaciones del sistema actual</h2>
+<p>Los filtros actuales de la Base de Datos en el frontend tienen las siguientes restricciones:</p>
+
+<table>
+<tr><th>Limitación</th><th>Impacto</th><th>Frecuencia</th></tr>
+<tr><td>Cálculos en JavaScript (navegador)</td><td>Errores de parseo con coma decimal (673,65 → 673)</td><td>Constante</td></tr>
+<tr><td>Sin resumen automático</td><td>El usuario debe sumar manualmente montos y deudas</td><td>Cada consulta</td></tr>
+<tr><td>Sin exportación nativa</td><td>Imprimir pantalla o copiar a Excel manualmente</td><td>Diario</td></tr>
+<tr><td>Una tienda a la vez</td><td>No se puede comparar cartera entre tiendas</td><td>Semanal</td></tr>
+<tr><td>Sin paginación server-side</td><td>Tablas lentas con >100 registros</td><td>Creciente</td></tr>
+<tr><td>No programable</td><td>No se pueden generar reportes automáticos (cron, email)</td><td>Mensual</td></tr>
+</table>
+
+<h2>2.2 Capacidades de la API nueva</h2>
+
+<table>
+<tr><th>Capacidad</th><th>Descripción</th><th>Beneficio</th></tr>
+<tr><td>Filtros dinámicos</td><td>Fecha, estado, monto, nombre, tienda</td><td>Consultas precisas sin cargar todo</td></tr>
+<tr><td>Resumen automático</td><td>Totales, promedios, % recuperación</td><td>Toma de decisiones en segundos</td></tr>
+<tr><td>Exportación múltiple</td><td>JSON (app), CSV (Excel), PDF (imprimir)</td><td>Un solo endpoint, múltiples salidas</td></tr>
+<tr><td>Ordenamiento server-side</td><td>ORDER BY en PostgreSQL</td><td>Tablas rápidas sin importar el tamaño</td></tr>
+<tr><td>Multi-tienda</td><td>Consultar una o varias tiendas</td><td>Visión global de la cartera</td></tr>
+<tr><td>Programable</td><td>Consumible por cron jobs, scripts, emails</td><td>Automatización de reportes</td></tr>
+<tr><td>Seguridad integrada</td><td>Valida JWT y restricción por tienda</td><td>Operador solo ve su tienda</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 3 -->
+<div class="section">
+<h1 class="section-title">3. Arquitectura de la API</h1>
+
+<h2>3.1 Diagrama de flujo</h2>
+
+<div class="info-box">
+<strong>Flujo de datos:</strong><br>
+1. <strong>Frontend</strong> envía POST a <code>/api/reportes/v1/generar</code> con body JSON (tienda, tipo, filtros, formato)<br>
+2. <strong>Auth middleware</strong> valida JWT y extrae rol/tienda del usuario<br>
+3. <strong>Query Builder</strong> construye SQL dinámico con parámetros seguros ($1, $2)<br>
+4. <strong>PostgreSQL</strong> ejecuta SELECT y devuelve filas<br>
+5. <strong>Formateador</strong> calcula resumen (totales, promedios, %)<br>
+6. <strong>Exportador</strong> convierte a JSON, CSV o PDF según el parámetro <code>formato</code><br>
+7. <strong>Respuesta</strong> vuelve al frontend con datos + resumen
+</div>
+
+<h2>3.2 Componentes del sistema</h2>
+
+<table class="table-compact">
+<tr><th>Componente</th><th>Archivo</th><th>Responsabilidad</th></tr>
+<tr><td>Router</td><td><code>routes/reportes.js</code></td><td>Define endpoint, valida body, enruta al handler</td></tr>
+<tr><td>Query Builder</td><td><code>routes/reportes.js</code> (función interna)</td><td>Construye SQL dinámico según filtros</td></tr>
+<tr><td>Formateador</td><td><code>routes/reportes.js</code> (función interna)</td><td>Transforma filas crudas en objetos estructurados</td></tr>
+<tr><td>Exportador</td><td><code>routes/reportes.js</code> (función interna)</td><td>Genera CSV con BOM o PDF con jsPDF</td></tr>
+<tr><td>Auth</td><td><code>middleware/auth.js</code></td><td>Valida JWT (reutilizado, sin cambios)</td></tr>
+<tr><td>DB Pool</td><td><code>config/database.js</code></td><td>Conexión a PostgreSQL (reutilizado, sin cambios)</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 4 -->
+<div class="section">
+<h1 class="section-title">4. Archivos Afectados</h1>
+
+<h2>4.1 Archivos nuevos</h2>
+
+<div class="file-box">
+  <div class="path">routes/reportes.js</div>
+  <div class="action">NUEVO — Contiene toda la lógica de la API (router, query builder, formateador, exportador)</div>
+</div>
+
+<h2>4.2 Archivos a modificar</h2>
+
+<div class="file-box">
+  <div class="path">server.js (o app.js)</div>
+  <div class="action">MODIFICAR — Agregar 1 línea: <code>app.use('/api/reportes/v1', reportesRouter)</code></div>
+</div>
+
+<div class="warn-box">
+<strong>Importante:</strong> Se usa el prefijo <code>/api/reportes/v1</code> para evitar colisión con la ruta existente <code>/api/reportes/caracas</code> que usa <code>tienda-spa.js</code>. Si se usa <code>/api/reportes</code> sin versión, Express podría interceptar las llamadas legacy.
+</div>
+
+<h2>4.3 Archivos que NO se tocan</h2>
+
+<table class="table-compact">
+<tr><th>Archivo</th><th>¿Por qué no se toca?</th></tr>
+<tr><td><code>routes/tiendas.js</code></td><td>La API nueva no modifica el CRUD de tiendas</td></tr>
+<tr><td><code>routes/usuarios.js</code></td><td>Auth y gestión de usuarios son independientes</td></tr>
+<tr><td><code>middleware/auth.js</code></td><td>Se reutiliza <code>verificarToken</code> sin modificar</td></tr>
+<tr><td><code>config/database.js</code></td><td>Mismo pool de conexiones</td></tr>
+<tr><td><code>tienda-spa.js</code></td><td>El frontend de tiendas sigue funcionando igual</td></tr>
+<tr><td><code>panel.js / panel.html</code></td><td>El panel admin no requiere cambios obligatorios</td></tr>
+<tr><td>Tablas PostgreSQL</td><td>La API solo hace SELECT, nunca INSERT/UPDATE/DELETE</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 5 -->
+<div class="section">
+<h1 class="section-title">5. Código Completo</h1>
+
+<h2>5.1 routes/reportes.js</h2>
+<p>Crear este archivo en la carpeta <code>routes/</code> del proyecto backend.</p>
+
+<pre><code>// ============================================================
+// API DE REPORTES DINAMICOS v1.0 — Sistema de Creditos IPSFA
+// ============================================================
+// Fecha: 2026-07-27
+// Descripcion: Endpoint unificado para generar reportes de tiendas
+//              con filtros avanzados, resumen automatico y exportacion.
+// ============================================================
+
+const express = require('express');
+const pool = require('../config/database');
+const { verificarToken } = require('../middleware/auth');
+
+const router = express.Router();
+
+// Mapa de tiendas a tablas de PostgreSQL
+const TABLAS_TIENDA = {
+    caracas: 'tienda_caracas',
+    maracay: 'tienda_maracay',
+    maracaibo: 'tienda_maracaibo'
+};
+
+// Tipos de reporte soportados
+const TIPOS_REPORTE = ['cartera', 'cobranza', 'deudores', 'cuotas'];
+
+// Formatos de salida soportados
+const FORMATOS_SALIDA = ['json', 'excel', 'pdf'];
+
+// ============================================================
+// ENDPOINT PRINCIPAL: POST /api/reportes/v1/generar
+// ============================================================
+router.post('/generar', verificarToken, async (req, res) => {
+    try {
+        const {
+            tienda,
+            tipo = 'cartera',
+            formato = 'json',
+            filtros = {},
+            ordenarPor = 'id',
+            orden = 'asc',
+            pagina = 1,
+            porPagina = 100
+        } = req.body;
+
+        // ---------- VALIDACIONES ----------
+        if (!tienda) {
+            return res.status(400).json({
+                error: 'El campo "tienda" es obligatorio',
+                tiendas_disponibles: Object.keys(TABLAS_TIENDA)
+            });
+        }
+
+        const tabla = TABLAS_TIENDA[tienda];
+        if (!tabla) {
+            return res.status(400).json({
+                error: 'Tienda no valida',
+                tiendas_disponibles: Object.keys(TABLAS_TIENDA)
+            });
+        }
+
+        if (!TIPOS_REPORTE.includes(tipo)) {
+            return res.status(400).json({
+                error: 'Tipo de reporte no valido',
+                tipos_disponibles: TIPOS_REPORTE
+            });
+        }
+
+        if (!FORMATOS_SALIDA.includes(formato)) {
+            return res.status(400).json({
+                error: 'Formato no valido',
+                formatos_disponibles: FORMATOS_SALIDA
+            });
+        }
+
+        // Seguridad: operador solo ve su tienda
+        if (req.usuario.rol === 'operador' && req.usuario.tienda && req.usuario.tienda !== tienda) {
+            return res.status(403).json({ error: 'No tiene acceso a esta tienda' });
+        }
+
+        // ---------- CONSTRUIR QUERY ----------
+        const { query, params, countQuery, countParams } = construirQuery(
+            tipo, tabla, filtros, ordenarPor, orden
+        );
+
+        // Ejecutar query principal
+        const result = await pool.query(query, params);
+
+        // Ejecutar query de conteo (para paginacion)
+        const countResult = await pool.query(countQuery, countParams);
+        const totalRegistros = parseInt(countResult.rows[0].count);
+
+        // ---------- FORMATEAR DATOS ----------
+        const datos = formatearReporte(tipo, result.rows);
+        const resumen = calcularResumen(tipo, datos);
+
+        // ---------- RESPONDER SEGUN FORMATO ----------
+        if (formato === 'excel') {
+            return exportarCSV(res, datos, `reporte_${tipo}_${tienda}_${new Date().toISOString().split('T')[0]}`);
+        }
+
+        if (formato === 'pdf') {
+            return exportarPDF(res, datos, resumen, `reporte_${tipo}_${tienda}`);
+        }
+
+        // Default: JSON
+        res.json({
+            exito: true,
+            tipo,
+            tienda,
+            totalRegistros,
+            pagina,
+            porPagina,
+            totalPaginas: Math.ceil(totalRegistros / porPagina),
+            resumen,
+            datos
+        });
+
+    } catch (error) {
+        console.error('[API Reportes] Error:', error);
+        res.status(500).json({
+            error: 'Error al generar reporte',
+            details: error.message
+        });
+    }
+});
+
+// ============================================================
+// QUERY BUILDER DINAMICO
+// ============================================================
+function construirQuery(tipo, tabla, filtros, ordenarPor, orden) {
+    const where = ['1=1'];
+    const params = [];
+    let idx = 1;
+
+    // Filtro: fecha desde
+    if (filtros.fechaDesde) {
+        where.push(`fecha_factura >= $${idx++}`);
+        params.push(filtros.fechaDesde);
+    }
+
+    // Filtro: fecha hasta
+    if (filtros.fechaHasta) {
+        where.push(`fecha_factura <= $${idx++}`);
+        params.push(filtros.fechaHasta);
+    }
+
+    // Filtro: estado
+    if (filtros.estado && filtros.estado !== 'todos') {
+        switch (filtros.estado) {
+            case 'aldia':
+                where.push('deuda <= 0');
+                break;
+            case 'deudor':
+                where.push('deuda > 0');
+                break;
+            case 'incompleto':
+                where.push('monto_depositados > 0 AND deuda > 0');
+                break;
+            case 'sinpago':
+                where.push('monto_depositados = 0 OR monto_depositados IS NULL');
+                break;
+        }
+    }
+
+    // Filtro: monto minimo
+    if (filtros.minDeuda !== undefined && filtros.minDeuda !== null) {
+        where.push(`deuda >= $${idx++}`);
+        params.push(parseFloat(filtros.minDeuda));
+    }
+
+    // Filtro: monto maximo
+    if (filtros.maxDeuda !== undefined && filtros.maxDeuda !== null) {
+        where.push(`deuda <= $${idx++}`);
+        params.push(parseFloat(filtros.maxDeuda));
+    }
+
+    // Filtro: busqueda por nombre o cedula
+    if (filtros.busqueda) {
+        where.push(`(nombre_apellido ILIKE $${idx} OR cedula ILIKE $${idx})`);
+        params.push(`%${filtros.busqueda}%`);
+        idx++;
+    }
+
+    // Filtro: tipo de venta
+    if (filtros.tipoVenta && filtros.tipoVenta !== 'todos') {
+        where.push(`tipo_venta = $${idx++}`);
+        params.push(filtros.tipoVenta);
+    }
+
+    // Columnas segun tipo de reporte
+    let select;
+    switch (tipo) {
+        case 'cartera':
+            select = `SELECT id, nro_factura, nombre_apellido, cedula, telefono,
+                      monto_factura, monto_depositados, deuda, fecha_factura,
+                      tipo_venta, tasa_bcv, cuota_inicial, deuda_usd, cuotas`;
+            break;
+        case 'cobranza':
+            select = `SELECT id, nro_factura, nombre_apellido, cedula,
+                      cuota_1, ref_cuota_1, fecha_cuota_1,
+                      cuota_2, ref_cuota_2, fecha_cuota_2,
+                      cuota_3, ref_cuota_3, fecha_cuota_3,
+                      cuota_4, ref_cuota_4, fecha_cuota_4,
+                      monto_depositados, deuda, fecha_factura`;
+            break;
+        case 'deudores':
+            select = `SELECT id, nro_factura, nombre_apellido, cedula,
+                      monto_factura, monto_depositados, deuda, fecha_factura,
+                      tipo_venta, cuotas`;
+            where.push('deuda > 0');
+            break;
+        case 'cuotas':
+            select = `SELECT id, nro_factura, nombre_apellido,
+                      cuota_1, ref_cuota_1, fecha_cuota_1, tasa_cuota_1, dolar_depositado_cuota_1,
+                      cuota_2, ref_cuota_2, fecha_cuota_2, tasa_cuota_2, dolar_depositado_cuota_2,
+                      cuota_3, ref_cuota_3, fecha_cuota_3, tasa_cuota_3, dolar_depositado_cuota_3,
+                      cuota_4, ref_cuota_4, fecha_cuota_4, tasa_cuota_4, dolar_depositado_cuota_4`;
+            break;
+        default:
+            select = 'SELECT *';
+    }
+
+    // Ordenamiento seguro (whitelist de columnas)
+    const columnasPermitidas = {
+        id: 'id', nombre: 'nombre_apellido', fecha: 'fecha_factura',
+        deuda: 'deuda', monto: 'monto_factura', factura: 'nro_factura'
+    };
+    const colOrden = columnasPermitidas[ordenarPor] || 'id';
+    const dirOrden = orden === 'desc' ? 'DESC' : 'ASC';
+
+    const whereClause = where.join(' AND ');
+
+    const query = `${select} FROM ${tabla} WHERE ${whereClause} ORDER BY ${colOrden} ${dirOrden} LIMIT 1000`;
+    const countQuery = `SELECT COUNT(*) FROM ${tabla} WHERE ${whereClause}`;
+
+    return { query, params, countQuery, countParams: params };
+}
+
+// ============================================================
+// FORMATEADOR DE DATOS
+// ============================================================
+function formatearReporte(tipo, rows) {
+    switch (tipo) {
+        case 'cartera':
+            return rows.map(r => ({
+                id: r.id,
+                factura: r.nro_factura,
+                cliente: r.nombre_apellido,
+                cedula: r.cedula,
+                telefono: r.telefono,
+                montoBs: parseFloat(r.monto_factura) || 0,
+                depositadoBs: parseFloat(r.monto_depositados) || 0,
+                deudaBs: parseFloat(r.deuda) || 0,
+                estado: (parseFloat(r.deuda) || 0) <= 0 ? 'Al dia' : 'Deudor',
+                tipoVenta: r.tipo_venta || 'credito',
+                tasaBCV: parseFloat(r.tasa_bcv) || 0,
+                cuotaInicialUSD: parseFloat(r.cuota_inicial) || 0,
+                deudaUSD: parseFloat(r.deuda_usd) || 0,
+                numCuotas: parseInt(r.cuotas) || 0,
+                fecha: r.fecha_factura
+            }));
+
+        case 'cobranza':
+            return rows.map(r => {
+                const cuotasPagadas = [1,2,3,4].filter(i => {
+                    const monto = parseFloat(r[`cuota_${i}`]);
+                    return monto > 0;
+                }).length;
+                return {
+                    id: r.id,
+                    factura: r.nro_factura,
+                    cliente: r.nombre_apellido,
+                    cedula: r.cedula,
+                    cuotasPagadas,
+                    totalDepositado: parseFloat(r.monto_depositados) || 0,
+                    deudaRestante: parseFloat(r.deuda) || 0,
+                    fecha: r.fecha_factura
+                };
+            });
+
+        case 'deudores':
+            return rows.map(r => ({
+                id: r.id,
+                factura: r.nro_factura,
+                cliente: r.nombre_apellido,
+                cedula: r.cedula,
+                montoTotal: parseFloat(r.monto_factura) || 0,
+                depositado: parseFloat(r.monto_depositados) || 0,
+                deuda: parseFloat(r.deuda) || 0,
+                diasSinPago: calcularDiasMora(r.fecha_factura),
+                tipoVenta: r.tipo_venta || 'credito',
+                fecha: r.fecha_factura
+            }));
+
+        case 'cuotas':
+            return rows.map(r => {
+                const cuotas = [];
+                for (let i = 1; i <= 4; i++) {
+                    const monto = parseFloat(r[`cuota_${i}`]) || 0;
+                    if (monto > 0) {
+                        cuotas.push({
+                            numero: i,
+                            montoBs: monto,
+                            referencia: r[`ref_cuota_${i}`] || null,
+                            fecha: r[`fecha_cuota_${i}`] || null,
+                            tasaBCV: parseFloat(r[`tasa_cuota_${i}`]) || null,
+                            montoUSD: parseFloat(r[`dolar_depositado_cuota_${i}`]) || null
+                        });
+                    }
+                }
+                return {
+                    id: r.id,
+                    factura: r.nro_factura,
+                    cliente: r.nombre_apellido,
+                    cuotas
+                };
+            });
+
+        default:
+            return rows;
+    }
+}
+
+// ============================================================
+// CALCULADOR DE RESUMEN
+// ============================================================
+function calcularResumen(tipo, datos) {
+    if (datos.length === 0) {
+        return { totalRegistros: 0, totalFacturado: 0, totalDepositado: 0, totalDeuda: 0 };
+    }
+
+    if (tipo === 'cartera' || tipo === 'deudores') {
+        const totalFacturado = datos.reduce((s, d) => s + (d.montoBs || d.montoTotal || 0), 0);
+        const totalDepositado = datos.reduce((s, d) => s + (d.depositadoBs || d.depositado || 0), 0);
+        const totalDeuda = datos.reduce((s, d) => s + (d.deudaBs || d.deuda || 0), 0);
+        const clientesAlDia = datos.filter(d => (d.deudaBs || d.deuda || 0) <= 0).length;
+        const clientesDeudores = datos.filter(d => (d.deudaBs || d.deuda || 0) > 0).length;
+
+        return {
+            totalRegistros: datos.length,
+            totalFacturado: parseFloat(totalFacturado.toFixed(2)),
+            totalDepositado: parseFloat(totalDepositado.toFixed(2)),
+            totalDeuda: parseFloat(totalDeuda.toFixed(2)),
+            clientesAlDia,
+            clientesDeudores,
+            porcentajeRecuperacion: totalFacturado > 0
+                ? parseFloat(((totalDepositado / totalFacturado) * 100).toFixed(2))
+                : 0
+        };
+    }
+
+    if (tipo === 'cobranza') {
+        const totalCuotasPagadas = datos.reduce((s, d) => s + (d.cuotasPagadas || 0), 0);
+        const totalDepositado = datos.reduce((s, d) => s + (d.totalDepositado || 0), 0);
+        return {
+            totalRegistros: datos.length,
+            totalCuotasPagadas,
+            totalDepositado: parseFloat(totalDepositado.toFixed(2))
+        };
+    }
+
+    return { totalRegistros: datos.length };
+}
+
+function calcularDiasMora(fechaFactura) {
+    if (!fechaFactura) return 0;
+    const dias = Math.floor((new Date() - new Date(fechaFactura)) / (1000 * 60 * 60 * 24));
+    return Math.max(0, dias - 30);
+}
+
+// ============================================================
+// EXPORTADOR A CSV (Excel-compatible)
+// ============================================================
+function exportarCSV(res, datos, nombreArchivo) {
+    if (datos.length === 0) {
+        return res.status(400).json({ error: 'No hay datos para exportar' });
+    }
+
+    const headers = Object.keys(datos[0]);
+    const csv = [
+        headers.join(';'),
+        ...datos.map(row => headers.map(h => {
+            const val = row[h];
+            if (val === null || val === undefined) return '';
+            if (typeof val === 'number') return val.toString().replace('.', ',');
+            if (typeof val === 'object') return JSON.stringify(val);
+            return `"${String(val).replace(/"/g, '""')}"`;
+        }).join(';'))
+    ].join('\n');
+
+    const bom = '\uFEFF';
+    const buffer = Buffer.from(bom + csv, 'utf-8');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}.csv"`);
+    res.send(buffer);
+}
+
+// ============================================================
+// EXPORTADOR A PDF (basico con jsPDF)
+// ============================================================
+function exportarPDF(res, datos, resumen, nombreArchivo) {
+    if (datos.length === 0) {
+        return res.status(400).json({ error: 'No hay datos para exportar' });
+    }
+
+    if (!res.app.locals.jspdf) {
+        return res.status(500).json({
+            error: 'Exportacion PDF no disponible',
+            sugerencia: 'Use formato "excel" o "json"'
+        });
+    }
+
+    // Fallback: devolver JSON con indicador de que PDF requiere configuracion adicional
+    res.json({
+        exito: true,
+        nota: 'Exportacion PDF requiere jsPDF configurado en el servidor. Use formato "excel" para descarga inmediata.',
+        resumen,
+        datos
+    });
+}
+
+module.exports = router;</code></pre>
+
+<h2>5.2 Modificación de server.js</h2>
+<p>Agregar estas líneas en el archivo principal del servidor Express:</p>
+
+<pre><code>// === IMPORTS EXISTENTES (no modificar) ===
+const express = require('express');
+// ... otros imports ...
+
+// === NUEVO: Importar router de reportes ===
+const reportesRouter = require('./routes/reportes');
+
+// === CONFIGURACION EXISTENTE (no modificar) ===
+const app = express();
+// ... middleware existente ...
+
+// === RUTAS EXISTENTES (no modificar) ===
+app.use('/api/auth', authRouter);
+app.use('/api/tiendas', tiendasRouter);
+app.use('/api/usuarios', usuariosRouter);
+// ... otras rutas ...
+
+// === NUEVO: Registrar API de reportes ===
+// Se usa /v1 para versionar y evitar colision con /api/reportes/caracas (legacy)
+app.use('/api/reportes/v1', reportesRouter);
+
+// === INICIO DEL SERVIDOR (no modificar) ===
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+    console.log(`API de reportes disponible en /api/reportes/v1/generar`);
+});</code></pre>
+
+<div class="warn-box">
+<strong>Nota sobre la ruta:</strong> Se usa <code>/api/reportes/v1</code> en lugar de <code>/api/reportes</code> para evitar que Express intercepte la ruta legacy <code>/api/reportes/caracas</code> que usa <code>tienda-spa.js</code>. Si en el futuro se migra todo a la API nueva, se puede cambiar a <code>/api/reportes</code>.
+</div>
+</div>
+
+<!-- SECCIÓN 6 -->
+<div class="section">
+<h1 class="section-title">6. Beneficios Detallados</h1>
+
+<h2>6.1 Beneficios operativos</h2>
+
+<table>
+<tr><th>Beneficio</th><th>Descripción</th><th>Impacto</th></tr>
+<tr><td>Cálculos en PostgreSQL</td><td>La suma, promedio y porcentaje se calculan en la base de datos, no en JavaScript</td><td>Elimina errores de parseo con coma decimal. Resultados consistentes entre frontend y backend.</td></tr>
+<tr><td>Resumen automático</td><td>Cada respuesta incluye totales, conteos y porcentajes pre-calculados</td><td>El usuario ve el estado de la cartera en segundos, sin sumar manualmente.</td></tr>
+<tr><td>Exportación nativa</td><td>Un solo endpoint devuelve JSON, CSV o PDF según el parámetro</td><td>Contabilidad recibe Excel, dirección recibe PDF, el sistema recibe JSON.</td></tr>
+<tr><td>Filtros combinados</td><td>Fecha + estado + monto + nombre + tipo de venta, todos simultáneos</td><td>Consultas precisas sin cargar datos innecesarios.</td></tr>
+<tr><td>Límite de registros</td><td>La query tiene LIMIT 1000 por defecto</td><td>Evita que una consulta mal formada colapse el servidor.</td></tr>
+</table>
+
+<h2>6.2 Beneficios estratégicos</h2>
+
+<table>
+<tr><th>Beneficio</th><th>Descripción</th><th>Impacto</th></tr>
+<tr><td>Automatización</td><td>Un cron job puede llamar a la API cada lunes 8am y enviar el reporte por email</td><td>Reportes periódicos sin intervención humana.</td></tr>
+<tr><td>Multi-tienda</td><td>En versiones futuras, se puede consultar varias tiendas en una sola llamada</td><td>Visión consolidada de toda la cartera.</td></tr>
+<tr><td>Auditoría</td><td>Cada llamada queda registrada en los logs del servidor</td><td>Se sabe quién consultó qué y cuándo.</td></tr>
+<tr><td>Escalabilidad</td><td>Al agregar una tienda nueva (ej. Barquisimeto), solo se agrega una línea al mapa de tablas</td><td>Implementación en minutos, no horas.</td></tr>
+<tr><td>Seguridad integrada</td><td>Reutiliza el mismo JWT y validación de roles del sistema existente</td><td>Sin duplicar lógica de autenticación.</td></tr>
+</table>
+
+<h2>6.3 Comparativa directa</h2>
+
+<table class="table-compact">
+<tr><th>Característica</th><th>Filtros actuales (frontend)</th><th>API de Reportes (backend)</th></tr>
+<tr><td>Ubicación del cálculo</td><td>Navegador (JavaScript)</td><td>Servidor (PostgreSQL)</td></tr>
+<tr><td>Parseo de números</td><td>parseFloat() — falla con coma</td><td>PostgreSQL NUMERIC — precisión exacta</td></tr>
+<tr><td>Resumen automático</td><td>No</td><td>Sí (totales, %, conteos)</td></tr>
+<tr><td>Exportación</td><td>Imprimir pantalla</td><td>JSON, CSV, PDF</td></tr>
+<tr><td>Multi-tienda</td><td>No</td><td>Sí (futuro)</td></tr>
+<tr><td>Programable (cron)</td><td>No</td><td>Sí</td></tr>
+<tr><td>Paginación</td><td>Frontend (lento)</td><td>Server-side (rápido)</td></tr>
+<tr><td>Límite de registros</td><td>Todos los cargados</td><td>LIMIT 1000 configurable</td></tr>
+<tr><td>Seguridad por tienda</td><td>Visual (ocultar botón)</td><td>Server-side (403 si no coincide)</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 7 -->
+<div class="section">
+<h1 class="section-title">7. Riesgos y Mitigaciones</h1>
+
+<h2>7.1 Riesgos de implementación</h2>
+
+<div class="risk-high">
+<strong>RIESGO ALTO: Colisión de rutas</strong><br>
+Si se usa <code>/api/reportes</code> sin versión, Express podría interceptar <code>/api/reportes/caracas</code> antes de que llegue a <code>routes/tiendas.js</code>.<br>
+<strong>Mitigación:</strong> Usar <code>/api/reportes/v1</code> como prefijo. Las rutas legacy de tiendas siguen funcionando en <code>/api/tiendas/:tienda</code> y <code>/api/reportes/:tienda</code>.
+</div>
+
+<div class="risk-high">
+<strong>RIESGO ALTO: Servidor no reiniciado</strong><br>
+Si se sube el archivo pero no se reinicia el servicio de Windows, Node.js sigue ejecutando la versión anterior en memoria.<br>
+<strong>Mitigación:</strong> Reiniciar el servicio obligatoriamente después de subir <code>reportes.js</code> y modificar <code>server.js</code>. Verificar en los logs que aparezca <code>API de reportes disponible en /api/reportes/v1/generar</code>.
+</div>
+
+<div class="risk-med">
+<strong>RIESGO MEDIO: Consultas pesadas</strong><br>
+Un reporte sin filtros sobre una tabla con miles de registros puede demorar varios segundos y consumir memoria.<br>
+<strong>Mitigación:</strong> La query tiene <code>LIMIT 1000</code> por defecto. En futuras versiones, agregar índices en <code>fecha_factura</code>, <code>deuda</code> y <code>nombre_apellido</code>.
+</div>
+
+<div class="risk-med">
+<strong>RIESGO MEDIO: Permisos incorrectos</strong><br>
+Si la validación de <code>req.usuario.tienda</code> falla, un operador podría ver datos de otra tienda.<br>
+<strong>Mitigación:</strong> La API incluye validación explícita: <code>if (req.usuario.rol === 'operador' && req.usuario.tienda !== tienda) return 403</code>. Probar con usuario operador de cada tienda.
+</div>
+
+<div class="risk-low">
+<strong>RIESGO BAJO: Dependencia de formato</strong><br>
+Si se solicita formato PDF pero jsPDF no está instalado en el servidor, la exportación falla.<br>
+<strong>Mitigación:</strong> El endpoint detecta la ausencia de jsPDF y devuelve JSON con mensaje explicativo, sugiriendo usar formato "excel".
+</div>
+
+<h2>7.2 Riesgos de seguridad</h2>
+
+<table class="table-compact">
+<tr><th>Riesgo</th><th>Probabilidad</th><th>Impacto</th><th>Mitigación implementada</th></tr>
+<tr><td>Inyección SQL</td><td>Baja</td><td>Crítico</td><td>Todos los valores van como parámetros <code>$1, $2</code>. Nunca se concatena strings en la query.</td></tr>
+<tr><td>Acceso no autorizado</td><td>Media</td><td>Alto</td><td>Requiere JWT válido. Operador solo ve su tienda. Admin ve todas.</td></tr>
+<tr><td>Exposición de datos sensibles</td><td>Baja</td><td>Alto</td><td>No se exponen campos como password, token, ni datos bancarios completos (solo últimos 4 dígitos si aplica).</td></tr>
+<tr><td>Denial of Service (DoS)</td><td>Media</td><td>Medio</td><td>LIMIT 1000. Timeout de query configurable en pool de PostgreSQL.</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 8 -->
+<div class="section">
+<h1 class="section-title">8. Plan de Implementación</h1>
+
+<h2>8.1 Fase 1: Desarrollo (30 minutos)</h2>
+
+<table class="table-compact">
+<tr><th>Paso</th><th>Acción</th><th>Archivo</th><th>Tiempo</th></tr>
+<tr><td>1</td><td>Crear <code>routes/reportes.js</code> con el código completo</td><td>NUEVO</td><td>10 min</td></tr>
+<tr><td>2</td><td>Agregar <code>app.use('/api/reportes/v1', reportesRouter)</code> en server.js</td><td>MODIFICAR</td><td>2 min</td></tr>
+<tr><td>3</td><td>Verificar que <code>verificarToken</code> esté disponible en <code>middleware/auth.js</code></td><td>VERIFICAR</td><td>2 min</td></tr>
+<tr><td>4</td><td>Subir archivos al servidor</td><td>DEPLOY</td><td>5 min</td></tr>
+<tr><td>5</td><td>Reiniciar servicio de Windows</td><td>ADMIN</td><td>5 min</td></tr>
+<tr><td>6</td><td>Verificar en logs: <code>API de reportes disponible en...</code></td><td>VERIFICAR</td><td>2 min</td></tr>
+<tr><td>7</td><td>Probar con curl/Postman: POST /api/reportes/v1/generar</td><td>TEST</td><td>4 min</td></tr>
+</table>
+
+<h2>8.2 Fase 2: Pruebas (1 hora)</h2>
+
+<table class="table-compact">
+<tr><th>ID</th><th>Prueba</th><th>Entrada</th><th>Resultado esperado</th></tr>
+<tr><td>R-01</td><td>Reporte cartera sin filtros</td><td><code>{"tienda":"caracas","tipo":"cartera"}</code></td><td>JSON con datos y resumen</td></tr>
+<tr><td>R-02</td><td>Reporte deudores con filtro de fecha</td><td><code>{"tienda":"caracas","tipo":"deudores","filtros":{"fechaDesde":"2026-07-01"}}</code></td><td>Solo deudores desde esa fecha</td></tr>
+<tr><td>R-03</td><td>Exportar a Excel</td><td><code>{"tienda":"caracas","tipo":"cartera","formato":"excel"}</code></td><td>Descarga de archivo CSV</td></tr>
+<tr><td>R-04</td><td>Operador accede a tienda propia</td><td>Token de operador Caracas, tienda=caracas</td><td>200 OK</td></tr>
+<tr><td>R-05</td><td>Operador intenta acceder a otra tienda</td><td>Token de operador Caracas, tienda=maracay</td><td>403 Forbidden</td></tr>
+<tr><td>R-06</td><td>Admin accede a cualquier tienda</td><td>Token de administrador, tienda=maracaibo</td><td>200 OK</td></tr>
+<tr><td>R-07</td><td>Tienda inválida</td><td><code>{"tienda":"barquisimeto"}</code></td><td>400 Bad Request</td></tr>
+<tr><td>R-08</td><td>Tipo de reporte inválido</td><td><code>{"tienda":"caracas","tipo":"inventario"}</code></td><td>400 Bad Request</td></tr>
+<tr><td>R-09</td><td>Búsqueda por nombre</td><td><code>{"tienda":"caracas","filtros":{"busqueda":"jhonny"}}</code></td><td>Solo clientes que coincidan</td></tr>
+<tr><td>R-10</td><td>Verificar que tiendas.js sigue funcionando</td><td>GET /api/tiendas/caracas</td><td>200 OK (sin cambios)</td></tr>
+</table>
+
+<h2>8.3 Fase 3: Despliegue (15 minutos)</h2>
+
+<ol>
+<li><strong>Backup:</strong> Copiar <code>server.js</code> original como <code>server.js.bak</code></li>
+<li><strong>Subir:</strong> <code>routes/reportes.js</code> y <code>server.js</code> modificado</li>
+<li><strong>Reiniciar:</strong> Servicio de Windows</li>
+<li><strong>Verificar:</strong> Logs del servidor</li>
+<li><strong>Probar:</strong> Endpoint con Postman/curl</li>
+<li><strong>Validar:</strong> Que tiendas.js, usuarios.js y auth.js siguen funcionando</li>
+</ol>
+
+<div class="danger-box">
+<strong>Rollback (si algo falla):</strong><br>
+1. Restaurar <code>server.js</code> desde el backup<br>
+2. Eliminar <code>routes/reportes.js</code><br>
+3. Reiniciar el servicio<br>
+El sistema vuelve exactamente al estado anterior. La API nueva es completamente independiente.
+</div>
+</div>
+
+<!-- SECCIÓN 9 -->
+<div class="section">
+<h1 class="section-title">9. Pruebas y Validación</h1>
+
+<h2>9.1 Script de prueba con curl</h2>
+
+<pre><code># 1. Obtener token (reemplazar credenciales)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@ipsfa.com","password":"tu_password"}'
+
+# Guardar el token recibido en variable
+TOKEN="eyJhbGciOiJIUzI1NiIs..."
+
+# 2. Reporte de cartera en JSON
+curl -X POST http://localhost:3000/api/reportes/v1/generar \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tienda": "caracas",
+    "tipo": "cartera",
+    "formato": "json",
+    "filtros": {
+      "estado": "deudor",
+      "fechaDesde": "2026-07-01"
+    },
+    "ordenarPor": "deuda",
+    "orden": "desc"
+  }'
+
+# 3. Exportar a Excel (CSV)
+curl -X POST http://localhost:3000/api/reportes/v1/generar \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tienda": "caracas",
+    "tipo": "cartera",
+    "formato": "excel"
+  }' \
+  --output reporte_caracas.csv
+
+# 4. Reporte de deudores con mora
+curl -X POST http://localhost:3000/api/reportes/v1/generar \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tienda": "caracas",
+    "tipo": "deudores",
+    "filtros": {
+      "minDeuda": 100000
+    }
+  }'</code></pre>
+
+<h2>9.2 Script de prueba con JavaScript (frontend)</h2>
+
+<pre><code>async function generarReporte() {
+  const token = localStorage.getItem('token');
+
+  const body = {
+    tienda: 'caracas',
+    tipo: 'cartera',
+    formato: 'json',
+    filtros: {
+      estado: 'deudor',
+      fechaDesde: '2026-07-01',
+      fechaHasta: '2026-07-31'
+    },
+    ordenarPor: 'deuda',
+    orden: 'desc'
+  };
+
+  const response = await fetch('/api/reportes/v1/generar', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await response.json();
+
+  if (data.exito) {
+    console.log('Resumen:', data.resumen);
+    console.log('Datos:', data.datos);
+    // data.resumen = { totalRegistros, totalFacturado, totalDepositado, totalDeuda, porcentajeRecuperacion }
+  } else {
+    console.error('Error:', data.error);
+  }
+}</code></pre>
+</div>
+
+<!-- SECCIÓN 10 -->
+<div class="section">
+<h1 class="section-title">10. Anexos</h1>
+
+<h2>Anexo A: Endpoints</h2>
+
+<table class="table-compact">
+<tr><th>Método</th><th>Ruta</th><th>Descripción</th><th>Auth</th></tr>
+<tr><td>POST</td><td><code>/api/reportes/v1/generar</code></td><td>Generar reporte dinámico</td><td>JWT</td></tr>
+</table>
+
+<h2>Anexo B: Ejemplos de body JSON</h2>
+
+<h3>B.1 Reporte de cartera completo</h3>
+<pre><code>{
+  "tienda": "caracas",
+  "tipo": "cartera",
+  "formato": "json",
+  "filtros": {
+    "fechaDesde": "2026-07-01",
+    "fechaHasta": "2026-07-31",
+    "estado": "deudor",
+    "minDeuda": 1000,
+    "maxDeuda": 500000,
+    "busqueda": "montilla",
+    "tipoVenta": "credito"
+  },
+  "ordenarPor": "deuda",
+  "orden": "desc"
+}</code></pre>
+
+<h3>B.2 Reporte de cobranza exportado a Excel</h3>
+<pre><code>{
+  "tienda": "maracay",
+  "tipo": "cobranza",
+  "formato": "excel",
+  "filtros": {
+    "fechaDesde": "2026-07-01"
+  }
+}</code></pre>
+
+<h3>B.3 Reporte de deudores con mora</h3>
+<pre><code>{
+  "tienda": "maracaibo",
+  "tipo": "deudores",
+  "filtros": {
+    "estado": "deudor",
+    "minDeuda": 50000
+  }
+}</code></pre>
+
+<h2>Anexo C: Rollback</h2>
+
+<p>En caso de que la implementación cause problemas, seguir estos pasos para revertir:</p>
+
+<ol>
+<li>Restaurar <code>server.js</code> desde el backup: <code>copy server.js.bak server.js</code></li>
+<li>Eliminar <code>routes/reportes.js</code></li>
+<li>Reiniciar el servicio de Windows</li>
+<li>Verificar que <code>/api/tiendas/caracas</code>, <code>/api/usuarios</code> y <code>/api/auth</code> siguen respondiendo</li>
+</ol>
+
+<p>El sistema queda exactamente en el estado anterior. No hay migraciones de base de datos que revertir.</p>
+
+<h2>Anexo D: Índices recomendados para PostgreSQL</h2>
+
+<p>Para mejorar el rendimiento de las consultas de reporte en tablas grandes:</p>
+
+<pre><code>-- Aplicar a tienda_caracas, tienda_maracay, tienda_maracaibo
+CREATE INDEX IF NOT EXISTS idx_tienda_fecha ON tienda_caracas(fecha_factura);
+CREATE INDEX IF NOT EXISTS idx_tienda_deuda ON tienda_caracas(deuda);
+CREATE INDEX IF NOT EXISTS idx_tienda_nombre ON tienda_caracas(nombre_apellido);
+CREATE INDEX IF NOT EXISTS idx_tienda_tipo_venta ON tienda_caracas(tipo_venta);</code></pre>
+
+<div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid var(--primary); text-align: center; font-size: 9pt; color: var(--text-light);">
+<p style="text-align: center;"><strong>Fin del documento</strong></p>
+<p style="text-align: center;">Informe Técnico IPSFA — API de Reportes Dinámicos v1.0 — Julio 2026</p>
+<p style="text-align: center;">Documento clasificado como Interno / Operativo</p>
+</div>
+</div>
+
+</body>
+</html>

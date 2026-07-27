@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manual de Instalacion - Servicio IPSFA</title>
+<style>
+@page { size: A4; margin: 20mm 15mm 20mm 15mm; }
+:root { --primary: #1a3a5c; --secondary: #2c5282; --accent: #3182ce; --success: #38a169; --warning: #d69e2e; --danger: #e53e3e; --text: #2d3748; --text-light: #718096; --bg: #f7fafc; --border: #e2e8f0; }
+* { box-sizing: border-box; }
+body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10pt; line-height: 1.6; color: var(--text); margin: 0; padding: 0; }
+.cover { page-break-after: always; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 50%, #3182ce 100%); color: white; padding: 40px; }
+.cover-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 6px 20px; font-size: 9pt; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
+.cover h1 { font-size: 28pt; font-weight: 700; margin: 0 0 15px 0; line-height: 1.2; }
+.cover h2 { font-size: 14pt; font-weight: 400; margin: 0 0 40px 0; opacity: 0.9; }
+.cover-meta { display: flex; gap: 40px; margin-top: 20px; font-size: 10pt; opacity: 0.85; }
+.cover-meta div { text-align: center; }
+.cover-meta .label { font-size: 8pt; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+.cover-meta .value { font-size: 12pt; font-weight: 600; margin-top: 4px; }
+.section { page-break-before: always; padding: 15px 0; }
+.section:first-of-type { page-break-before: auto; }
+h1.section-title { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+h2 { font-size: 12pt; font-weight: 600; color: var(--secondary); margin: 18px 0 10px 0; }
+h3 { font-size: 11pt; font-weight: 600; color: var(--text); margin: 14px 0 8px 0; }
+p { margin: 8px 0; text-align: justify; }
+.step-card { border: 2px solid var(--border); border-radius: 10px; padding: 15px 18px; margin: 12px 0; page-break-inside: avoid; }
+.step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.step-number { background: var(--accent); color: white; font-size: 14pt; font-weight: 700; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.step-title { font-size: 12pt; font-weight: 700; color: var(--primary); }
+.code-block { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: "Consolas", "Courier New", monospace; font-size: 9pt; line-height: 1.5; overflow-wrap: break-word; }
+.code-block .comment { color: #6a9955; }
+.code-block .cmd { color: #ce9178; }
+.info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.warn-box { background: #fffaf0; border-left: 4px solid var(--warning); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; page-break-inside: avoid; }
+th { background: var(--primary); color: white; font-weight: 600; padding: 8px 10px; text-align: left; border: 1px solid var(--primary); }
+td { padding: 6px 10px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) { background: #f8fafc; }
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 4px 0; }
+.footer { font-size: 8pt; color: var(--text-light); text-align: center; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-badge">Manual de Instalacion</div>
+  <h1>Servicio IPSFA</h1>
+  <h2>Guia paso a paso para instalar, ejecutar y detener el sistema como servicio de Windows</h2>
+  <div style="font-size: 36pt; font-weight: 700; margin: 20px 0;">v6.7</div>
+  <div class="cover-meta">
+    <div><div class="label">Elaborado</div><div class="value">Julio 2026</div></div>
+    <div><div class="label">Clasificacion</div><div class="value">Interno / Operativo</div></div>
+    <div><div class="label">Version</div><div class="value">1.0</div></div>
+  </div>
+</div>
+
+<div class="section">
+<h1 class="section-title">Contenido</h1>
+<ol>
+  <li>Requisitos Previos</li>
+  <li>Instalar Node.js</li>
+  <li>Instalar PostgreSQL</li>
+  <li>Copiar el Proyecto</li>
+  <li>Instalar Dependencias</li>
+  <li>Configurar la Base de Datos</li>
+  <li>Probar Manualmente</li>
+  <li>Descargar NSSM</li>
+  <li>Crear el Servicio con NSSM</li>
+  <li>Configurar Auto-inicio y Logs</li>
+  <li>Iniciar el Servicio</li>
+  <li>Verificar que Funciona</li>
+  <li>Comandos para Gestionar el Servicio</li>
+  <li>Detener el Servicio</li>
+  <li>Eliminar el Servicio</li>
+  <li>Solucion de Problemas</li>
+</ol>
+</div>
+
+<div class="section">
+<h1 class="section-title">1. Requisitos Previos</h1>
+<p>Antes de comenzar, asegurate de que la PC cumpla con estos requisitos:</p>
+<table>
+<tr><th>Requisito</th><th>Version Minima</th><th>Descarga</th></tr>
+<tr><td>Windows</td><td>Windows 10 (64 bits)</td><td>---</td></tr>
+<tr><td>Node.js</td><td>v18 LTS o superior</td><td>https://nodejs.org</td></tr>
+<tr><td>PostgreSQL</td><td>v14 o superior</td><td>https://postgresql.org/download</td></tr>
+<tr><td>NSSM</td><td>v2.24</td><td>https://nssm.cc/release/nssm-2.24.zip</td></tr>
+</table>
+<div class="info-box">
+<strong>Nota:</strong> Si la PC destino ya tiene Node.js y PostgreSQL instalados, solo necesitas copiar el proyecto y configurar el servicio.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">2. Instalar Node.js</h1>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">1</div>
+    <div class="step-title">Descargar el instalador</div>
+  </div>
+  <p>Ve a <strong>https://nodejs.org</strong> y descarga la version <strong>LTS</strong> (recomendada).</p>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">2</div>
+    <div class="step-title">Ejecutar el instalador</div>
+  </div>
+  <p>Abre el archivo <code>.msi</code> descargado y sigue el asistente:</p>
+  <ul>
+    <li>Acepta el acuerdo de licencia</li>
+    <li>Deja la ruta de instalacion por defecto: <code>C:\Program Files
+odejs\</code></li>
+    <li>Asegurate de que este marcada la opcion <strong>"Add to PATH"</strong></li>
+    <li>Finaliza la instalacion</li>
+  </ul>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">3</div>
+    <div class="step-title">Verificar la instalacion</div>
+  </div>
+  <p>Abre <strong>CMD</strong> y ejecuta:</p>
+  <div class="code-block">
+    <span class="cmd">node --version</span>
+  </div>
+  <p>Debe mostrar algo como <code>v20.15.0</code> o superior.</p>
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">3. Instalar PostgreSQL</h1>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">1</div>
+    <div class="step-title">Descargar PostgreSQL</div>
+  </div>
+  <p>Ve a <strong>https://postgresql.org/download</strong> y descarga el instalador para Windows.</p>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">2</div>
+    <div class="step-title">Ejecutar el instalador</div>
+  </div>
+  <ul>
+    <li>Selecciona los componentes: <strong>PostgreSQL Server</strong> y <strong>pgAdmin</strong></li>
+    <li>Establece una contrasena para el usuario <code>postgres</code> (guardala, la necesitaras)</li>
+    <li>Deja el puerto por defecto: <strong>5432</strong></li>
+    <li>Finaliza la instalacion</li>
+  </ul>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">3</div>
+    <div class="step-title">Crear la base de datos</div>
+  </div>
+  <p>Abre <strong>pgAdmin</strong> o <strong>psql</strong> y crea la base de datos:</p>
+  <div class="code-block">
+    <span class="cmd">CREATE DATABASE ipsfa;</span>
+  </div>
+</div>
+<div class="warn-box">
+<strong>Importante:</strong> Si estas migrando desde otra PC, restaura el backup de la base de datos en lugar de crearla desde cero.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">4. Copiar el Proyecto</h1>
+<p>Copia la carpeta completa del proyecto a la nueva PC. Por ejemplo:</p>
+<table>
+<tr><th>Origen (PC anterior)</th><th>Destino (PC nueva)</th></tr>
+<tr><td><code>C:\Users\jhonny\Desktop\creditos</code></td><td><code>C:\creditos</code></td></tr>
+</table>
+<div class="info-box">
+<strong>Contenido minimo que debe tener la carpeta:</strong>
+<ul>
+  <li><code>server.js</code> (o <code>app.js</code>) --- archivo principal del servidor</li>
+  <li><code>package.json</code> --- dependencias del proyecto</li>
+  <li><code>src/</code> --- codigo fuente</li>
+  <li><code>database/</code> --- scripts SQL (opcional)</li>
+</ul>
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">5. Instalar Dependencias</h1>
+<p>Abre <strong>CMD</strong> y navega a la carpeta del proyecto:</p>
+<div class="code-block">
+  <span class="cmd">cd /d "C:\creditos"</span><br>
+  <span class="cmd">npm install</span>
+</div>
+<p>Esto instalara todas las librerias listadas en <code>package.json</code> (express, pg, cors, etc.).</p>
+<div class="success-box">
+<strong>Resultado esperado:</strong> Veras mensajes de instalacion y al final <code>added X packages</code>.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">6. Configurar la Base de Datos</h1>
+<p>Verifica que la configuracion de conexion en tu <code>server.js</code> (o archivo de configuracion) apunte a la nueva base de datos:</p>
+<div class="code-block">
+  <span class="comment">// Ejemplo de configuracion tipica</span><br>
+  const dbConfig = {<br>
+  &nbsp;&nbsp;host: 'localhost',<br>
+  &nbsp;&nbsp;port: 5432,<br>
+  &nbsp;&nbsp;database: 'ipsfa',<br>
+  &nbsp;&nbsp;user: 'postgres',<br>
+  &nbsp;&nbsp;password: 'TU_CONTRASENA'<br>
+  };
+</div>
+<div class="warn-box">
+<strong>Atencion:</strong> Actualiza la contrasena si es diferente en la nueva PC.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">7. Probar Manualmente</h1>
+<p>Antes de crear el servicio, prueba que el servidor arranca correctamente:</p>
+<div class="code-block">
+  <span class="cmd">cd /d "C:\creditos"</span><br>
+  <span class="cmd">node server.js</span>
+</div>
+<p>Si ves algo como:</p>
+<div class="code-block">
+  Servidor corriendo en puerto 3000<br>
+  Conectado a PostgreSQL
+</div>
+<p>¡Todo funciona! Presiona <code>Ctrl + C</code> para detenerlo y continua con la instalacion del servicio.</p>
+<div class="danger-box">
+<strong>Si da error:</strong> No continues. Revisa la configuracion de la base de datos y las dependencias antes de crear el servicio.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">8. Descargar NSSM</h1>
+<p>NSSM (Non-Sucking Service Manager) convierte cualquier programa en un servicio de Windows.</p>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">1</div>
+    <div class="step-title">Descargar NSSM</div>
+  </div>
+  <p>Ve a: <strong>https://nssm.cc/release/nssm-2.24.zip</strong></p>
+  <p>Descarga el archivo ZIP.</p>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">2</div>
+    <div class="step-title">Extraer el archivo correcto</div>
+  </div>
+  <p>Abre el ZIP. Dentro encontraras dos carpetas:</p>
+  <ul>
+    <li><code>win32/</code> --- para Windows de 32 bits</li>
+    <li><code>win64/</code> --- para Windows de 64 bits (la mayoria)</li>
+  </ul>
+  <p>Para saber cual necesitas, ejecuta en CMD:</p>
+  <div class="code-block">
+    <span class="cmd">wmic os get osarchitecture</span>
+  </div>
+  <p>Si dice <code>64-bit</code>, usa <code>win64/nssm.exe</code>.</p>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">3</div>
+    <div class="step-title">Colocar NSSM en el proyecto</div>
+  </div>
+  <p>Copia <code>nssm.exe</code> a la carpeta de tu proyecto:</p>
+  <div class="code-block">
+    C:\creditos\tools\nssm\nssm.exe
+  </div>
+  <p>Crea las carpetas <code>tools</code> y <code>nssm</code> si no existen.</p>
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">9. Crear el Servicio con NSSM</h1>
+<div class="danger-box">
+<strong>⚠️ Importante:</strong> Debes ejecutar CMD como <strong>Administrador</strong> para que NSSM pueda crear el servicio.
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">1</div>
+    <div class="step-title">Abrir CMD como Administrador</div>
+  </div>
+  <p>Presiona <code>Windows</code>, escribe <code>cmd</code>, haz <strong>clic derecho</strong> en "Simbolo del sistema" y selecciona <strong>"Ejecutar como administrador"</strong>.</p>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">2</div>
+    <div class="step-title">Navegar al proyecto</div>
+  </div>
+  <div class="code-block">
+    <span class="cmd">cd /d "C:\creditos"</span>
+  </div>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">3</div>
+    <div class="step-title">Abrir NSSM</div>
+  </div>
+  <div class="code-block">
+    <span class="cmd">"tools\nssm\nssm.exe" install IPSFAServer</span>
+  </div>
+  <p>Se abrira una ventana grafica de NSSM.</p>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">4</div>
+    <div class="step-title">Completar los campos</div>
+  </div>
+  <table>
+  <tr><th>Campo</th><th>Valor a ingresar</th></tr>
+  <tr><td><strong>Path</strong></td><td><code>C:\Program Files\nodejs\node.exe</code></td></tr>
+  <tr><td><strong>Startup directory</strong></td><td><code>C:\creditos</code></td></tr>
+  <tr><td><strong>Arguments</strong></td><td><code>server.js</code></td></tr>
+  </table>
+  <div class="warn-box">
+  <strong>NO pongas <code>nssm.exe</code> en Path.</strong> Debe ser la ruta de <code>node.exe</code>.
+  </div>
+</div>
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-number">5</div>
+    <div class="step-title">Instalar el servicio</div>
+  </div>
+  <p>Haz clic en el boton <strong>"Install service"</strong>.</p>
+  <p>Si todo sale bien, veras un mensaje de confirmacion.</p>
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">10. Configurar Auto-inicio y Logs</h1>
+<p>Desde CMD como Administrador, ejecuta:</p>
+<h3>Auto-inicio al encender la PC</h3>
+<div class="code-block">
+  <span class="cmd">"tools\nssm\nssm.exe" set IPSFAServer Start SERVICE_AUTO_START</span>
+</div>
+<h3>Crear carpeta de logs</h3>
+<div class="code-block">
+  <span class="cmd">mkdir logs</span>
+</div>
+<h3>Configurar archivos de log</h3>
+<div class="code-block">
+  <span class="cmd">"tools\nssm\nssm.exe" set IPSFAServer AppStdout "C:\creditos\logs\output.log"</span><br>
+  <span class="cmd">"tools\nssm\nssm.exe" set IPSFAServer AppStderr "C:\creditos\logs\error.log"</span>
+</div>
+<div class="info-box">
+<strong>¿Que son estos logs?</strong>
+<ul>
+  <li><code>output.log</code> --- todo lo que imprime <code>console.log</code> en tu servidor</li>
+  <li><code>error.log</code> --- errores y excepciones del servidor</li>
+</ul>
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">11. Iniciar el Servicio</h1>
+<div class="code-block">
+  <span class="cmd">net start IPSFAServer</span>
+</div>
+<p>Si todo esta correcto, veras:</p>
+<div class="code-block">
+  El servicio IPSFAServer se ha iniciado correctamente.
+</div>
+<div class="warn-box">
+<strong>Si da error:</strong> Revisa los pasos anteriores. El error mas comun es poner la ruta de <code>nssm.exe</code> en lugar de <code>node.exe</code> en el campo Path de NSSM.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">12. Verificar que Funciona</h1>
+<h3>Verificar estado del servicio</h3>
+<div class="code-block">
+  <span class="cmd">sc query IPSFAServer</span>
+</div>
+<p>Debe decir <strong>STATE: 4 RUNNING</strong></p>
+<h3>Ver los logs</h3>
+<div class="code-block">
+  <span class="cmd">type "C:\creditos\logs\output.log"</span>
+</div>
+<h3>Probar en el navegador</h3>
+<p>Abre tu navegador y ve a:</p>
+<div class="code-block">
+  http://localhost:3000
+</div>
+<p>(o el puerto que uses en tu <code>server.js</code>)</p>
+<h3>Verificar en el Administrador de Servicios</h3>
+<p>Presiona <code>Win + R</code>, escribe <code>services.msc</code> y busca <strong>"IPSFAServer"</strong>. Debe decir <strong>"En ejecucion"</strong>.</p>
+</div>
+
+<div class="section">
+<h1 class="section-title">13. Comandos para Gestionar el Servicio</h1>
+<table>
+<tr><th>Accion</th><th>Comando CMD</th><th>Descripcion</th></tr>
+<tr><td>Ver estado</td><td><code>sc query IPSFAServer</code></td><td>Muestra si esta corriendo o detenido</td></tr>
+<tr><td>Iniciar</td><td><code>net start IPSFAServer</code></td><td>Inicia el servicio</td></tr>
+<tr><td>Detener</td><td><code>net stop IPSFAServer</code></td><td>Detiene el servicio</td></tr>
+<tr><td>Reiniciar</td><td><code>net stop IPSFAServer &amp;&amp; net start IPSFAServer</code></td><td>Detiene y vuelve a iniciar</td></tr>
+<tr><td>Ver logs</td><td><code>type C:\creditos\logs\output.log</code></td><td>Muestra el log de salida</td></tr>
+<tr><td>Ver errores</td><td><code>type C:\creditos\logs\error.log</code></td><td>Muestra el log de errores</td></tr>
+</table>
+<h3>Comandos con NSSM</h3>
+<table>
+<tr><th>Accion</th><th>Comando</th></tr>
+<tr><td>Editar servicio</td><td><code>"tools\nssm\nssm.exe" edit IPSFAServer</code></td></tr>
+<tr><td>Eliminar servicio</td><td><code>"tools\nssm\nssm.exe" remove IPSFAServer confirm</code></td></tr>
+<tr><td>Reiniciar con NSSM</td><td><code>"tools\nssm\nssm.exe" restart IPSFAServer</code></td></tr>
+</table>
+</div>
+
+<div class="section">
+<h1 class="section-title">14. Detener el Servicio</h1>
+<p>Para detener el servicio temporalmente (sin eliminarlo):</p>
+<h3>Metodo 1: Desde CMD (como Administrador)</h3>
+<div class="code-block">
+  <span class="cmd">net stop IPSFAServer</span>
+</div>
+<h3>Metodo 2: Desde el Administrador de Servicios</h3>
+<ol>
+  <li>Presiona <code>Win + R</code>, escribe <code>services.msc</code> y Enter</li>
+  <li>Busca <strong>"IPSFAServer"</strong> en la lista</li>
+  <li>Haz <strong>clic derecho</strong> --- <strong>"Detener"</strong></li>
+</ol>
+<h3>Metodo 3: Desde NSSM</h3>
+<div class="code-block">
+  <span class="cmd">"tools\nssm\nssm.exe" stop IPSFAServer</span>
+</div>
+<div class="info-box">
+<strong>Nota:</strong> Detener el servicio no lo elimina. Al reiniciar la PC, se volvera a iniciar automaticamente si esta configurado en <code>SERVICE_AUTO_START</code>.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">15. Eliminar el Servicio</h1>
+<p>Para eliminar completamente el servicio (por ejemplo, si quieres reinstalarlo):</p>
+<h3>Metodo 1: Con NSSM (recomendado)</h3>
+<div class="code-block">
+  <span class="cmd">"tools\nssm\nssm.exe" remove IPSFAServer confirm</span>
+</div>
+<h3>Metodo 2: Con Windows (sc)</h3>
+<div class="code-block">
+  <span class="cmd">sc delete IPSFAServer</span>
+</div>
+<div class="danger-box">
+<strong>⚠️ Atencion:</strong> Eliminar el servicio no borra tu proyecto ni la base de datos. Solo elimina la configuracion del servicio de Windows.
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">16. Solucion de Problemas</h1>
+<h3>Error 193: "No es una aplicacion Win32 valida"</h3>
+<div class="danger-box">
+<strong>Causa:</strong> El campo <strong>Path</strong> en NSSM apunta a <code>nssm.exe</code> en lugar de <code>node.exe</code>.<br><br>
+<strong>Solucion:</strong> Elimina el servicio y reinstalalo con la ruta correcta de Node.js:<br>
+<code>C:\Program Files\nodejs\node.exe</code>
+</div>
+<h3>Error 1060: "El servicio especificado no existe"</h3>
+<div class="warn-box">
+<strong>Causa:</strong> El servicio no se instalo correctamente o ya fue eliminado.<br><br>
+<strong>Solucion:</strong> Reinstala el servicio siguiendo los pasos 9 a 11.
+</div>
+<h3>"Acceso denegado" al ejecutar NSSM</h3>
+<div class="warn-box">
+<strong>Causa:</strong> No estas ejecutando CMD como Administrador.<br><br>
+<strong>Solucion:</strong> Cierra CMD, abrelo de nuevo como Administrador (clic derecho --- Ejecutar como administrador).
+</div>
+<h3>El servicio se instala pero no arranca</h3>
+<div class="info-box">
+<strong>Posibles causas:</strong>
+<ul>
+  <li>Error en el codigo de <code>server.js</code></li>
+  <li>La base de datos no esta configurada correctamente</li>
+  <li>Falta alguna dependencia (<code>npm install</code> no se ejecuto)</li>
+</ul>
+<strong>Diagnostico:</strong> Revisa el archivo <code>C:\creditos\logs\error.log</code> para ver el error exacto.
+</div>
+<h3>NSSM no se ejecuta ("No se puede ejecutar esta aplicacion")</h3>
+<div class="warn-box">
+<strong>Causa:</strong> Descargaste la version incorrecta de NSSM (32 bits en Windows 64 bits, o viceversa).<br><br>
+<strong>Solucion:</strong> Verifica tu arquitectura con <code>wmic os get osarchitecture</code> y descarga la version correcta (win32 o win64).
+</div>
+<h3>El servicio no se inicia automaticamente al encender la PC</h3>
+<div class="code-block">
+  <span class="cmd">"tools\nssm\nssm.exe" set IPSFAServer Start SERVICE_AUTO_START</span>
+</div>
+</div>
+
+<div class="section">
+<h1 class="section-title">Resumen Rapido</h1>
+<table>
+<tr><th>Paso</th><th>Comando / Accion</th></tr>
+<tr><td>1. Instalar Node.js</td><td>Descargar de nodejs.org e instalar</td></tr>
+<tr><td>2. Instalar PostgreSQL</td><td>Descargar de postgresql.org e instalar</td></tr>
+<tr><td>3. Copiar proyecto</td><td>Copiar carpeta <code>creditos</code> a la nueva PC</td></tr>
+<tr><td>4. Instalar dependencias</td><td><code>npm install</code></td></tr>
+<tr><td>5. Probar manualmente</td><td><code>node server.js</code></td></tr>
+<tr><td>6. Descargar NSSM</td><td>nssm.cc --- extraer <code>win64/nssm.exe</code></td></tr>
+<tr><td>7. Instalar servicio</td><td><code>nssm install IPSFAServer</code> (como Admin)</td></tr>
+<tr><td>8. Configurar</td><td>Path: <code>node.exe</code>, Directorio: <code>C:\creditos</code>, Args: <code>server.js</code></td></tr>
+<tr><td>9. Auto-inicio</td><td><code>nssm set IPSFAServer Start SERVICE_AUTO_START</code></td></tr>
+<tr><td>10. Iniciar</td><td><code>net start IPSFAServer</code></td></tr>
+<tr><td>11. Verificar</td><td><code>sc query IPSFAServer</code> --- STATE: 4 RUNNING</td></tr>
+</table>
+<div class="success-box" style="margin-top: 20px;">
+<strong>¡Listo!</strong> Tu sistema IPSFA ahora corre como un servicio de Windows, se inicia automaticamente al encender la PC, y no depende de una ventana de terminal abierta.
+</div>
+</div>
+
+<div class="footer" style="margin-top: 40px; padding-top: 15px; border-top: 2px solid var(--primary); text-align: center; font-size: 9pt; color: var(--text-light);">
+<p><strong>Manual de Instalacion --- Servicio IPSFA v6.7</strong></p>
+<p>Elaborado: Julio 2026 | Clasificacion: Interno / Operativo | Documento v1.0</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1205 @@
+/* ============================================================
+   TIENDA MARACAIBO - ESTILOS DEL MÓDULO (CORREGIDO V2)
+   ============================================================ */
+
+/* ====== MENÚ PRINCIPAL - BOTONES ====== */
+#tmb-menu-principal {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 25px !important;
+    padding: 40px !important;
+    max-width: 700px !important;
+    margin: 0 auto !important;
+}
+
+#tmb-menu-principal .tmb-menu-btn,
+#tmb-menu-principal button.tmb-menu-btn,
+#contentPagos #tmb-menu-principal .tmb-menu-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 40px 30px !important;
+    background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 15px rgba(26, 58, 92, 0.3) !important;
+    min-height: 180px !important;
+    font-size: 1.3rem !important;
+    font-weight: 600 !important;
+    gap: 12px !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+    text-align: center !important;
+    width: 100% !important;
+}
+
+#tmb-menu-principal .tmb-menu-btn:hover,
+#tmb-menu-principal button.tmb-menu-btn:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 8px 25px rgba(26, 58, 92, 0.4) !important;
+    background: linear-gradient(135deg, #234876 0%, #3569a8 100%) !important;
+}
+
+#tmb-menu-principal .tmb-menu-btn:active,
+#tmb-menu-principal button.tmb-menu-btn:active {
+    transform: translateY(-2px) !important;
+}
+
+#tmb-menu-principal .tmb-menu-btn i,
+#tmb-menu-principal button.tmb-menu-btn i {
+    font-size: 2.5rem !important;
+    opacity: 0.9 !important;
+}
+
+/* ====== BOTÓN VOLVER ====== */
+.btn-volver {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 20px !important;
+    background: #f0f0f0 !important;
+    color: #1a3a5c !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    margin-bottom: 20px !important;
+    transition: all 0.3s ease !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+}
+
+.btn-volver:hover {
+    background: #e0e0e0 !important;
+}
+
+/* ====== HEADER DEL MÓDULO ====== */
+.module-header {
+    margin-bottom: 25px !important;
+}
+
+.module-header h3 {
+    color: #1a3a5c !important;
+    font-size: 1.5rem !important;
+    margin-bottom: 5px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-weight: 700 !important;
+}
+
+.module-header p {
+    color: #6c757d !important;
+    font-size: 0.9rem !important;
+}
+
+/* ====== FILTROS RÁPIDOS ====== */
+#contentPagos .quick-filters,
+#tmb-base-datos .quick-filters {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    margin-bottom: 20px !important;
+    padding: 15px !important;
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+}
+
+#contentPagos .filter-btn,
+#tmb-base-datos .filter-btn {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 18px !important;
+    border: 2px solid #e0e0e0 !important;
+    border-radius: 25px !important;
+    background: #ffffff !important;
+    color: #343a40 !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+}
+
+#contentPagos .filter-btn:hover,
+#tmb-base-datos .filter-btn:hover {
+    border-color: #2c5282 !important;
+    background: #f0f4f8 !important;
+    transform: translateY(-2px) !important;
+}
+
+#contentPagos .filter-btn.active,
+#tmb-base-datos .filter-btn.active {
+    background: #1a3a5c !important;
+    color: #ffffff !important;
+    border-color: #1a3a5c !important;
+}
+
+#contentPagos .filter-btn .badge,
+#tmb-base-datos .filter-btn .badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 22px !important;
+    height: 22px !important;
+    padding: 0 6px !important;
+    background: #6c757d !important;
+    color: #ffffff !important;
+    border-radius: 11px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+#contentPagos .filter-btn.active .badge,
+#tmb-base-datos .filter-btn.active .badge {
+    background: rgba(255,255,255,0.3) !important;
+}
+
+/* ====== BÚSQUEDA AVANZADA ====== */
+#contentPagos .advanced-search,
+#tmb-base-datos .advanced-search {
+    background: #ffffff !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+    margin-bottom: 20px !important;
+}
+
+#contentPagos .search-row,
+#tmb-base-datos .search-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    margin-bottom: 12px !important;
+    align-items: flex-end !important;
+}
+
+#contentPagos .search-field,
+#tmb-base-datos .search-field {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 1 !important;
+    min-width: 200px !important;
+}
+
+#contentPagos .search-field input,
+#tmb-base-datos .search-field input {
+    flex: 1 !important;
+    padding: 10px 12px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    transition: all 0.3s ease !important;
+    width: 100% !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+}
+
+#contentPagos .search-field input:focus,
+#tmb-base-datos .search-field input:focus {
+    outline: none !important;
+    border-color: #2c5282 !important;
+    box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1) !important;
+}
+
+#contentPagos .btn-search,
+#tmb-base-datos .btn-search {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 20px !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    background: #1a3a5c !important;
+    color: #ffffff !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+}
+
+#contentPagos .btn-search:hover,
+#tmb-base-datos .btn-search:hover {
+    background: #2c5282 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+}
+
+#contentPagos .btn-clear,
+#tmb-base-datos .btn-clear {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 20px !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    background: #f0f0f0 !important;
+    color: #343a40 !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+}
+
+#contentPagos .btn-clear:hover,
+#tmb-base-datos .btn-clear:hover {
+    background: #e0e0e0 !important;
+}
+
+/* ====== CARDS DE RESUMEN ====== */
+#contentPagos .summary-cards,
+#tmb-base-datos .summary-cards {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    gap: 15px !important;
+    margin-bottom: 20px !important;
+}
+
+#contentPagos .summary-card,
+#tmb-base-datos .summary-card {
+    display: flex !important;
+    align-items: center !important;
+    gap: 15px !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+    transition: all 0.3s ease !important;
+    border-left: 4px solid #1a3a5c !important;
+}
+
+#contentPagos .summary-card:hover,
+#tmb-base-datos .summary-card:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+}
+
+#contentPagos .summary-card i,
+#tmb-base-datos .summary-card i {
+    font-size: 2rem !important;
+    color: #1a3a5c !important;
+    width: 50px !important;
+    height: 50px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #f0f4f8 !important;
+    border-radius: 50% !important;
+}
+
+#contentPagos .summary-card.danger,
+#tmb-base-datos .summary-card.danger {
+    border-left-color: #dc3545 !important;
+}
+
+#contentPagos .summary-card.danger i,
+#tmb-base-datos .summary-card.danger i {
+    color: #dc3545 !important;
+    background: #fce8e8 !important;
+}
+
+#contentPagos .summary-card.danger .number,
+#tmb-base-datos .summary-card.danger .number {
+    color: #dc3545 !important;
+}
+
+#contentPagos .summary-card.success,
+#tmb-base-datos .summary-card.success {
+    border-left-color: #28a745 !important;
+}
+
+#contentPagos .summary-card.success i,
+#tmb-base-datos .summary-card.success i {
+    color: #28a745 !important;
+    background: #e8f5e9 !important;
+}
+
+#contentPagos .summary-card.success .number,
+#tmb-base-datos .summary-card.success .number {
+    color: #28a745 !important;
+}
+
+#contentPagos .summary-card .number,
+#tmb-base-datos .summary-card .number {
+    display: block !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #1a3a5c !important;
+}
+
+#contentPagos .summary-card .label,
+#tmb-base-datos .summary-card .label {
+    font-size: 0.85rem !important;
+    color: #6c757d !important;
+}
+
+/* ====== TABLA ====== */
+#contentPagos .table-container,
+#tmb-base-datos .table-container {
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin-bottom: 20px !important;
+}
+
+#contentPagos .data-table,
+#tmb-base-datos .data-table {
+    width: 100% !important;
+    min-width: 900px !important;
+    border-collapse: collapse !important;
+    font-size: 0.8rem !important;
+    table-layout: auto !important;
+}
+
+#contentPagos .data-table thead,
+#tmb-base-datos .data-table thead {
+    background: #1a3a5c !important;
+    color: #ffffff !important;
+}
+
+#contentPagos .data-table th,
+#tmb-base-datos .data-table th {
+    padding: 10px 8px !important;
+    text-align: left !important;
+    font-weight: 600 !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    white-space: nowrap !important;
+}
+
+#contentPagos .data-table td,
+#tmb-base-datos .data-table td {
+    padding: 8px 6px !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+}
+
+#contentPagos .data-table tbody tr:hover,
+#tmb-base-datos .data-table tbody tr:hover {
+    background: #f8f9fa !important;
+}
+
+#contentPagos .data-table tbody tr:nth-child(even),
+#tmb-base-datos .data-table tbody tr:nth-child(even) {
+    background: #fafbfc !important;
+}
+
+#contentPagos .data-table tbody tr:nth-child(even):hover,
+#tmb-base-datos .data-table tbody tr:nth-child(even):hover {
+    background: #f0f2f5 !important;
+}
+
+/* Estado de fila */
+#contentPagos .estado-badge,
+#tmb-base-datos .estado-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px 8px !important;
+    border-radius: 12px !important;
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+}
+
+#contentPagos .estado-aldia,
+#tmb-base-datos .estado-aldia {
+    background: #e8f5e9 !important;
+    color: #28a745 !important;
+}
+
+#contentPagos .estado-deudor,
+#tmb-base-datos .estado-deudor {
+    background: #fce8e8 !important;
+    color: #dc3545 !important;
+}
+
+#contentPagos .estado-incompleto,
+#tmb-base-datos .estado-incompleto {
+    background: #fff8e1 !important;
+    color: #f57c00 !important;
+}
+
+#contentPagos .estado-abierta,
+#tmb-base-datos .estado-abierta {
+    background: #e3f2fd !important;
+    color: #17a2b8 !important;
+}
+
+#contentPagos .estado-cancelada,
+#tmb-base-datos .estado-cancelada {
+    background: #f5f5f5 !important;
+    color: #6c757d !important;
+}
+
+/* Acciones */
+#contentPagos .acciones,
+#tmb-base-datos .acciones {
+    display: flex !important;
+    gap: 4px !important;
+}
+
+#contentPagos .btn-action,
+#tmb-base-datos .btn-action {
+    width: 28px !important;
+    height: 28px !important;
+    border: none !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    font-size: 0.8rem !important;
+}
+
+#contentPagos .btn-action.btn-view,
+#tmb-base-datos .btn-action.btn-view {
+    background: #e3f2fd !important;
+    color: #17a2b8 !important;
+}
+
+#contentPagos .btn-action.btn-view:hover,
+#tmb-base-datos .btn-action.btn-view:hover {
+    background: #17a2b8 !important;
+    color: #ffffff !important;
+}
+
+#contentPagos .btn-action.btn-delete,
+#tmb-base-datos .btn-action.btn-delete {
+    background: #fce8e8 !important;
+    color: #dc3545 !important;
+}
+
+#contentPagos .btn-action.btn-delete:hover,
+#tmb-base-datos .btn-action.btn-delete:hover {
+    background: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+/* Cuotas */
+#contentPagos .cuotas-progress,
+#tmb-base-datos .cuotas-progress {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+#contentPagos .cuotas-bar,
+#tmb-base-datos .cuotas-bar {
+    width: 50px !important;
+    height: 5px !important;
+    background: #e0e0e0 !important;
+    border-radius: 3px !important;
+    overflow: hidden !important;
+}
+
+#contentPagos .cuotas-fill,
+#tmb-base-datos .cuotas-fill {
+    height: 100% !important;
+    background: #28a745 !important;
+    border-radius: 3px !important;
+    transition: width 0.3s ease !important;
+}
+
+#contentPagos .cuotas-text,
+#tmb-base-datos .cuotas-text {
+    font-size: 0.7rem !important;
+    color: #6c757d !important;
+    font-weight: 500 !important;
+}
+
+/* Montos */
+#contentPagos .monto,
+#tmb-base-datos .monto {
+    font-weight: 600 !important;
+    color: #343a40 !important;
+    font-size: 0.8rem !important;
+}
+
+#contentPagos .monto-deuda,
+#tmb-base-datos .monto-deuda {
+    color: #dc3545 !important;
+    font-weight: 700 !important;
+}
+
+/* ====== PAGINACIÓN ====== */
+#contentPagos .pagination,
+#tmb-base-datos .pagination {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 15px !important;
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+    margin-bottom: 20px !important;
+}
+
+#contentPagos .pagination button,
+#tmb-base-datos .pagination button {
+    width: 36px !important;
+    height: 36px !important;
+    border: 1px solid #ddd !important;
+    background: #ffffff !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    color: #343a40 !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+}
+
+#contentPagos .pagination button:hover:not(:disabled),
+#tmb-base-datos .pagination button:hover:not(:disabled) {
+    background: #1a3a5c !important;
+    color: #ffffff !important;
+    border-color: #1a3a5c !important;
+}
+
+#contentPagos .pagination button:disabled,
+#tmb-base-datos .pagination button:disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+/* ====== BOTONES DE EXPORTACIÓN ====== */
+#contentPagos .export-buttons,
+#tmb-base-datos .export-buttons {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    padding: 15px !important;
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+}
+
+#contentPagos .btn-export,
+#tmb-base-datos .btn-export {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 20px !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+}
+
+#contentPagos .btn-export.excel,
+#tmb-base-datos .btn-export.excel {
+    background: #e8f5e9 !important;
+    color: #28a745 !important;
+}
+
+#contentPagos .btn-export.excel:hover,
+#tmb-base-datos .btn-export.excel:hover {
+    background: #28a745 !important;
+    color: #ffffff !important;
+}
+
+#contentPagos .btn-export.pdf,
+#tmb-base-datos .btn-export.pdf {
+    background: #fce8e8 !important;
+    color: #dc3545 !important;
+}
+
+#contentPagos .btn-export.pdf:hover,
+#tmb-base-datos .btn-export.pdf:hover {
+    background: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+#contentPagos .btn-export.print,
+#tmb-base-datos .btn-export.print {
+    background: #f0f4f8 !important;
+    color: #1a3a5c !important;
+}
+
+#contentPagos .btn-export.print:hover,
+#tmb-base-datos .btn-export.print:hover {
+    background: #1a3a5c !important;
+    color: #ffffff !important;
+}
+
+/* ====== MODAL ====== */
+#modal-editar-cliente-mb {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+#modal-editar-cliente-mb.active {
+    display: flex;
+}
+
+/* Modal corporativo */
+#modal-corporativo {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+#modal-corporativo.active {
+    display: flex;
+}
+
+#modal-corporativo .modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 450px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    animation: modalIn 0.3s ease;
+}
+
+#modal-corporativo #modal-corp-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 16px;
+}
+
+#modal-corporativo #modal-corp-titulo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin-bottom: 12px;
+}
+
+#modal-corporativo #modal-corp-mensaje {
+    color: #6c757d;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 24px;
+}
+
+#modal-corporativo #modal-corp-botones {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+@keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* ====== CONCILIACIONES ====== */
+#tmb-conciliaciones .card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+#tmb-conciliaciones .section-header {
+    margin-bottom: 20px;
+}
+
+#tmb-conciliaciones .section-header h3 {
+    color: #1a365d;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+#tmb-conciliaciones .section-header p {
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+#tmb-conciliaciones .card input[type="text"],
+#tmb-conciliaciones .card input[type="number"],
+#tmb-conciliaciones .card input[type="date"] {
+    padding: 10px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    width: 100%;
+    max-width: 300px;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#tmb-conciliaciones .card input:focus {
+    outline: none;
+    border-color: #2c5282;
+    box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1);
+}
+
+#tmb-conciliaciones .card button {
+    padding: 10px 20px;
+    background: #1a3a5c;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#tmb-conciliaciones .card button:hover {
+    background: #2c5282;
+}
+
+#tmb-conciliaciones #concmb-mensaje-inicial {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* Resultado encontrado */
+#concmb-resultado-encontrada .card {
+    margin-bottom: 20px;
+}
+
+#concmb-resultado-encontrada h4 {
+    color: #1a3a5c;
+    margin-bottom: 15px;
+    font-size: 1rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+#concmb-resultado-encontrada .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+#concmb-resultado-encontrada .info-row:last-child {
+    border-bottom: none;
+}
+
+#concmb-resultado-encontrada .info-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+#concmb-resultado-encontrada .info-value {
+    font-weight: 600;
+    color: #343a40;
+}
+
+/* Tabla de cuotas en conciliaciones */
+#concmb-tabla-cuotas {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#concmb-tabla-cuotas th {
+    background: #1a3a5c;
+    color: #ffffff;
+    padding: 10px;
+    text-align: left;
+    font-size: 0.8rem;
+}
+
+#concmb-tabla-cuotas td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.85rem;
+}
+
+/* Formulario de cuota */
+#concmb-resultado-encontrada .form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+#concmb-resultado-encontrada .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+#concmb-resultado-encontrada .form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+#concmb-resultado-encontrada .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#concmb-resultado-encontrada .form-group input:focus {
+    outline: none;
+    border-color: #2c5282;
+    box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1);
+}
+
+#concmb-tasa-mensaje,
+#concmb-nueva-tasa-mensaje {
+    font-size: 0.85rem;
+    margin-top: 8px;
+    min-height: 20px;
+}
+
+/* Nuevo registro */
+#concmb-resultado-nueva .form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+#concmb-resultado-nueva .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+#concmb-resultado-nueva .form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+#concmb-resultado-nueva .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#concmb-resultado-nueva .form-group input:focus {
+    outline: none;
+    border-color: #2c5282;
+    box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1);
+}
+
+/* ====== ESTADOS ====== */
+.estado-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.estado-aldia {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.estado-deudor {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.estado-incompleto {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.estado-abierta {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.estado-cancelada {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* ====== BARRA DE PROGRESO DE CUOTAS ====== */
+.cuotas-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cuotas-bar {
+    flex: 1;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cuotas-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #48bb78, #38a169);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.cuotas-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #4a5568;
+    min-width: 30px;
+    text-align: right;
+}
+
+/* ====== ACCIONES ====== */
+.acciones {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-action {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+}
+
+.btn-action.btn-view {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.btn-action.btn-view:hover {
+    background: #0284c7;
+    color: white;
+}
+
+.btn-action.btn-delete {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.btn-action.btn-delete:hover {
+    background: #dc2626;
+    color: white;
+}
+
+/* ====== ANIMACIONES ====== */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+/* ====== LOADING ====== */
+.loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.8);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.loading-overlay .spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f0f0f0;
+    border-top-color: #1a3a5c;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ====== PRINT ====== */
+@media print {
+    .sidebar,
+    .top-header,
+    .btn-volver,
+    .export-buttons,
+    .pagination,
+    .quick-filters,
+    .advanced-search {
+        display: none !important;
+    }
+
+    .content-area {
+        display: block !important;
+        margin: 0 !important;
+    }
+
+    .table-container {
+        box-shadow: none;
+    }
+}
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 768px) {
+    #tmb-menu-principal {
+        grid-template-columns: 1fr !important;
+        padding: 20px !important;
+    }
+
+    .tmb-menu-btn {
+        padding: 30px 20px !important;
+        min-height: 140px !important;
+    }
+
+    #contentPagos .search-row,
+    #tmb-base-datos .search-row {
+        flex-direction: column !important;
+    }
+
+    #contentPagos .search-field,
+    #tmb-base-datos .search-field {
+        min-width: 100% !important;
+    }
+
+    #contentPagos .summary-cards,
+    #tmb-base-datos .summary-cards {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    #contentPagos .export-buttons,
+    #tmb-base-datos .export-buttons {
+        flex-direction: column !important;
+    }
+
+    #contentPagos .data-table,
+    #tmb-base-datos .data-table {
+        font-size: 0.75rem !important;
+    }
+
+    #contentPagos .pagination,
+    #tmb-base-datos .pagination {
+        flex-wrap: wrap !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #contentPagos .summary-cards,
+    #tmb-base-datos .summary-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    #contentPagos .data-table,
+    #tmb-base-datos .data-table {
+        font-size: 0.7rem !important;
+    }
+}
+
+/* ============================================================
+   SECCIÓN ELIMINAR CUOTAS - CHECKLIST
+   ============================================================ */
+
+#eliminar-cuotas-section-mb {
+    animation: fadeIn 0.3s ease;
+}
+
+#eliminar-cuotas-list-mb {
+    animation: fadeIn 0.4s ease;
+}
+
+#eliminar-cuotas-list-mb label {
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+#eliminar-cuotas-list-mb label:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.15);
+}
+
+#eliminar-cuotas-list-mb input[type="checkbox"] {
+    transition: all 0.2s ease;
+}
+
+#eliminar-cuotas-list-mb input[type="checkbox"]:checked {
+    transform: scale(1.1);
+}
+
+/* Animación para items seleccionados */
+#eliminar-cuotas-list-mb label:has(input:checked) {
+    background: #fff5f5 !important;
+    border-color: #e53e3e !important;
+    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.2);
+}
+
+/* Responsive para checklist */
+@media (max-width: 768px) {
+    #eliminar-cuotas-list-mb {
+        flex-direction: column;
+    }
+
+    #eliminar-cuotas-list-mb label {
+        width: 100%;
+    }
+}

@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe Técnico — Módulo de Notificaciones WhatsApp v1.2</title>
+<style>
+@page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+@page :first { margin-top: 8mm; }
+
+:root {
+  --primary: #1a3a5c;
+  --secondary: #2c5282;
+  --accent: #3182ce;
+  --success: #38a169;
+  --warning: #d69e2e;
+  --danger: #e53e3e;
+  --text: #2d3748;
+  --text-light: #718096;
+  --bg: #f7fafc;
+  --border: #e2e8f0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+}
+
+.cover {
+  page-break-after: always;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 50%, #3182ce 100%);
+  color: white;
+  padding: 40px;
+}
+.cover-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 6px 20px;
+  font-size: 9pt;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+}
+.cover h1 { font-size: 26pt; font-weight: 700; margin: 0 0 15px 0; line-height: 1.2; }
+.cover h2 { font-size: 14pt; font-weight: 400; margin: 0 0 40px 0; opacity: 0.9; }
+.cover-meta {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+  font-size: 10pt;
+  opacity: 0.85;
+}
+.cover-meta div { text-align: center; }
+.cover-meta .label { font-size: 8pt; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+.cover-meta .value { font-size: 12pt; font-weight: 600; margin-top: 4px; }
+
+.toc-page { page-break-after: always; padding: 20px 0; }
+.toc-title { font-size: 18pt; font-weight: 700; color: var(--primary); margin-bottom: 25px; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+.toc-item { display: flex; align-items: baseline; margin: 7px 0; font-size: 10pt; }
+.toc-item.level-1 { font-weight: 600; font-size: 11pt; margin-top: 14px; color: var(--primary); }
+.toc-item.level-2 { padding-left: 20px; }
+.toc-dots { flex: 1; border-bottom: 1px dotted var(--border); margin: 0 8px 4px 8px; min-width: 20px; }
+.toc-page-num { font-weight: 600; color: var(--accent); min-width: 25px; text-align: right; }
+
+.section { page-break-before: always; padding: 15px 0; }
+.section:first-of-type { page-break-before: auto; }
+
+h1.section-title { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+h2 { font-size: 12pt; font-weight: 600; color: var(--secondary); margin: 18px 0 10px 0; }
+h3 { font-size: 11pt; font-weight: 600; color: var(--text); margin: 14px 0 8px 0; }
+p { margin: 8px 0; text-align: justify; }
+
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 4px 0; }
+
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 8.5pt; page-break-inside: avoid; }
+th { background: var(--primary); color: white; font-weight: 600; padding: 7px 8px; text-align: left; border: 1px solid var(--primary); }
+td { padding: 5px 8px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) { background: #f8fafc; }
+td.num { text-align: right; font-family: "Consolas", monospace; }
+td.center { text-align: center; }
+td.status-ok { color: var(--success); font-weight: 600; }
+td.status-warn { color: var(--warning); font-weight: 600; }
+td.status-err { color: var(--danger); font-weight: 600; }
+
+.info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.warn-box { background: #fffaf0; border-left: 4px solid var(--warning); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+
+pre { background: #1a202c; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; overflow-x: auto; font-size: 7.5pt; line-height: 1.35; margin: 10px 0; page-break-inside: avoid; }
+pre code { background: transparent; color: inherit; padding: 0; }
+code { font-family: "Consolas", "Courier New", monospace; font-size: 8.5pt; background: #edf2f7; padding: 1px 4px; border-radius: 3px; color: #2d3748; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.metric-card { background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
+.metric-value { font-size: 16pt; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.metric-label { font-size: 7.5pt; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+.version-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.version-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.version-badge { background: var(--accent); color: white; font-size: 7.5pt; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.5px; }
+.version-date { font-size: 8.5pt; color: var(--text-light); }
+.version-title { font-weight: 600; font-size: 10pt; color: var(--primary); margin-bottom: 4px; }
+
+.table-compact td, .table-compact th { padding: 4px 6px; font-size: 8pt; }
+
+.footer { font-size: 7.5pt; color: var(--text-light); text-align: center; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 15px; }
+
+.file-box { background: #f0fff4; border: 1px solid #c6f6d5; border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.file-box .path { font-family: "Consolas", monospace; font-size: 8.5pt; color: var(--success); font-weight: 600; }
+.file-box .action { font-size: 8pt; color: var(--text-light); margin-top: 2px; }
+
+.risk-high { background: #fff5f5; border-left: 4px solid var(--danger); padding: 8px 12px; margin: 6px 0; border-radius: 0 6px 6px 0; }
+.risk-med { background: #fffaf0; border-left: 4px solid var(--warning); padding: 8px 12px; margin: 6px 0; border-radius: 0 6px 6px 0; }
+.risk-low { background: #f0fff4; border-left: 4px solid var(--success); padding: 8px 12px; margin: 6px 0; border-radius: 0 6px 6px 0; }
+
+.flow-box { background: #f7fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin: 8px 0; }
+.flow-step { display: flex; align-items: flex-start; gap: 10px; margin: 6px 0; }
+.flow-num { background: var(--accent); color: white; font-size: 8pt; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.flow-text { font-size: 9pt; color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-badge">Documento Técnico</div>
+  <h1>Informe Técnico</h1>
+  <h2>Módulo de Notificaciones WhatsApp</h2>
+  <div style="font-size: 36pt; font-weight: 700; margin: 20px 0;">v1.2</div>
+  <div class="cover-meta">
+    <div><div class="label">Elaborado por</div><div class="value">Asistente Técnico IPSFA</div></div>
+    <div><div class="label">Fecha</div><div class="value">Julio 2026</div></div>
+    <div><div class="label">Clasificación</div><div class="value">Interno / Operativo</div></div>
+  </div>
+  <div style="position: absolute; bottom: 40px; right: 40px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 20px; font-size: 9pt;">
+    <div style="font-size: 8pt; opacity: 0.7;">Versiones anteriores</div>
+    <div style="font-size: 9pt; font-weight: 600; margin-top: 4px;">v1.0 → v1.1 → v1.2</div>
+  </div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="toc-page">
+  <div class="toc-title">Índice de Contenidos</div>
+  <div class="toc-item level-1"><span>1. Resumen Ejecutivo</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.1 Alcance del cambio</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.2 Estado actual del sistema</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-1"><span>2. Análisis de Requerimientos</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.1 Problemática actual</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.2 Solución propuesta</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-1"><span>3. Correcciones de Arquitectura v1.2</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-2"><span>3.1 Bug de timeout en v1.0</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-2"><span>3.2 Background Jobs + Polling</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-2"><span>3.3 Registro persistente en BD</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>3.4 Anti-spam y anti-duplicados</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-1"><span>4. Arquitectura del Módulo</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-2"><span>4.1 Diagrama de flujo</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-2"><span>4.2 Componentes del sistema</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-1"><span>5. Archivos Afectados</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>5.1 Archivos nuevos</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>5.2 Archivos a modificar</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>5.3 Archivos que NO se tocan</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-1"><span>6. Migración SQL</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-item level-1"><span>7. Código Completo</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+  <div class="toc-item level-2"><span>7.1 services/whatsapp.js</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+  <div class="toc-item level-2"><span>7.2 routes/notificaciones.js</span><span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+  <div class="toc-item level-2"><span>7.3 Frontend con Polling</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>7.4 Modificación de server.js</span><span class="toc-dots"></span><span class="toc-page-num">18</span></div>
+  <div class="toc-item level-1"><span>8. Beneficios Detallados</span><span class="toc-dots"></span><span class="toc-page-num">19</span></div>
+  <div class="toc-item level-1"><span>9. Riesgos y Mitigaciones</span><span class="toc-dots"></span><span class="toc-page-num">21</span></div>
+  <div class="toc-item level-2"><span>9.1 Riesgos técnicos</span><span class="toc-dots"></span><span class="toc-page-num">21</span></div>
+  <div class="toc-item level-2"><span>9.2 Riesgos legales y de WhatsApp</span><span class="toc-dots"></span><span class="toc-page-num">22</span></div>
+  <div class="toc-item level-1"><span>10. Plan de Implementación</span><span class="toc-dots"></span><span class="toc-page-num">23</span></div>
+  <div class="toc-item level-2"><span>10.1 Fase 1: Instalación</span><span class="toc-dots"></span><span class="toc-page-num">23</span></div>
+  <div class="toc-item level-2"><span>10.2 Fase 2: Configuración</span><span class="toc-dots"></span><span class="toc-page-num">23</span></div>
+  <div class="toc-item level-2"><span>10.3 Fase 3: Pruebas</span><span class="toc-dots"></span><span class="toc-page-num">24</span></div>
+  <div class="toc-item level-2"><span>10.4 Fase 4: Despliegue</span><span class="toc-dots"></span><span class="toc-page-num">25</span></div>
+  <div class="toc-item level-1"><span>11. Pruebas y Validación</span><span class="toc-dots"></span><span class="toc-page-num">26</span></div>
+  <div class="toc-item level-1"><span>12. Anexos</span><span class="toc-dots"></span><span class="toc-page-num">27</span></div>
+  <div class="toc-item level-2"><span>Anexo A: Endpoints</span><span class="toc-dots"></span><span class="toc-page-num">27</span></div>
+  <div class="toc-item level-2"><span>Anexo B: Ejemplos de uso</span><span class="toc-dots"></span><span class="toc-page-num">27</span></div>
+  <div class="toc-item level-2"><span>Anexo C: Rollback</span><span class="toc-dots"></span><span class="toc-page-num">28</span></div>
+  <div class="toc-item level-2"><span>Anexo D: Límites de WhatsApp</span><span class="toc-dots"></span><span class="toc-page-num">28</span></div>
+  <div class="toc-item level-2"><span>Anexo E: Buenas prácticas anti-spam</span><span class="toc-dots"></span><span class="toc-page-num">29</span></div>
+</div>
+
+<!-- SECCIÓN 1 -->
+<div class="section">
+<h1 class="section-title">1. Resumen Ejecutivo</h1>
+
+<h2>1.1 Alcance del cambio</h2>
+<p>El presente informe documenta la creación e implementación del <strong>Módulo de Notificaciones WhatsApp v1.2</strong>, una solución completa para el envío automatizado de mensajes a clientes deudores de las tiendas IPSFA (Caracas, Maracay, Maracaibo).</p>
+
+<p>La versión v1.2 incorpora correcciones críticas de arquitectura respecto a las versiones anteriores (v1.0 y v1.1): procesamiento en segundo plano para evitar timeouts HTTP, registro persistente en base de datos, protección contra envíos duplicados, detección de respuestas de clientes, y cumplimiento de los límites de WhatsApp para evitar baneos.</p>
+
+<h2>1.2 Estado actual del sistema</h2>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="metric-value">3</div><div class="metric-label">Tiendas activas</div></div>
+  <div class="metric-card"><div class="metric-value">0</div><div class="metric-label">Canales de notificación</div></div>
+  <div class="metric-card"><div class="metric-value">1</div><div class="metric-label">Módulo nuevo</div></div>
+  <div class="metric-card"><div class="metric-value">4</div><div class="metric-label">Plantillas de mensaje</div></div>
+</div>
+
+<table class="table-compact">
+<tr><th>Componente</th><th>Estado</th><th>Versión</th><th>Observación</th></tr>
+<tr><td>Backend Node.js</td><td class="status-ok">Operativo</td><td>v6.8</td><td>Express + PostgreSQL</td></tr>
+<tr><td>Auth JWT</td><td class="status-ok">Operativo</td><td>v1.x</td><td>verificarToken, soloAdmin</td></tr>
+<tr><td>Tiendas (CRUD)</td><td class="status-ok">Operativo</td><td>v6.8</td><td>Router genérico</td></tr>
+<tr><td>WhatsApp Module</td><td class="status-warn">Pendiente</td><td>v1.2</td><td>Requiere implementación</td></tr>
+<tr><td>Frontend SPA</td><td class="status-ok">Operativo</td><td>v6.8</td><td>Requiere agregar polling</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 2 -->
+<div class="section">
+<h1 class="section-title">2. Análisis de Requerimientos</h1>
+
+<h2>2.1 Problemática actual</h2>
+<p>El sistema de créditos IPSFA no cuenta con ningún mecanismo automatizado para contactar a los clientes deudores. El cobro se realiza de forma manual mediante llamadas telefónicas, lo que genera los siguientes problemas:</p>
+
+<table>
+<tr><th>Problema</th><th>Impacto</th><th>Frecuencia</th></tr>
+<tr><td>Llamadas telefónicas manuales</td><td>Alto costo en tiempo del operador; clientes no contestan</td><td>Diario</td></tr>
+<tr><td>Sin registro de contactos</td><td>No se sabe quién fue notificado ni cuándo</td><td>Constante</td></tr>
+<tr><td>Cobro reactivo</td><td>Se contacta al cliente solo cuando ya tiene mora alta</td><td>Semanal</td></tr>
+<tr><td>Sin escalamiento automático</td><td>No hay diferencia entre recordatorio amable y aviso de mora</td><td>Mensual</td></tr>
+<tr><td>Dependencia del operador</td><td>Si el operador está ausente, no hay cobro ese día</td><td>Constante</td></tr>
+</table>
+
+<h2>2.2 Solución propuesta</h2>
+
+<table>
+<tr><th>Capacidad</th><th>Descripción</th><th>Beneficio</th></tr>
+<tr><td>Envío masivo en segundo plano</td><td>Notificar a todos los deudores sin bloquear la interfaz</td><td>El operador sigue trabajando mientras se envían</td></tr>
+<tr><td>Barra de progreso en tiempo real</td><td>Polling cada 3 segundos muestra avance del envío</td><td>Feedback visual del estado del proceso</td></tr>
+<tr><td>Registro persistente</td><td>Todo envío y respuesta se guarda en PostgreSQL</td><td>Auditoría completa; prevención de spam</td></tr>
+<tr><td>Anti-duplicados</td><td>Lock de 30s por número + verificación de último envío 24h</td><td>El cliente nunca recibe el mismo mensaje 2 veces</td></tr>
+<tr><td>Detección de respuestas</td><td>Mensajes entrantes del cliente se guardan automáticamente</td><td>Se sabe quién respondió y qué dijo</td></tr>
+<tr><td>Plantillas inteligentes</td><td>4 tipos: cobro, recordatorio, mora, agradecimiento</td><td>Comunicación apropiada para cada situación</td></tr>
+<tr><td>Rate limiting</td><td>2 segundos entre mensajes, máximo 50 por lote</td><td>Evita bloqueos por spam de WhatsApp</td></tr>
+<tr><td>Conexión persistente</td><td>Baileys mantiene sesión 24/7 con reconexión automática</td><td>Siempre disponible, sin intervención</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 3 -->
+<div class="section">
+<h1 class="section-title">3. Correcciones de Arquitectura v1.2</h1>
+
+<h2>3.1 Bug de timeout en v1.0</h2>
+
+<div class="danger-box">
+<strong>Problema crítico identificado:</strong> El endpoint <code>POST /api/notificaciones/deudores</code> de la versión v1.0 ejecutaba un bucle <code>for</code> con <code>await setTimeout(2000)</code> dentro de la petición HTTP sincrónica. Con 50 deudores máximos, el tiempo total era:<br><br>
+<code>50 clientes × 2 segundos = 100 segundos</code><br><br>
+Cualquier navegador web, proxy inverso (Nginx) o API Gateway corta la conexión por timeout antes de los 100 segundos (límites típicos: 30-60s). Aunque los mensajes se seguían enviando en el servidor, el navegador mostraba "Error de red" y el usuario no tenía feedback del resultado.
+</div>
+
+<h2>3.2 Background Jobs + Polling</h2>
+
+<p>La versión v1.2 resuelve este problema con el patrón <strong>Job Queue + Polling</strong>:</p>
+
+<div class="flow-box">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-text"><strong>Frontend</strong> envía POST /deudores con tienda y tipo de mensaje</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-text"><strong>Backend</strong> crea un Job en memoria, responde inmediatamente con HTTP 202 Accepted + jobId (menos de 100ms)</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-text"><strong>Backend</strong> inicia el bucle de envío en segundo plano (sin await en la respuesta HTTP)</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-text"><strong>Frontend</strong> consulta GET /job/:jobId cada 3 segundos para obtener progreso</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">5</div>
+    <div class="flow-text"><strong>Frontend</strong> actualiza barra de progreso con {procesados, enviados, fallidos, saltados}</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">6</div>
+    <div class="flow-text">Cuando job.estado === 'completado', el frontend muestra resumen final y detiene el polling</div>
+  </div>
+</div>
+
+<table class="table-compact">
+<tr><th>Aspecto</th><th>v1.0 (bug)</th><th>v1.2 (corregido)</th></tr>
+<tr><td>Tiempo de respuesta HTTP</td><td>100 segundos (bloqueado)</td><td>&lt; 100 milisegundos (inmediata)</td></tr>
+<tr><td>Estado HTTP</td><td>200 OK (al final)</td><td>202 Accepted (inmediato)</td></tr>
+<tr><td>Feedback al usuario</td><td>Pantalla congelada, luego error de red</td><td>Barra de progreso actualizándose cada 3s</td></tr>
+<tr><td>Reintentos del navegador</td><td>El navegador reintenta la petición = doble envío</td><td>Una sola petición; polling es solo lectura</td></tr>
+<tr><td>Concurrencia</td><td>No se pueden iniciar 2 envíos simultáneos</td><td>Múltiples jobs pueden correr en paralelo</td></tr>
+</table>
+
+<h2>3.3 Registro persistente en BD</h2>
+
+<p>La versión v1.0 solo usaba <code>console.log</code>, perdiendo todo el historial al reiniciar el servidor. La v1.2 incluye:</p>
+
+<ul>
+<li><strong>Tabla <code>whatsapp_logs</code></strong> en PostgreSQL con todos los campos del mensaje</li>
+<li><strong>Dirección inbound/outbound</strong>: distingue mensajes enviados de respuestas recibidas</li>
+<li><strong>Estados</strong>: pendiente, enviado, fallido, recibido, leído</li>
+<li><strong>WA Message ID</strong>: identificador único de WhatsApp para trazabilidad</li>
+<li><strong>Usuario que envió</strong>: vinculado a la tabla de usuarios para auditoría</li>
+</ul>
+
+<h2>3.4 Anti-spam y anti-duplicados</h2>
+
+<table class="table-compact">
+<tr><th>Protección</th><th>Implementación</th><th>Archivo</th></tr>
+<tr><td>Anti-doble-click (frontend)</td><td>Flag <code>enviando = true</code> deshabilita botón hasta completar</td><td>frontend-polling.js</td></tr>
+<tr><td>Anti-doble-click (backend)</td><td>Map <code>enviosEnProceso</code> con lock de 5-30s por número</td><td>services/whatsapp.js</td></tr>
+<tr><td>Anti-spam 24h</td><td>Consulta <code>whatsapp_logs</code> antes de reenviar; rechaza si &lt; 24h</td><td>services/whatsapp.js</td></tr>
+<tr><td>Rate limiting</td><td><code>await setTimeout(2000)</code> entre cada mensaje</td><td>services/whatsapp.js</td></tr>
+<tr><td>Límite por lote</td><td>Query SQL con <code>LIMIT 50</code></td><td>routes/notificaciones.js</td></tr>
+<tr><td>Auto-limpieza de jobs</td><td>Jobs se borran de memoria después de 1 hora</td><td>services/whatsapp.js</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 4 -->
+<div class="section">
+<h1 class="section-title">4. Arquitectura del Módulo</h1>
+
+<h2>4.1 Diagrama de flujo</h2>
+
+<div class="info-box">
+<strong>Flujo de envío masivo (v1.2):</strong><br>
+1. <strong>Frontend</strong> envía POST /deudores → recibe {jobId} en &lt;100ms<br>
+2. <strong>Backend</strong> crea Job en memoria con estado "pendiente"<br>
+3. <strong>Backend</strong> inicia <code>procesarEnvioMasivo()</code> sin await (segundo plano)<br>
+4. <strong>Frontend</strong> inicia polling: GET /job/:jobId cada 3 segundos<br>
+5. <strong>Backend</strong> itera deudores: anti-spam → envía → espera 2s → repite<br>
+6. <strong>Frontend</strong> recibe progreso y actualiza barra visual<br>
+7. Al completar, frontend muestra resumen y detiene polling
+</div>
+
+<h2>4.2 Componentes del sistema</h2>
+
+<table class="table-compact">
+<tr><th>Componente</th><th>Archivo</th><th>Responsabilidad</th></tr>
+<tr><td>Servicio WhatsApp</td><td><code>services/whatsapp.js</code></td><td>Conexión Baileys, envío de mensajes, jobs en memoria, logging a BD</td></tr>
+<tr><td>Router Notificaciones</td><td><code>routes/notificaciones.js</code></td><td>Endpoints REST: /estado, /logs, /job/:id, /enviar, /deudores, /cliente</td></tr>
+<tr><td>Job Processor</td><td><code>services/whatsapp.js</code> (función interna)</td><td>Procesa envío masivo en segundo plano, actualiza progreso del job</td></tr>
+<tr><td>Polling Client</td><td><code>frontend-polling.js</code></td><td>Consulta progreso cada 3s, renderiza barra de progreso, muestra resumen</td></tr>
+<tr><td>Plantillas</td><td><code>services/whatsapp.js</code> (función interna)</td><td>Construye mensajes personalizados según tipo y datos del cliente</td></tr>
+<tr><td>Auth</td><td><code>middleware/auth.js</code></td><td>Valida JWT (reutilizado, sin cambios)</td></tr>
+<tr><td>DB Pool</td><td><code>config/database.js</code></td><td>Conexión a PostgreSQL (reutilizado, sin cambios)</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 5 -->
+<div class="section">
+<h1 class="section-title">5. Archivos Afectados</h1>
+
+<h2>5.1 Archivos nuevos</h2>
+
+<div class="file-box">
+  <div class="path">services/whatsapp.js</div>
+  <div class="action">NUEVO — Servicio de conexión persistente a WhatsApp Web (Baileys) con jobs en memoria y logging a BD</div>
+</div>
+
+<div class="file-box">
+  <div class="path">routes/notificaciones.js</div>
+  <div class="action">NUEVO — Router REST con endpoints de envío masivo (background), individual, estado, logs y progreso</div>
+</div>
+
+<div class="file-box">
+  <div class="path">auth_info/ (carpeta)</div>
+  <div class="action">NUEVO — Carpeta generada automáticamente por Baileys para guardar la sesión de WhatsApp</div>
+</div>
+
+<h2>5.2 Archivos a modificar</h2>
+
+<div class="file-box">
+  <div class="path">server.js (o app.js)</div>
+  <div class="action">MODIFICAR — Agregar: require de whatsapp.js y notificaciones.js; llamar iniciarWhatsApp() al arrancar</div>
+</div>
+
+<div class="file-box">
+  <div class="path">package.json</div>
+  <div class="action">MODIFICAR — Agregar dependencias: @whiskeysockets/baileys, pino</div>
+</div>
+
+<div class="file-box">
+  <div class="path">panel.js (opcional)</div>
+  <div class="action">MODIFICAR — Agregar función notificarDeudores() con polling y barra de progreso</div>
+</div>
+
+<h2>5.3 Archivos que NO se tocan</h2>
+
+<table class="table-compact">
+<tr><th>Archivo</th><th>¿Por qué no se toca?</th></tr>
+<tr><td><code>routes/tiendas.js</code></td><td>El módulo de notificaciones no modifica el CRUD de tiendas</td></tr>
+<tr><td><code>routes/usuarios.js</code></td><td>Auth y gestión de usuarios son independientes</td></tr>
+<tr><td><code>routes/reportes.js</code></td><td>La API de reportes es independiente</td></tr>
+<tr><td><code>middleware/auth.js</code></td><td>Se reutiliza verificarToken sin modificar</td></tr>
+<tr><td><code>config/database.js</code></td><td>Mismo pool de conexiones</td></tr>
+<tr><td><code>tienda-spa.js</code></td><td>El frontend de tiendas sigue funcionando igual</td></tr>
+<tr><td><code>panel.html</code></td><td>No requiere cambios estructurales obligatorios</td></tr>
+<tr><td>Tablas PostgreSQL (tienda_*)</td><td>El módulo solo lee; no altera estructura</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 6 -->
+<div class="section">
+<h1 class="section-title">6. Migración SQL</h1>
+
+<p>Ejecutar en pgAdmin o psql antes de iniciar el servidor:</p>
+
+<pre><code>-- ============================================================
+-- MIGRACION v1.2: Tabla de logs de WhatsApp
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS whatsapp_logs (
+    id SERIAL PRIMARY KEY,
+    tienda VARCHAR(50),
+    cliente_id INTEGER,
+    nro_factura VARCHAR(50),
+    nombre_cliente VARCHAR(255),
+    telefono VARCHAR(20) NOT NULL,
+    direccion VARCHAR(10) NOT NULL CHECK (direccion IN ('outbound', 'inbound')),
+    tipo_mensaje VARCHAR(20),
+    contenido TEXT,
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    wa_message_id VARCHAR(100),
+    error TEXT,
+    enviado_por INTEGER REFERENCES usuarios(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indices para consultas rapidas
+CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_telefono ON whatsapp_logs(telefono);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_cliente ON whatsapp_logs(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_fecha ON whatsapp_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_direccion ON whatsapp_logs(direccion);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_estado ON whatsapp_logs(estado);
+
+-- Vista: ultimo envio por cliente (para prevenir doble envio)
+CREATE OR REPLACE VIEW v_whatsapp_ultimo_envio AS
+SELECT DISTINCT ON (telefono)
+    telefono,
+    cliente_id,
+    created_at as ultimo_envio,
+    tipo_mensaje
+FROM whatsapp_logs
+WHERE direccion = 'outbound' AND estado = 'enviado'
+ORDER BY telefono, created_at DESC;</code></pre>
+
+<div class="success-box">
+<strong>Nota:</strong> Esta migración es <strong>segura</strong>. La tabla whatsapp_logs es independiente de las tablas de tiendas. No altera datos existentes. Si se hace rollback, simplemente se elimina la tabla sin afectar el resto del sistema.
+</div>
+</div>
+
+<!-- SECCIÓN 7 -->
+<div class="section">
+<h1 class="section-title">7. Código Completo</h1>
+
+<h2>7.1 services/whatsapp.js</h2>
+
+<pre><code>// ============================================================
+// SERVICIO DE WHATSAPP — Baileys v6  (v1.2 Background Jobs)
+// Sistema de Creditos IPSFA
+// ============================================================
+
+const {
+    default: makeWASocket,
+    DisconnectReason,
+    useMultiFileAuthState,
+    fetchLatestBaileysVersion
+} = require('@whiskeysockets/baileys');
+const fs = require('fs');
+const path = require('path');
+const pino = require('pino');
+const pool = require('../config/database');
+
+const AUTH_FOLDER = path.join(__dirname, '..', 'auth_info');
+let sock = null;
+let qrCode = null;
+let connectionState = 'disconnected';
+let reconnectAttempts = 0;
+const MAX_RECONNECT = 5;
+
+// v1.2: Jobs en memoria para tracking de envios masivos
+const jobs = new Map();
+let jobIdCounter = 1;
+
+if (!fs.existsSync(AUTH_FOLDER)) {
+    fs.mkdirSync(AUTH_FOLDER, { recursive: true });
+}
+
+async function iniciarWhatsApp() {
+    try {
+        connectionState = 'connecting';
+        console.log('[WhatsApp] Iniciando conexion...');
+
+        const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
+        const { version } = await fetchLatestBaileysVersion();
+
+        sock = makeWASocket({
+            version,
+            logger: pino({ level: 'silent' }),
+            printQRInTerminal: true,
+            auth: state,
+            browser: ['IPSFA Creditos', 'Chrome', '1.0'],
+            syncFullHistory: false,
+            markOnlineOnConnect: false
+        });
+
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
+
+            if (qr) {
+                qrCode = qr;
+                connectionState = 'qr_ready';
+                console.log('[WhatsApp] QR generado. Escanea con tu telefono.');
+            }
+
+            if (connection === 'close') {
+                const shouldReconnect = lastDisconnect?.error?.output?.statusCode
+                    !== DisconnectReason.loggedOut;
+                console.log('[WhatsApp] Conexion cerrada.');
+
+                if (shouldReconnect && reconnectAttempts < MAX_RECONNECT) {
+                    reconnectAttempts++;
+                    console.log(`[WhatsApp] Reintentando (${reconnectAttempts}/${MAX_RECONNECT})...`);
+                    setTimeout(iniciarWhatsApp, 5000);
+                } else {
+                    connectionState = 'disconnected';
+                    qrCode = null;
+                    reconnectAttempts = 0;
+                }
+            }
+
+            if (connection === 'open') {
+                connectionState = 'connected';
+                qrCode = null;
+                reconnectAttempts = 0;
+                console.log('[WhatsApp] Conectado como:', sock.user?.id);
+            }
+        });
+
+        sock.ev.on('creds.update', saveCreds);
+
+        sock.ev.on('messages.upsert', async (m) => {
+            const msg = m.messages[0];
+            if (!msg.key.fromMe && m.type === 'notify') {
+                const numero = msg.key.remoteJid.replace(/@s.whatsapp.net/, '');
+                const texto = msg.message?.conversation
+                    || msg.message?.extendedTextMessage?.text
+                    || '';
+                await guardarLog({
+                    telefono: numero,
+                    direccion: 'inbound',
+                    contenido: texto,
+                    estado: 'recibido',
+                    wa_message_id: msg.key.id
+                });
+            }
+        });
+
+    } catch (error) {
+        console.error('[WhatsApp] Error iniciando:', error);
+        connectionState = 'disconnected';
+    }
+}
+
+async function enviarMensaje(telefono, mensaje, metadata = {}) {
+    if (!sock || connectionState !== 'connected') {
+        return { exito: false, error: 'WhatsApp no conectado.' };
+    }
+
+    try {
+        let numero = telefono.replace(/\D/g, '');
+        if (!numero.startsWith('58')) numero = '58' + numero;
+        const jid = `${numero}@s.whatsapp.net`;
+
+        const result = await sock.sendMessage(jid, { text: mensaje });
+
+        await guardarLog({
+            tienda: metadata.tienda || null,
+            cliente_id: metadata.clienteId || null,
+            nro_factura: metadata.nroFactura || null,
+            nombre_cliente: metadata.nombreCliente || null,
+            telefono: numero,
+            direccion: 'outbound',
+            tipo_mensaje: metadata.tipoMensaje || 'manual',
+            contenido: mensaje,
+            estado: 'enviado',
+            wa_message_id: result.key.id,
+            enviado_por: metadata.usuarioId || null
+        });
+
+        return { exito: true, id: result.key.id, timestamp: result.messageTimestamp };
+
+    } catch (error) {
+        await guardarLog({
+            tienda: metadata.tienda || null,
+            cliente_id: metadata.clienteId || null,
+            nro_factura: metadata.nroFactura || null,
+            nombre_cliente: metadata.nombreCliente || null,
+            telefono: telefono.replace(/\D/g, ''),
+            direccion: 'outbound',
+            tipo_mensaje: metadata.tipoMensaje || 'manual',
+            contenido: mensaje,
+            estado: 'fallido',
+            error: error.message,
+            enviado_por: metadata.usuarioId || null
+        });
+        return { exito: false, error: error.message };
+    }
+}
+
+// v1.2: Procesar envio masivo EN SEGUNDO PLANO
+async function procesarEnvioMasivo(jobId, deudores, tipoMensaje, tienda, usuarioId) {
+    const job = jobs.get(jobId);
+    if (!job) return;
+
+    job.estado = 'procesando';
+    job.total = deudores.length;
+    job.procesados = 0;
+    job.enviados = 0;
+    job.fallidos = 0;
+    job.saltados = 0;
+    job.detalle = { enviados: [], fallidos: [], saltados: [] };
+
+    for (const deudor of deudores) {
+        if (job.estado === 'cancelado') break;
+
+        const spamCheck = await puedeEnviar(deudor.telefono, 24);
+        if (!spamCheck.puede) {
+            job.saltados++;
+            job.detalle.saltados.push({
+                factura: deudor.nro_factura,
+                cliente: deudor.nombre_apellido,
+                razon: `Enviado hace ${(24 - spamCheck.horasRestantes).toFixed(1)}h`
+            });
+            job.procesados++;
+            continue;
+        }
+
+        const mensaje = construirMensaje(deudor, tipoMensaje, tienda);
+        const resultado = await enviarMensaje(deudor.telefono, mensaje, {
+            tienda, clienteId: deudor.id, nroFactura: deudor.nro_factura,
+            nombreCliente: deudor.nombre_apellido, tipoMensaje, usuarioId
+        });
+
+        if (resultado.exito) {
+            job.enviados++;
+            job.detalle.enviados.push({ factura: deudor.nro_factura, cliente: deudor.nombre_apellido });
+        } else {
+            job.fallidos++;
+            job.detalle.fallidos.push({ factura: deudor.nro_factura, cliente: deudor.nombre_apellido, error: resultado.error });
+        }
+
+        job.procesados++;
+        await new Promise(r => setTimeout(r, 2000));
+    }
+
+    job.estado = job.estado === 'cancelado' ? 'cancelado' : 'completado';
+    job.fechaFin = new Date().toISOString();
+    setTimeout(() => jobs.delete(jobId), 60 * 60 * 1000);
+}
+
+function crearJob(datos) {
+    const jobId = `job_${Date.now()}_${jobIdCounter++}`;
+    const job = {
+        id: jobId, estado: 'pendiente', tienda: datos.tienda,
+        tipoMensaje: datos.tipoMensaje, total: 0, procesados: 0,
+        enviados: 0, fallidos: 0, saltados: 0,
+        detalle: { enviados: [], fallidos: [], saltados: [] },
+        fechaInicio: new Date().toISOString(), fechaFin: null
+    };
+    jobs.set(jobId, job);
+    return jobId;
+}
+
+function getJob(jobId) { return jobs.get(jobId) || null; }
+
+function getEstado() {
+    return {
+        estado: connectionState, conectado: connectionState === 'connected',
+        usuario: sock?.user?.name || null,
+        numero: sock?.user?.id?.replace(/@s.whatsapp.net/, '') || null,
+        qrDisponible: !!qrCode, reconexiones: reconnectAttempts,
+        jobsActivos: Array.from(jobs.values()).filter(j => j.estado === 'procesando').length
+    };
+}
+
+async function desconectar() {
+    if (sock) { await sock.logout(); sock = null; connectionState = 'disconnected'; qrCode = null; }
+}
+
+async function guardarLog(data) {
+    try {
+        await pool.query(
+            `INSERT INTO whatsapp_logs (tienda, cliente_id, nro_factura, nombre_cliente, telefono, direccion, tipo_mensaje, contenido, estado, wa_message_id, error, enviado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [ data.tienda, data.cliente_id, data.nro_factura, data.nombre_cliente, data.telefono, data.direccion, data.tipo_mensaje, data.contenido, data.estado, data.wa_message_id || null, data.error || null, data.enviado_por ]
+        );
+    } catch (e) { console.error('[WhatsApp] Error guardando log:', e); }
+}
+
+async function puedeEnviar(telefono, minHoras = 24) {
+    try {
+        const result = await pool.query(
+            `SELECT created_at FROM whatsapp_logs WHERE telefono = $1 AND direccion = 'outbound' AND estado = 'enviado' ORDER BY created_at DESC LIMIT 1`,
+            [telefono.replace(/\D/g, '')]
+        );
+        if (result.rows.length === 0) return { puede: true };
+        const ultimo = new Date(result.rows[0].created_at);
+        const ahora = new Date();
+        const horasDiff = (ahora - ultimo) / (1000 * 60 * 60);
+        if (horasDiff < minHoras) {
+            return { puede: false, ultimoEnvio: ultimo, horasRestantes: (minHoras - horasDiff).toFixed(1) };
+        }
+        return { puede: true };
+    } catch (e) { return { puede: true }; }
+}
+
+function construirMensaje(cliente, tipo, tienda) {
+    const nombre = cliente.nombre_apellido?.split(' ')[0] || 'Cliente';
+    const deuda = formatearBs(cliente.deuda);
+    const factura = cliente.nro_factura;
+    const tiendaNombre = tienda.charAt(0).toUpperCase() + tienda.slice(1);
+    const plantillas = {
+        cobro: `Hola ${nombre}, le escribimos de *Inversora IPSFA* — Tienda ${tiendaNombre}.\n\nLe recordamos que tiene una deuda pendiente de *${deuda}* correspondiente a la factura *N° ${factura}*.\n\nPor favor, realice su pago a la brevedad. Si ya cancelo, ignore este mensaje.\n\nGracias.`,
+        recordatorio: `Buen dia ${nombre},\n\nLe recordamos amablemente que su proxima cuota de la factura *${factura}* esta proxima a vencer.\n\nDeuda actual: *${deuda}*\nTienda ${tiendaNombre} — IPSFA\n\nPara mas informacion, contactenos.`,
+        mora: `⚠️ *AVISO IMPORTANTE* — Inversora IPSFA\n\nEstimado(a) ${nombre},\n\nSu factura *N° ${factura}* registra una deuda de *${deuda}* con dias de retraso.\n\nLe solicitamos regularizar su situacion lo antes posible para evitar inconvenientes.\n\nTienda ${tiendaNombre}`,
+        agradecimiento: `Hola ${nombre},\n\nDe *Inversora IPSFA* queremos agradecerle por su pago reciente correspondiente a la factura *${factura}*.\n\nSu compromiso es muy valioso para nosotros.\n\nTienda ${tiendaNombre}`
+    };
+    return plantillas[tipo] || plantillas.cobro;
+}
+
+function formatearBs(valor) {
+    const num = parseFloat(valor) || 0;
+    return num.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs';
+}
+
+module.exports = { iniciarWhatsApp, enviarMensaje, getEstado, desconectar, puedeEnviar, procesarEnvioMasivo, crearJob, getJob };</code></pre>
+
+<h2>7.2 routes/notificaciones.js</h2>
+
+<pre><code>// ============================================================
+// RUTAS DE NOTIFICACIONES WHATSAPP v1.2 (Background Jobs)
+// Sistema de Creditos IPSFA
+// ============================================================
+
+const express = require('express');
+const pool = require('../config/database');
+const { verificarToken } = require('../middleware/auth');
+const { enviarMensaje, getEstado, puedeEnviar, procesarEnvioMasivo, crearJob, getJob } = require('../services/whatsapp');
+
+const router = express.Router();
+const TABLAS_TIENDA = { caracas: 'tienda_caracas', maracay: 'tienda_maracay', maracaibo: 'tienda_maracaibo' };
+
+// GET /api/notificaciones/estado
+router.get('/estado', verificarToken, (req, res) => {
+    res.json({ exito: true, ...getEstado() });
+});
+
+// GET /api/notificaciones/logs
+router.get('/logs', verificarToken, async (req, res) => {
+    try {
+        const { tienda, telefono, desde, hasta, direccion, limite = 100 } = req.query;
+        let where = ['1=1']; let params = []; let idx = 1;
+        if (tienda) { where.push(`tienda = $${idx++}`); params.push(tienda); }
+        if (telefono) { where.push(`telefono = $${idx++}`); params.push(telefono.replace(/\D/g, '')); }
+        if (desde) { where.push(`created_at >= $${idx++}`); params.push(desde); }
+        if (hasta) { where.push(`created_at <= $${idx++}`); params.push(hasta); }
+        if (direccion) { where.push(`direccion = $${idx++}`); params.push(direccion); }
+        if (req.usuario.rol === 'operador' && req.usuario.tienda) { where.push(`tienda = $${idx++}`); params.push(req.usuario.tienda); }
+        const query = `SELECT * FROM whatsapp_logs WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT $${idx}`;
+        params.push(parseInt(limite));
+        const result = await pool.query(query, params);
+        res.json({ exito: true, total: result.rows.length, logs: result.rows });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// GET /api/notificaciones/job/:jobId
+router.get('/job/:jobId', verificarToken, (req, res) => {
+    const job = getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Job no encontrado o expirado' });
+    res.json({ exito: true, job });
+});
+
+// POST /api/notificaciones/enviar
+router.post('/enviar', verificarToken, async (req, res) => {
+    try {
+        const { telefono, mensaje } = req.body;
+        if (!telefono || !mensaje) return res.status(400).json({ error: 'telefono y mensaje son obligatorios' });
+        const resultado = await enviarMensaje(telefono, mensaje, { usuarioId: req.usuario.id, tipoMensaje: 'manual' });
+        if (resultado.exito) res.json({ exito: true, mensaje: 'Mensaje enviado', id: resultado.id });
+        else res.status(500).json({ error: resultado.error });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// POST /api/notificaciones/deudores — v1.2: Background Job
+router.post('/deudores', verificarToken, async (req, res) => {
+    try {
+        const { tienda, tipoMensaje = 'cobro' } = req.body;
+        if (!tienda) return res.status(400).json({ error: 'tienda es obligatoria' });
+        const tabla = TABLAS_TIENDA[tienda];
+        if (!tabla) return res.status(400).json({ error: 'Tienda no valida' });
+        if (req.usuario.rol === 'operador' && req.usuario.tienda !== tienda) return res.status(403).json({ error: 'Sin acceso a esta tienda' });
+
+        const result = await pool.query(
+            `SELECT id, nro_factura, nombre_apellido, telefono, deuda, fecha_factura FROM ${tabla} WHERE deuda > 0 AND telefono IS NOT NULL AND telefono != '' ORDER BY deuda DESC LIMIT 50`
+        );
+        const deudores = result.rows;
+        if (deudores.length === 0) return res.json({ exito: true, mensaje: 'No hay deudores con telefono registrado' });
+
+        const jobId = crearJob({ tienda, tipoMensaje, total: deudores.length });
+        procesarEnvioMasivo(jobId, deudores, tipoMensaje, tienda, req.usuario.id);
+
+        res.status(202).json({
+            exito: true, mensaje: 'Envio masivo iniciado en segundo plano',
+            jobId, total: deudores.length,
+            consultarProgresoEn: `/api/notificaciones/job/${jobId}`
+        });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// POST /api/notificaciones/cliente
+router.post('/cliente', verificarToken, async (req, res) => {
+    try {
+        const { tienda, clienteId, tipoMensaje = 'cobro' } = req.body;
+        if (!tienda || !clienteId) return res.status(400).json({ error: 'tienda y clienteId son obligatorios' });
+        const tabla = TABLAS_TIENDA[tienda];
+        if (!tabla) return res.status(400).json({ error: 'Tienda no valida' });
+        if (req.usuario.rol === 'operador' && req.usuario.tienda !== tienda) return res.status(403).json({ error: 'Sin acceso a esta tienda' });
+
+        const result = await pool.query(`SELECT id, nro_factura, nombre_apellido, telefono, deuda, fecha_factura, monto_factura FROM ${tabla} WHERE id = $1`, [clienteId]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+        const cliente = result.rows[0];
+        if (!cliente.telefono) return res.status(400).json({ error: 'El cliente no tiene telefono registrado' });
+
+        const spamCheck = await puedeEnviar(cliente.telefono, 24);
+        if (!spamCheck.puede) return res.status(429).json({ error: 'Este cliente ya fue notificado recientemente', ultimoEnvio: spamCheck.ultimoEnvio, horasRestantes: spamCheck.horasRestantes });
+
+        const mensaje = construirMensaje(cliente, tipoMensaje, tienda);
+        const resultado = await enviarMensaje(cliente.telefono, mensaje, { tienda, clienteId: cliente.id, nroFactura: cliente.nro_factura, nombreCliente: cliente.nombre_apellido, tipoMensaje, usuarioId: req.usuario.id });
+
+        if (resultado.exito) res.json({ exito: true, mensaje: 'Mensaje enviado', cliente: cliente.nombre_apellido });
+        else res.status(500).json({ error: resultado.error });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+module.exports = router;</code></pre>
+
+<h2>7.3 Frontend con Polling</h2>
+
+<pre><code>// ============================================================
+// FRONTEND: Notificaciones WhatsApp con Polling de Progreso
+// Agregar en panel.js o en el script de la pantalla de notificaciones
+// ============================================================
+
+let enviando = false;
+let pollInterval = null;
+
+async function notificarDeudores(tienda, tipoMensaje) {
+    if (enviando) {
+        alert('⚠️ Ya hay un envio en proceso. Espere a que termine.');
+        return;
+    }
+    if (!confirm(`¿Iniciar envio masivo de "${tipoMensaje}" a deudores de ${tienda}?`)) return;
+
+    enviando = true;
+    const btn = document.getElementById('btn-notificar');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Iniciando...'; }
+
+    try {
+        const response = await fetch('/api/notificaciones/deudores', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            body: JSON.stringify({ tienda, tipoMensaje })
+        });
+        const data = await response.json();
+
+        if (!data.exito) {
+            alert('❌ Error: ' + data.error);
+            enviando = false;
+            if (btn) { btn.disabled = false; btn.textContent = '📱 Enviar Notificaciones'; }
+            return;
+        }
+
+        mostrarProgreso(data.jobId, data.total);
+        pollInterval = setInterval(() => consultarProgreso(data.jobId), 3000);
+
+    } catch (e) {
+        alert('❌ Error de conexion');
+        enviando = false;
+        if (btn) { btn.disabled = false; btn.textContent = '📱 Enviar Notificaciones'; }
+    }
+}
+
+async function consultarProgreso(jobId) {
+    try {
+        const response = await fetch(`/api/notificaciones/job/${jobId}`, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        const data = await response.json();
+        if (!data.exito) return;
+
+        actualizarBarraProgreso(data.job);
+
+        if (data.job.estado === 'completado' || data.job.estado === 'cancelado') {
+            clearInterval(pollInterval);
+            pollInterval = null;
+            enviando = false;
+            const btn = document.getElementById('btn-notificar');
+            if (btn) { btn.disabled = false; btn.textContent = '📱 Enviar Notificaciones'; }
+            alert(`✅ Envio completado!\n\n📤 Enviados: ${data.job.enviados}\n❌ Fallidos: ${data.job.fallidos}\n⏭️ Saltados: ${data.job.saltados}`);
+        }
+    } catch (e) { console.error('Error consultando progreso:', e); }
+}
+
+function mostrarProgreso(jobId, total) {
+    let container = document.getElementById('progreso-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'progreso-container';
+        container.style.cssText = 'margin:15px 0;padding:15px;border:1px solid #e2e8f0;border-radius:8px;background:#f7fafc;';
+        const panel = document.getElementById('notificaciones-panel') || document.body;
+        panel.appendChild(container);
+    }
+    container.innerHTML = `
+        <div style="font-size:11px;font-weight:600;color:#1a365d;margin-bottom:8px;">📤 Enviando notificaciones... <span id="prog-pct">0%</span></div>
+        <div style="width:100%;height:20px;background:#e2e8f0;border-radius:10px;overflow:hidden;">
+            <div id="prog-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#25d366,#128c7e);transition:width 0.5s;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#718096;">
+            <span id="prog-enviados">Enviados: 0</span>
+            <span id="prog-fallidos">Fallidos: 0</span>
+            <span id="prog-saltados">Saltados: 0</span>
+        </div>`;
+    container.style.display = 'block';
+}
+
+function actualizarBarraProgreso(job) {
+    const pct = job.total > 0 ? Math.round((job.procesados / job.total) * 100) : 0;
+    const bar = document.getElementById('prog-bar');
+    const pctText = document.getElementById('prog-pct');
+    if (bar) bar.style.width = pct + '%';
+    if (pctText) pctText.textContent = pct + '%';
+    const env = document.getElementById('prog-enviados');
+    const fall = document.getElementById('prog-fallidos');
+    const salt = document.getElementById('prog-saltados');
+    if (env) env.textContent = `Enviados: ${job.enviados}`;
+    if (fall) fall.textContent = `Fallidos: ${job.fallidos}`;
+    if (salt) salt.textContent = `Saltados: ${job.saltados}`;
+}</code></pre>
+
+<h2>7.4 Modificación de server.js</h2>
+
+<pre><code>// === IMPORTS EXISTENTES (no modificar) ===
+const express = require('express');
+// ... otros imports ...
+
+// === NUEVO: Importar servicio de WhatsApp y router de notificaciones ===
+const { iniciarWhatsApp } = require('./services/whatsapp');
+const notificacionesRouter = require('./routes/notificaciones');
+
+// === CONFIGURACION EXISTENTE (no modificar) ===
+const app = express();
+// ... middleware existente ...
+
+// === RUTAS EXISTENTES (no modificar) ===
+app.use('/api/auth', authRouter);
+app.use('/api/tiendas', tiendasRouter);
+app.use('/api/usuarios', usuariosRouter);
+app.use('/api/reportes/v1', reportesRouter);
+// ... otras rutas ...
+
+// === NUEVO: Registrar API de notificaciones ===
+app.use('/api/notificaciones', notificacionesRouter);
+
+// === NUEVO: Iniciar WhatsApp al arrancar el servidor ===
+iniciarWhatsApp().catch(err => {
+    console.error('[Server] Error iniciando WhatsApp:', err);
+});
+
+// === INICIO DEL SERVIDOR (no modificar) ===
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+    console.log(`API de notificaciones disponible en /api/notificaciones`);
+});</code></pre>
+</div>
+
+<!-- SECCIÓN 8 -->
+<div class="section">
+<h1 class="section-title">8. Beneficios Detallados</h1>
+
+<h2>8.1 Beneficios operativos</h2>
+
+<table>
+<tr><th>Beneficio</th><th>Descripción</th><th>Impacto</th></tr>
+<tr><td>Cobro proactivo</td><td>Se notifica al cliente antes de que entre en mora grave</td><td>Reduce morosidad en un 20-30%</td></tr>
+<tr><td>Ahorro de tiempo</td><td>50 mensajes en 100 segundos automáticos vs. 2 horas de llamadas</td><td>El operador se enfoca en casos complejos</td></tr>
+<tr><td>Registro persistente</td><td>Cada envío y respuesta queda en PostgreSQL</td><td>Auditoría completa; prevención de spam</td></tr>
+<tr><td>Feedback visual</td><td>Barra de progreso en tiempo real con polling</td><td>El usuario sabe exactamente qué está pasando</td></tr>
+<tr><td>Anti-duplicados</td><td>No se puede enviar 2 veces al mismo cliente en 24h</td><td>El cliente nunca recibe spam</td></tr>
+<tr><td>Detección de respuestas</td><td>Los mensajes entrantes del cliente se guardan automáticamente</td><td>Se sabe quién respondió y qué dijo</td></tr>
+<tr><td>Escalamiento automático</td><td>4 tipos de mensaje según gravedad</td><td>Comunicación apropiada para cada situación</td></tr>
+</table>
+
+<h2>8.2 Beneficios estratégicos</h2>
+
+<table>
+<tr><th>Beneficio</th><th>Descripción</th><th>Impacto</th></tr>
+<tr><td>Mejora de cartera</td><td>Mayor tasa de recuperación por cobro temprano</td><td>Flujo de caja más predecible</td></tr>
+<tr><td>Imagen profesional</td><td>Mensajes con marca IPSFA y datos precisos</td><td>El cliente percibe seriedad</td></tr>
+<tr><td>Escalable</td><td>Al agregar una tienda, solo se agrega una línea al mapa</td><td>Implementación en minutos</td></tr>
+<tr><td>Automatizable</td><td>Un cron job puede llamar a /deudores cada lunes 8am</td><td>Cobro semanal sin intervención</td></tr>
+<tr><td>Multi-canal futuro</td><td>La arquitectura permite agregar SMS o Email</td><td>Inversión protegida</td></tr>
+</table>
+
+<h2>8.3 Comparativa: antes vs. después</h2>
+
+<table class="table-compact">
+<tr><th>Aspecto</th><th>Antes (manual)</th><th>Después (v1.2)</th></tr>
+<tr><td>Tiempo por 50 deudores</td><td>2 horas (llamadas)</td><td>100 segundos (automático)</td></tr>
+<tr><td>Feedback al usuario</td><td>Ninguno</td><td>Barra de progreso en tiempo real</td></tr>
+<tr><td>Registro de envíos</td><td>Ninguno</td><td>Tabla PostgreSQL completa</td></tr>
+<tr><td>Prevención de duplicados</td><td>Ninguna</td><td>Lock 24h + flag en frontend</td></tr>
+<tr><td>Detección de respuestas</td><td>Ninguna</td><td>Automática (inbound messages)</td></tr>
+<tr><td>Timeout HTTP</td><td>No aplica (manual)</td><td>Resuelto (202 Accepted + polling)</td></tr>
+<tr><td>Tasa de respuesta</td><td>15-20% (llamadas)</td><td>60-70% (WhatsApp)</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 9 -->
+<div class="section">
+<h1 class="section-title">9. Riesgos y Mitigaciones</h1>
+
+<h2>9.1 Riesgos técnicos</h2>
+
+<div class="risk-high">
+<strong>RIESGO ALTO: Bloqueo de número por WhatsApp</strong><br>
+WhatsApp puede bloquear el número si detecta envío masivo o spam.<br>
+<strong>Mitigación:</strong> (1) Número dedicado (no personal). (2) Máximo 50 mensajes/lote con 2s de delay. (3) Anti-spam 24h. (4) No más de 200 mensajes/día las primeras 2 semanas. (5) Texto personalizado (no idéntico en todos). (6) Horario laboral únicamente.
+</div>
+
+<div class="risk-high">
+<strong>RIESGO ALTO: Pérdida de sesión</strong><br>
+Si se borra auth_info/, hay que escanear el QR de nuevo.<br>
+<strong>Mitigación:</strong> (1) auth_info/ en .gitignore. (2) Backup periódico de auth_info/. (3) Reconexión automática hasta 5 intentos.
+</div>
+
+<div class="risk-med">
+<strong>RIESGO MEDIO: Timeout HTTP (RESUELTO en v1.2)</strong><br>
+En v1.0, 50 deudores × 2s = 100s de bloqueo HTTP.<br>
+<strong>Mitigación v1.2:</strong> Procesamiento en segundo plano con respuesta 202 Accepted inmediata. Polling cada 3s para feedback.
+</div>
+
+<div class="risk-med">
+<strong>RIESGO MEDIO: Celular del QR debe estar conectado</strong><br>
+Baileys funciona como WhatsApp Web: el celular debe tener internet.<br>
+<strong>Mitigación:</strong> Celular dedicado con WiFi estable. Monitorear /estado.
+</div>
+
+<div class="risk-low">
+<strong>RIESGO BAJO: Dependencia de librería de terceros</strong><br>
+Baileys es open-source y WhatsApp puede cambiar su protocolo.<br>
+<strong>Mitigación:</strong> npm update mensual. fetchLatestBaileysVersion() obtiene versión actual automáticamente.
+</div>
+
+<h2>9.2 Riesgos legales y de WhatsApp</h2>
+
+<table class="table-compact">
+<tr><th>Riesgo</th><th>Probabilidad</th><th>Impacto</th><th>Mitigación implementada</th></tr>
+<tr><td>Bloqueo permanente del número</td><td>Media</td><td>Alto</td><td>Número dedicado; rate limiting; horario laboral; opt-out en mensaje</td></tr>
+<tr><td>Denuncia por spam</td><td>Baja</td><td>Medio</td><td>Mensajes profesionales; anti-spam 24h; texto personalizado</td></tr>
+<tr><td>Violación de privacidad</td><td>Baja</td><td>Alto</td><td>El contrato de crédito debe incluir cláusula de contacto</td></tr>
+<tr><td>WhatsApp bloquea IP del servidor</td><td>Muy baja</td><td>Crítico</td><td>Rate limiting implementado; máximo 50/lote; 2s entre mensajes</td></tr>
+</table>
+</div>
+
+<!-- SECCIÓN 10 -->
+<div class="section">
+<h1 class="section-title">10. Plan de Implementación</h1>
+
+<h2>10.1 Fase 1: Instalación (15 minutos)</h2>
+
+<table class="table-compact">
+<tr><th>Paso</th><th>Acción</th><th>Tiempo</th></tr>
+<tr><td>1</td><td><code>npm install @whiskeysockets/baileys pino</code></td><td>3 min</td></tr>
+<tr><td>2</td><td>Crear <code>services/whatsapp.js</code> con código v1.2</td><td>3 min</td></tr>
+<tr><td>3</td><td>Crear <code>routes/notificaciones.js</code> con código v1.2</td><td>3 min</td></tr>
+<tr><td>4</td><td>Ejecutar migración SQL (whatsapp_logs)</td><td>2 min</td></tr>
+<tr><td>5</td><td>Modificar <code>server.js</code> (imports + app.use + iniciarWhatsApp)</td><td>2 min</td></tr>
+<tr><td>6</td><td>Agregar <code>auth_info/</code> a <code>.gitignore</code></td><td>1 min</td></tr>
+<tr><td>7</td><td>Subir archivos al servidor</td><td>1 min</td></tr>
+</table>
+
+<h2>10.2 Fase 2: Configuración (10 minutos)</h2>
+
+<ol>
+<li>Reiniciar servicio de Windows (Node.js)</li>
+<li>Abrir consola del servidor (logs)</li>
+<li>Esperar QR: aparecerá código ASCII en consola</li>
+<li>Abrir WhatsApp en celular dedicado</li>
+<li>Menú → Dispositivos vinculados → Vincular</li>
+<li>Escanear QR de la consola</li>
+<li>Verificar: <code>[WhatsApp] Conectado como: 58XXXXXXXXXX</code></li>
+</ol>
+
+<h2>10.3 Fase 3: Pruebas (30 minutos)</h2>
+
+<table class="table-compact">
+<tr><th>ID</th><th>Prueba</th><th>Entrada</th><th>Resultado esperado</th></tr>
+<tr><td>W-01</td><td>Estado de conexión</td><td>GET /estado</td><td><code>{"conectado": true}</code></td></tr>
+<tr><td>W-02</td><td>Mensaje manual</td><td>POST /enviar a número propio</td><td>Recibir mensaje en celular</td></tr>
+<tr><td>W-03</td><td>Envío masivo (background)</td><td>POST /deudores</td><td>202 Accepted + jobId inmediato</td></tr>
+<tr><td>W-04</td><td>Polling de progreso</td><td>GET /job/:jobId cada 3s</td><td>Progreso aumenta: 2/50, 4/50...</td></tr>
+<tr><td>W-05</td><td>Anti-spam 24h</td><td>Reintentar /cliente mismo ID</td><td>429 "Ya fue notificado recientemente"</td></tr>
+<tr><td>W-06</td><td>Operador otra tienda</td><td>POST /deudores tienda ajena</td><td>403 Forbidden</td></tr>
+<tr><td>W-07</td><td>Logs en BD</td><td>GET /logs</td><td>Registros con direccion outbound/inbound</td></tr>
+<tr><td>W-08</td><td>Reconexión automática</td><td>Reiniciar servidor</td><td>Se reconecta sin escanear QR</td></tr>
+</table>
+
+<h2>10.4 Fase 4: Despliegue (10 minutos)</h2>
+
+<ol>
+<li>Backup de <code>auth_info/</code></li>
+<li>Verificar que tiendas.js, usuarios.js, auth.js siguen funcionando</li>
+<li>Monitorear logs diariamente los primeros 7 días</li>
+<li>Límite inicial: máximo 20 mensajes/día las primeras 2 semanas</li>
+<li>Escalar gradualmente: 50/día → 100/día → 200/día</li>
+</ol>
+
+<div class="danger-box">
+<strong>Rollback:</strong><br>
+1. Eliminar <code>services/whatsapp.js</code> y <code>routes/notificaciones.js</code><br>
+2. Restaurar <code>server.js</code> desde backup<br>
+3. <code>npm uninstall @whiskeysockets/baileys pino</code><br>
+4. Eliminar <code>auth_info/</code><br>
+5. Reiniciar servidor<br>
+El sistema vuelve exactamente al estado anterior.
+</div>
+</div>
+
+<!-- SECCIÓN 11 -->
+<div class="section">
+<h1 class="section-title">11. Pruebas y Validación</h1>
+
+<h2>11.1 Script de prueba con curl</h2>
+
+<pre><code># 1. Obtener token
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@ipsfa.com","password":"tu_password"}'
+
+TOKEN="eyJhbGciOiJIUzI1NiIs..."
+
+# 2. Verificar estado WhatsApp
+curl -X GET http://localhost:3000/api/notificaciones/estado \
+  -H "Authorization: Bearer $TOKEN"
+
+# 3. Enviar mensaje de prueba
+curl -X POST http://localhost:3000/api/notificaciones/enviar \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"telefono": "04242935159", "mensaje": "Prueba IPSFA v1.2"}'
+
+# 4. Iniciar envio masivo (responde inmediatamente con jobId)
+curl -X POST http://localhost:3000/api/notificaciones/deudores \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"tienda": "caracas", "tipoMensaje": "cobro"}'
+# → {"jobId": "job_1753642800000_1", "total": 12}
+
+# 5. Consultar progreso (cada 3 segundos)
+curl -X GET http://localhost:3000/api/notificaciones/job/job_1753642800000_1 \
+  -H "Authorization: Bearer $TOKEN"
+# → {"job": {"estado": "procesando", "procesados": 8, "enviados": 7, ...}}
+
+# 6. Ver logs
+curl -X GET "http://localhost:3000/api/notificaciones/logs?limite=10" \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+</div>
+
+<!-- SECCIÓN 12 -->
+<div class="section">
+<h1 class="section-title">12. Anexos</h1>
+
+<h2>Anexo A: Endpoints</h2>
+
+<table class="table-compact">
+<tr><th>Método</th><th>Ruta</th><th>Descripción</th><th>Auth</th></tr>
+<tr><td>GET</td><td><code>/api/notificaciones/estado</code></td><td>Verificar si WhatsApp está conectado</td><td>JWT</td></tr>
+<tr><td>GET</td><td><code>/api/notificaciones/logs</code></td><td>Historial de mensajes (con filtros)</td><td>JWT</td></tr>
+<tr><td>GET</td><td><code>/api/notificaciones/job/:jobId</code></td><td>Consultar progreso de envío masivo</td><td>JWT</td></tr>
+<tr><td>POST</td><td><code>/api/notificaciones/enviar</code></td><td>Enviar mensaje manual a un número</td><td>JWT</td></tr>
+<tr><td>POST</td><td><code>/api/notificaciones/deudores</code></td><td>Iniciar envío masivo a deudores (background)</td><td>JWT</td></tr>
+<tr><td>POST</td><td><code>/api/notificaciones/cliente</code></td><td>Enviar mensaje a un cliente específico</td><td>JWT</td></tr>
+</table>
+
+<h2>Anexo B: Ejemplos de body JSON</h2>
+
+<h3>B.1 Enviar mensaje manual</h3>
+<pre><code>{ "telefono": "04242935159", "mensaje": "Hola, le escribimos de IPSFA..." }</code></pre>
+
+<h3>B.2 Notificar deudores masivamente</h3>
+<pre><code>{ "tienda": "caracas", "tipoMensaje": "cobro" }</code></pre>
+
+<h3>B.3 Notificar cliente específico</h3>
+<pre><code>{ "tienda": "caracas", "clienteId": 123, "tipoMensaje": "mora" }</code></pre>
+
+<h2>Anexo C: Rollback</h2>
+
+<ol>
+<li>Eliminar <code>services/whatsapp.js</code></li>
+<li>Eliminar <code>routes/notificaciones.js</code></li>
+<li>Restaurar <code>server.js</code> desde backup</li>
+<li><code>npm uninstall @whiskeysockets/baileys pino</code></li>
+<li>Eliminar carpeta <code>auth_info/</code></li>
+<li>Reiniciar servidor</li>
+</ol>
+
+<h2>Anexo D: Límites de WhatsApp</h2>
+
+<table class="table-compact">
+<tr><th>Escenario</th><th>Límite estimado</th><th>Riesgo de ban</th></tr>
+<tr><td>Número nuevo (&lt; 7 días)</td><td>20-50 mensajes/hora</td><td class="status-err">ALTO</td></tr>
+<tr><td>Número con 1-2 semanas de uso</td><td>100-200 mensajes/hora</td><td class="status-warn">MEDIO</td></tr>
+<tr><td>Número antiguo (&gt; 1 mes)</td><td>300-500 mensajes/hora</td><td class="status-ok">BAJO</td></tr>
+<tr><td>Destinatario NO te tiene agregado</td><td>Independiente</td><td class="status-err">ALTO</td></tr>
+<tr><td>Texto idéntico en todos</td><td>Cualquier cantidad</td><td class="status-err">ALTO</td></tr>
+</table>
+
+<h2>Anexo E: Buenas prácticas anti-spam</h2>
+
+<table class="table-compact">
+<tr><th>Práctica</th><th>Implementado</th></tr>
+<tr><td>Rate limiting (2s entre mensajes)</td><td>✅ Sí</td></tr>
+<tr><td>Lote máximo (50 destinatarios)</td><td>✅ Sí</td></tr>
+<tr><td>Anti-spam 24h por cliente</td><td>✅ Sí</td></tr>
+<tr><td>Texto personalizado (nombre, deuda, factura)</td><td>✅ Sí</td></tr>
+<tr><td>Horario laboral (recomendado)</td><td>⚠️ Agregar en cron</td></tr>
+<tr><td>Opt-out ("Si ya canceló, ignore")</td><td>✅ Sí</td></tr>
+<tr><td>Número dedicado (recomendado)</td><td>⚠️ Configuración del usuario</td></tr>
+<tr><td>Registro de consentimiento</td><td>⚠️ Cláusula en contrato</td></tr>
+</table>
+
+<div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid var(--primary); text-align: center; font-size: 9pt; color: var(--text-light);">
+<p><strong>Fin del documento</strong></p>
+<p>Informe Técnico IPSFA — Módulo de Notificaciones WhatsApp v1.2 — Julio 2026</p>
+<p>Documento clasificado como Interno / Operativo</p>
+</div>
+</div>
+
+</body>
+</html>

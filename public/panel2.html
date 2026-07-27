@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel - Sistema de Creditos</title>
+<link rel="stylesheet" href="css/panel.css">
+<!-- ApexCharts CDN -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
+<style>
+/* ====== ESTILOS MOVIL ====== */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed !important;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        width: 250px !important;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    .sidebar-toggle {
+        display: flex !important;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 1001;
+        background: rgba(26, 54, 93, 0.9);
+        border: none;
+        border-radius: 8px;
+        padding: 10px;
+        color: white;
+        cursor: pointer;
+    }
+
+    /* Overlay cuando sidebar está abierto */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+
+    /* Ajustar cards en móvil */
+    .card {
+        margin-bottom: 15px;
+    }
+
+    .dashboard-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Tablas responsive */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Formularios en móvil */
+    .form-row {
+        flex-direction: column !important;
+    }
+
+    .form-row .form-group {
+        width: 100% !important;
+        margin-right: 0 !important;
+    }
+}
+
+/* Ocultar toggle en desktop */
+@media (min-width: 769px) {
+    .sidebar-toggle {
+        display: none !important;
+    }
+    .sidebar-overlay {
+        display: none !important;
+    }
+}
+</style>
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                    <circle cx="30" cy="30" r="28" stroke="white" stroke-width="2" fill="none"/>
+                    <path d="M20 30 L30 20 L40 30 L30 40 Z" fill="white" opacity="0.8"/>
+                    <circle cx="30" cy="30" r="6" fill="#1a365d"/>
+                </svg>
+                <div class="brand-text">
+                    <h3>CREDITOS</h3>
+                    <span>Sistema Financiero</span>
+                </div>
+            </div>
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <span class="nav-title">PRINCIPAL</span>
+                <a href="#" class="nav-item active" id="nav-dashboard" onclick="mostrarSeccion('dashboard')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Panel Principal</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-title">MODULOS</span>
+                <a href="#" class="nav-item" id="nav-caracas" onclick="mostrarSeccion('clientes')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Tienda Caracas</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-maracay" onclick="mostrarSeccion('creditos')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <span>Tienda Maracay</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-maracaibo" onclick="mostrarSeccion('pagos')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                    <span>Tienda Maracaibo</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-actividades-pendientes" onclick="mostrarSeccion('reportes')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Actividades Pendientes</span>
+                </a>
+                
+            </div>
+            <div class="nav-section">
+                <span class="nav-title">CONFIGURACION</span>
+                <a href="#" class="nav-item" id="nav-tasas" onclick="mostrarSeccion('tasas')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        <polyline points="17 6 23 6 23 12"></polyline>
+                    </svg>
+                    <span>Tasas BCV</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-usuarios" onclick="mostrarSeccion('usuarios')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Usuarios</span>
+                </a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info" onclick="mostrarSeccion('perfil')" style="cursor:pointer;">
+                <div class="user-avatar">
+                    <span id="userInitials">A</span>
+                </div>
+                <div class="user-details">
+                    <span class="user-name" id="userName">Admin</span>
+                    <span class="user-role" id="userRole">Administrador</span>
+                </div>
+            </div>
+            <button class="btn-logout" onclick="cerrarSesion()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Cerrar Sesion</span>
+            </button>
+        </div>
+    </aside>
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <h2 id="pageTitle">Panel Principal</h2>
+                <p id="pageSubtitle">Bienvenido al sistema</p>
+            </div>
+            <div class="header-right">
+                <div class="clock-widget">
+                    <div class="clock-time" id="clockTime">--:--:--</div>
+                    <div class="clock-date" id="clockDate">---, -- de --- ----</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- DASHBOARD -->
+        <div class="content-area" id="contentDashboard">
+            <div class="dashboard-grid">
+                <div class="card card-tasa">
+                    <div class="card-header">
+                        <div class="card-icon tasa-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="1" x2="12" y2="23"></line>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <h3>Tasa BCV Oficial</h3>
+                            <span class="card-subtitle">Banco Central de Venezuela</span>
+                        </div>
+                    </div>
+                    <div class="tasa-content">
+                        <div class="tasa-principal">
+                            <span class="tasa-moneda">USD/VES</span>
+                            <span class="tasa-valor" id="tasaActual">---</span>
+                            <span class="tasa-fecha" id="tasaFecha">---</span>
+                        </div>
+                        <div class="tasa-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Anterior</span>
+                                <span class="stat-value" id="tasaAnterior">---</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Variacion</span>
+                                <span class="stat-value" id="tasaVariacion">---</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">EUR/VES</span>
+                                <span class="stat-value" id="tasaEUR">---</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-action" onclick="consultarTasaFecha()">Consultar fecha</button>
+                        <button class="btn-action" onclick="verHistorial()">Historial</button>
+                    </div>
+                </div>
+                <div class="card card-reloj">
+                    <div class="card-header">
+                        <div class="card-icon reloj-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <h3>Fecha y Hora</h3>
+                            <span class="card-subtitle">Hora local Venezuela</span>
+                        </div>
+                    </div>
+                    <div class="reloj-content">
+                        <div class="reloj-big" id="relojBig">--:--</div>
+                        <div class="reloj-date" id="relojDate">---, -- de --- ----</div>
+                        <div class="reloj-semana">
+                            <div class="dia-item" id="dia0">D</div>
+                            <div class="dia-item" id="dia1">L</div>
+                            <div class="dia-item" id="dia2">M</div>
+                            <div class="dia-item" id="dia3">M</div>
+                            <div class="dia-item" id="dia4">J</div>
+                            <div class="dia-item" id="dia5">V</div>
+                            <div class="dia-item" id="dia6">S</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- v6.7 — Widget Mis Actividades rediseñado -->
+                <div class="card card-actividades aw" id="widget-actividades">
+                    <div class="aw-cab">
+                        <div class="aw-ico">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 11l3 3L22 4"></path>
+                                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                            </svg>
+                        </div>
+                        <div class="aw-tit">
+                            <h3>Mis Actividades</h3>
+                            <span>Pendientes de hoy</span>
+                        </div>
+                        <div class="aw-tiendas" id="widgetTiendaDots">
+                            <button type="button" data-t="todas" class="todas on" title="Todas las tiendas" onclick="filtrarWidgetTienda('todas')">✦</button>
+                            <button type="button" data-t="caracas" title="Caracas" onclick="filtrarWidgetTienda('caracas')"><span class="ag2-punto caracas"></span></button>
+                            <button type="button" data-t="maracay" title="Maracay" onclick="filtrarWidgetTienda('maracay')"><span class="ag2-punto maracay"></span></button>
+                            <button type="button" data-t="maracaibo" title="Maracaibo" onclick="filtrarWidgetTienda('maracaibo')"><span class="ag2-punto maracaibo"></span></button>
+                        </div>
+                    </div>
+                    <div class="aw-prog">
+                        <div class="txt"><span>Avance del día</span><strong id="widgetAvanceTxt">0/0</strong></div>
+                        <div class="aw-riel"><div class="aw-relleno" id="widgetAvanceBar" style="width:0%"></div></div>
+                    </div>
+                    <div class="aw-lista" id="actividadesWidgetList">
+                        <p class="aw-cargando">Cargando...</p>
+                    </div>
+                    <div class="aw-mas" id="widgetMas"></div>
+                    <div class="aw-pie">
+                        <span id="actividadesWidgetCount">0 pendientes</span>
+                        <a href="#" onclick="mostrarSeccion('reportes'); return false;">Ver todas <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+                <div class="card card-placeholder" id="cardProximoModulo">
+                    <div class="card-header">
+                        <div class="card-icon placeholder-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="12" y1="8" x2="12" y2="16"></line>
+                                <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                        </div>
+                        <div class="card-title-group">
+                            <h3>Proximo Modulo</h3>
+                            <span class="card-subtitle">En desarrollo</span>
+                        </div>
+                    </div>
+                    <div class="placeholder-content">
+                        <p>Espacio reservado para futuros modulos del sistema.</p>
+                    </div>
+                </div>
+
+
+
+            </div>
+
+            <!-- DASHBOARD GLOBAL (v6.4)
+                 Administrador: consolidado de las 3 tiendas.
+                 Operador: solo su tienda asignada.
+                 El contenido lo genera initDashboardGlobal() en panel.js -->
+            <div id="dashboardGlobal" class="dg-contenedor">
+                <div class="dg-cargando">
+                    <span class="dg-spinner"></span> Cargando resumen...
+                </div>
+            </div>
+        </div>
+
+        <!-- TASAS BCV -->
+        <div class="content-area hidden" id="contentTasas">
+            <div class="section-header">
+                <h3>Consulta de Tasas BCV</h3>
+                <p>Consulta la tasa oficial del Banco Central de Venezuela por fecha</p>
+            </div>
+            <div class="card">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha a consultar</label>
+                        <input type="date" id="fechaConsulta">
+                    </div>
+                    <button class="btn-primary" onclick="consultarTasa()">Consultar</button>
+                </div>
+                <div class="resultado-tasa" id="resultadoTasa" style="display:none;">
+                    <div class="tasa-resultado-card">
+                        <div class="tasa-resultado-header">
+                            <h4>Tasa del <span id="resultadoFecha">---</span></h4>
+                        </div>
+                        <div class="tasa-resultado-body">
+                            <div class="tasa-resultado-item">
+                                <span class="tasa-label">USD/VES</span>
+                                <span class="tasa-valor-big" id="resultadoUSD">---</span>
+                            </div>
+                            <div class="tasa-resultado-item">
+                                <span class="tasa-label">EUR/VES</span>
+                                <span class="tasa-valor-big" id="resultadoEUR">---</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <div class="section-header">
+                    <h3>Historial de Tasas</h3>
+                    <p>Ultimas 30 tasas publicadas por el BCV</p>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="tablaHistorial">
+                        <thead><tr><th>Fecha</th><th>USD/VES</th><th>EUR/VES</th><th>Variacion USD</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- USUARIOS -->
+        <div class="content-area hidden" id="contentUsuarios">
+            <div class="section-header">
+                <h3>Gestion de Usuarios</h3>
+                <p>Administracion de usuarios del sistema</p>
+            </div>
+            <div class="stats-grid" id="statsUsuarios">
+                <div class="stat-card">
+                    <div class="stat-icon total">&#128100;</div>
+                    <div class="stat-info"><span class="stat-number" id="statTotal">0</span><span class="stat-label">Total Usuarios</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon activos">&#9989;</div>
+                    <div class="stat-info"><span class="stat-number" id="statActivos">0</span><span class="stat-label">Activos</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon inactivos">&#10060;</div>
+                    <div class="stat-info"><span class="stat-number" id="statInactivos">0</span><span class="stat-label">Inactivos</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon admins">&#11088;</div>
+                    <div class="stat-info"><span class="stat-number" id="statAdmins">0</span><span class="stat-label">Administradores</span></div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <div class="input-group search-group">
+                            <input type="text" id="buscarUsuario" placeholder="Buscar por nombre o email..." oninput="filtrarUsuarios()">
+                        </div>
+                        <select id="filtroRol" onchange="filtrarUsuarios()">
+                            <option value="">Todos los roles</option>
+                            <option value="administrador">Administrador</option>
+                            <option value="operador">Operador</option>
+                        </select>
+                        <select id="filtroEstado" onchange="filtrarUsuarios()">
+                            <option value="">Todos los estados</option>
+                            <option value="true">Activos</option>
+                            <option value="false">Inactivos</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-right">
+                        <button class="btn-primary" onclick="abrirModalUsuario()">Nuevo Usuario</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table" id="tablaUsuarios">
+                        <thead><tr><th>ID</th><th>Nombre / IP</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="table-empty" id="tablaUsuariosEmpty" style="display:none;">
+                    <p>No se encontraron usuarios</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PERFIL -->
+        <div class="content-area hidden" id="contentPerfil">
+            <div class="section-header">
+                <h3>Mi Perfil</h3>
+                <p>Gestion de tu cuenta y seguridad</p>
+            </div>
+            <div class="perfil-grid">
+                <div class="card perfil-card">
+                    <div class="perfil-header">
+                        <div class="perfil-avatar"><span id="perfilInicial">A</span></div>
+                        <div class="perfil-info">
+                            <h3 id="perfilNombre">---</h3>
+                            <span class="badge" id="perfilRol">---</span>
+                            <p id="perfilEmail">---</p>
+                        </div>
+                    </div>
+                    <div class="perfil-detalles">
+                        <div class="perfil-item"><span class="perfil-label">Miembro desde</span><span class="perfil-value" id="perfilFecha">---</span></div>
+                        <div class="perfil-item"><span class="perfil-label">Ultima actualizacion</span><span class="perfil-value" id="perfilActualizado">---</span></div>
+                        <div class="perfil-item"><span class="perfil-label">Estado</span><span class="perfil-value" id="perfilEstado">---</span></div>
+                        <div class="perfil-item"><span class="perfil-label">IP Asignada</span><span class="perfil-value" id="perfilIp">---</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4 style="margin-bottom:20px;color:var(--primary);">Cambiar Contrasena</h4>
+                    <form id="formCambiarPassword">
+                        <div class="form-group"><label>Contrasena actual</label><input type="password" id="passwordActual" required></div>
+                        <div class="form-group"><label>Nueva contrasena</label><input type="password" id="passwordNuevo" required minlength="6"></div>
+                        <div class="form-group"><label>Confirmar nueva contrasena</label><input type="password" id="passwordConfirmar" required minlength="6"></div>
+                        <button type="submit" class="btn-primary">Actualizar Contrasena</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIENDA CARACAS -->
+        <!-- ========== SECCIÓN: TIENDA CARACAS ========== -->
+        <!-- El contenido lo genera el módulo genérico js/tienda-spa.js -->
+        <div class="content-area hidden" id="contentClientes">
+        </div>
+
+        <!-- ========== SECCIÓN: TIENDA MARACAY ========== -->
+        <!-- El contenido lo genera el módulo genérico js/tienda-spa.js -->
+        <div class="content-area hidden" id="contentMaracay">
+        </div>
+
+        <!-- ========== SECCIÓN: TIENDA MARACAIBO ========== -->
+        <!-- El contenido lo genera el módulo genérico js/tienda-spa.js -->
+        <div class="content-area hidden" id="contentPagos">
+        </div>
+
+        <!-- REPORTES -->
+        <div class="content-area hidden" id="contentReportes">
+            <!-- v6.7 — Agenda rediseñada (corporativa, con filtro por tienda) -->
+            <div class="agenda-container ag2">
+                <div class="ag2-hero">
+                    <div class="ag2-hero-izq">
+                        <div class="ag2-miga"><i class="fas fa-th-large"></i> Panel &nbsp;·&nbsp; Actividades</div>
+                        <h3><span class="ag2-h-ico"><i class="fas fa-calendar-check"></i></span> Mi Agenda de Hoy</h3>
+                        <span class="ag2-fecha"><i class="far fa-calendar"></i> <span id="agendaFechaHoy">---</span></span>
+                    </div>
+                    <div class="ag2-hero-stats">
+                        <div class="ag2-hstat"><span class="v" id="agendaTotal">0</span><span class="l">Total</span></div>
+                        <div class="ag2-hstat pen"><span class="v" id="agendaPendientes">0</span><span class="l">Pendientes</span></div>
+                        <div class="ag2-hstat com"><span class="v" id="agendaCompletadas">0</span><span class="l">Completadas</span></div>
+                        <div class="ag2-hring">
+                            <svg viewBox="0 0 42 42">
+                                <circle class="pista" cx="21" cy="21" r="17" fill="none" stroke-width="5"></circle>
+                                <circle class="arco" id="agendaArco" cx="21" cy="21" r="17" fill="none" stroke-width="5"
+                                        stroke-dasharray="106.8" stroke-dashoffset="106.8"></circle>
+                            </svg>
+                            <div class="txt"><span class="v" id="agendaAvance">0%</span><span class="l">Avance</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ag2-barra-tienda" id="agendaBarraTienda">
+                    <span class="ag2-bt-label"><i class="fas fa-store"></i> Tienda</span>
+                    <div class="ag2-seg" id="agendaSegTienda">
+                        <button type="button" data-t="todas" class="on" onclick="filtrarAgendaTienda('todas')"><i class="fas fa-border-all"></i> Todas</button>
+                        <button type="button" data-t="caracas" onclick="filtrarAgendaTienda('caracas')"><span class="ag2-punto caracas"></span> Caracas</button>
+                        <button type="button" data-t="maracay" onclick="filtrarAgendaTienda('maracay')"><span class="ag2-punto maracay"></span> Maracay</button>
+                        <button type="button" data-t="maracaibo" onclick="filtrarAgendaTienda('maracaibo')"><span class="ag2-punto maracaibo"></span> Maracaibo</button>
+                    </div>
+                    <span class="ag2-bt-resumen" id="agendaResumenTienda"></span>
+                </div>
+
+                <div class="ag2-grid">
+                    <div>
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-plus"></i> Nueva Actividad</span>
+                            </div>
+                            <div class="ag2-card-cuerpo">
+                                <div class="ag2-forma">
+                                    <div class="ag2-campo">
+                                        <label>Descripción</label>
+                                        <div class="ag2-inp-ico"><i class="fas fa-pen"></i>
+                                            <input type="text" id="agendaDescripcion" class="ag2-inp" placeholder="Escribe la actividad a realizar..." maxlength="200">
+                                        </div>
+                                    </div>
+                                    <div class="ag2-campo">
+                                        <label>Hora</label>
+                                        <input type="time" id="agendaHora" class="ag2-inp">
+                                    </div>
+                                    <div class="ag2-campo">
+                                        <label>Prioridad</label>
+                                        <input type="hidden" id="agendaPrioridad" value="media">
+                                        <div class="ag2-prios" id="agendaPrios">
+                                            <button type="button" data-p="baja" onclick="setAgendaPrioridad('baja')">Baja</button>
+                                            <button type="button" data-p="media" class="on" onclick="setAgendaPrioridad('media')">Media</button>
+                                            <button type="button" data-p="alta" onclick="setAgendaPrioridad('alta')">Alta</button>
+                                            <button type="button" data-p="urgente" onclick="setAgendaPrioridad('urgente')">Urgente</button>
+                                        </div>
+                                    </div>
+                                    <div class="ag2-campo">
+                                        <label>Tienda</label>
+                                        <select id="agendaTienda" class="ag2-inp">
+                                            <option value="caracas">Caracas</option>
+                                            <option value="maracay">Maracay</option>
+                                            <option value="maracaibo">Maracaibo</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" class="ag2-btn-pri" onclick="agregarActividad()"><i class="fas fa-plus"></i> Agregar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-list-check"></i> Actividades del Día</span>
+                                <div class="ag2-pills" id="agendaPills">
+                                    <button type="button" class="agenda-filter" data-filter="todas" onclick="filtrarActividades('todas')">Todas</button>
+                                    <button type="button" class="agenda-filter active" data-filter="pendientes" onclick="filtrarActividades('pendientes')">Pendientes</button>
+                                    <button type="button" class="agenda-filter" data-filter="completadas" onclick="filtrarActividades('completadas')">Completadas</button>
+                                </div>
+                            </div>
+                            <div class="ag2-lista" id="agendaLista">
+                                <div class="ag2-vacia">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    <p>No hay actividades para hoy</p>
+                                    <span>Agrega tu primera actividad usando el formulario de arriba</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-chart-simple"></i> Avance por Tienda</span>
+                            </div>
+                            <div class="ag2-card-cuerpo">
+                                <div class="ag2-prog-tienda" id="agendaProgTiendas"></div>
+                            </div>
+                        </div>
+
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="far fa-clock"></i> Próxima Actividad</span>
+                            </div>
+                            <div class="ag2-card-cuerpo" id="agendaProxima"></div>
+                        </div>
+
+                        <div class="ag2-card">
+                            <div class="ag2-card-cab">
+                                <span class="ag2-card-tit"><i class="fas fa-chart-column"></i> Esta Semana</span>
+                                <span class="ag2-card-nota">completadas</span>
+                            </div>
+                            <div class="ag2-card-cuerpo">
+                                <div class="ag2-semana" id="agendaSemana"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ag2-card ag2-hist-card">
+                    <div class="ag2-card-cab">
+                        <span class="ag2-card-tit"><i class="fas fa-clock-rotate-left"></i> Historial de Actividades</span>
+                        <select id="agendaFiltroFecha" class="ag2-inp ag2-sel-mini" onchange="paginaHistorial = 1; cargarHistorialActividades();">
+                            <option value="hoy">Hoy</option>
+                            <option value="ayer">Ayer</option>
+                            <option value="semana">Esta semana</option>
+                            <option value="mes">Este mes</option>
+                        </select>
+                    </div>
+                    <div class="ag2-hist" id="agendaHistorial">
+                        <div class="ag2-vacia">
+                            <i class="fas fa-inbox"></i>
+                            <p>No hay actividades en el historial</p>
+                        </div>
+                    </div>
+                    <div class="ag2-pagina" id="agendaHistorialPaginacion" style="display:none;">
+                        <span class="info" id="infoPaginaHistorial">Página 1 de 1</span>
+                        <div class="ag2-pagbtns">
+                            <button type="button" id="btnPaginaAnterior" onclick="cambiarPaginaHistorial(-1)"><i class="fas fa-chevron-left"></i> Anterior</button>
+                            <button type="button" id="btnPaginaSiguiente" onclick="cambiarPaginaHistorial(1)">Siguiente <i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTADISTICAS (INTEGRADO EN PANEL) -->
+        <div class="content-area hidden" id="contentEstadisticas">
+            <div class="estadisticas-container">
+                <!-- v6.5.1 — regreso al menú de la tienda de origen -->
+                <button type="button" class="btn-volver btn-volver-menu-est" onclick="volverAlMenuTienda()">&#8592; Volver al Menú</button>
+                <div class="filtros-bar">
+                    <div class="filtro-group">
+                        <label>Tienda</label>
+                        <select id="filtro-tienda" onchange="aplicarFiltros()">
+                            <option value="caracas" selected>Tienda Caracas</option>
+                            <option value="maracay">Tienda Maracay</option>
+                            <option value="maracaibo">Tienda Maracaibo</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Mes</label>
+                        <select id="filtro-mes" onchange="aplicarFiltros()">
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7" selected>Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Anio</label>
+                        <select id="filtro-anio" onchange="aplicarFiltros()">
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <label>Tipo</label>
+                        <select id="filtro-tipo" onchange="aplicarFiltros()">
+                            <option value="todos" selected>Todos</option>
+                            <option value="contado">Contado</option>
+                            <option value="credito">Credito</option>
+                        </select>
+                    </div>
+                    <button class="btn-filtrar" onclick="aplicarFiltros()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        Actualizar
+                    </button>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card success" id="kpi-cuotas-canceladas">
+                        <div class="kpi-icon">&#128176;</div>
+                        <div class="kpi-label">Cuotas Canceladas</div>
+                        <div class="kpi-value" id="valor-cuotas-canceladas">--</div>
+                        <div class="kpi-monto" id="monto-cuotas-canceladas">$ --</div>
+                        <div class="kpi-trend up" id="trend-cuotas-canceladas"><span>Cargando...</span></div>
+                    </div>
+                    <div class="kpi-card warning" id="kpi-cuotas-incompletas">
+                        <div class="kpi-icon">&#9888;&#65039;</div>
+                        <div class="kpi-label">Cuotas Incompletas</div>
+                        <div class="kpi-value" id="valor-cuotas-incompletas">--</div>
+                        <div class="kpi-monto" id="monto-cuotas-incompletas">$ --</div>
+                        <div class="kpi-trend down" id="trend-cuotas-incompletas"><span>Cargando...</span></div>
+                    </div>
+                    <div class="kpi-card danger" id="kpi-deudores">
+                        <div class="kpi-icon">&#128101;</div>
+                        <div class="kpi-label">Deudores del Mes</div>
+                        <div class="kpi-value" id="valor-deudores">--</div>
+                        <div class="kpi-monto" id="monto-deudores">$ --</div>
+                        <div class="kpi-trend" id="trend-deudores"><span>Cargando...</span></div>
+                    </div>
+                    <div class="kpi-card info" id="kpi-creditos">
+                        <div class="kpi-icon">&#128200;</div>
+                        <div class="kpi-label">Creditos Activos</div>
+                        <div class="kpi-value" id="valor-creditos">--</div>
+                        <div class="kpi-monto" id="monto-creditos">$ --</div>
+                        <div class="kpi-trend up" id="trend-creditos"><span>Cargando...</span></div>
+                    </div>
+                </div>
+
+                <div class="charts-area">
+                    <div class="chart-card chart-large">
+                        <div class="chart-header">
+                            <h3>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                </svg>
+                                Evolucion de Pagos por Mes
+                            </h3>
+                            <div class="chart-legend">
+                                <span class="legend-item"><span class="dot" style="background:#10b981"></span> Canceladas</span>
+                                <span class="legend-item"><span class="dot" style="background:#f59e0b"></span> Incompletas</span>
+                            </div>
+                        </div>
+                        <div id="chart-evolucion"></div>
+                    </div>
+                    <div class="chart-card chart-medium">
+                        <div class="chart-header">
+                            <h3>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                                    <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                                </svg>
+                                Distribucion de Pagos
+                            </h3>
+                        </div>
+                        <div id="chart-distribucion"></div>
+                    </div>
+                </div>
+
+                <div class="table-area">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3>&#128101; Deudores del Mes</h3>
+                            <div class="table-actions">
+                                <input type="text" id="buscar-deudor" placeholder="Buscar cliente..." onkeyup="filtrarDeudores()">
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tabla-deudores">
+                                <thead>
+                                    <tr><th>Cliente</th><th>Cedula</th><th class="text-right">Cuota Mensual</th><th class="text-right">Pagado</th><th class="text-right">Deuda</th><th>Estado</th><th>Acciones</th></tr>
+                                </thead>
+                                <tbody id="tbody-deudores">
+                                    <tr><td colspan="7" class="text-center">Cargando datos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- MODALES -->
+<div class="modal" id="modalUsuario">
+    <div class="modal-content modal-lg">
+        <div class="modal-header"><h3 id="modalUsuarioTitulo">Nuevo Usuario</h3><button class="modal-close" onclick="cerrarModalUsuario()">&times;</button></div>
+        <form id="formUsuario" onsubmit="guardarUsuario(event)">
+            <input type="hidden" id="usuarioId">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group"><label>Nombre completo *</label><input type="text" id="usuarioNombre" required maxlength="100"></div>
+                    <div class="form-group"><label>Email *</label><input type="email" id="usuarioEmail" required></div>
+                    <div class="form-group" id="grupoPassword"><label>Contrasena *</label><input type="password" id="usuarioPassword" minlength="6"></div>
+                    <div class="form-group"><label>Rol *</label><select id="usuarioRol" required><option value="operador">Operador</option><option value="administrador">Administrador</option></select></div>
+                    <div class="form-group" id="grupoIp"><label id="ipLabel">IP Asignada <span style="color:#e53e3e;">*</span></label><input type="text" id="usuarioIp" required placeholder="Ej: 192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$"><small id="ipHelp">Obligatorio para operadores</small></div>
+                    <div class="form-group" id="grupoTienda"><label>Tienda Asignada <span style="color:#e53e3e;">*</span></label><select id="usuarioTienda" required><option value="">Seleccionar tienda...</option><option value="caracas">Tienda Caracas</option><option value="maracay">Tienda Maracay</option><option value="maracaibo">Tienda Maracaibo</option></select><small id="tiendaHelp">Obligatoria para operadores</small></div>
+                    <div class="form-group" id="grupoEstado" style="display:none;"><label>Estado</label><select id="usuarioActivo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="cerrarModalUsuario()">Cancelar</button>
+                <button type="submit" class="btn-primary" id="btnGuardarUsuario">Guardar Usuario</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="modalConfirmar">
+    <div class="modal-content modal-sm">
+        <div class="modal-header"><h3>Confirmar accion</h3><button class="modal-close" onclick="cerrarModalConfirmar()">&times;</button></div>
+        <div class="modal-body text-center"><p id="mensajeConfirmar">Estas seguro de realizar esta accion?</p></div>
+        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="cerrarModalConfirmar()">Cancelar</button><button type="button" class="btn-danger" id="btnConfirmarAccion">Confirmar</button></div>
+    </div>
+</div>
+<div class="modal" id="modalAuditoria">
+    <div class="modal-content modal-lg">
+        <div class="modal-header"><h3>Historial de Auditoria</h3><button class="modal-close" onclick="cerrarModalAuditoria()">&times;</button></div>
+        <div class="modal-body">
+            <div class="table-responsive">
+                <table class="data-table" id="tablaAuditoria"><thead><tr><th>Fecha</th><th>Accion</th><th>Usuario</th><th>Detalles</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="cerrarModalAuditoria()">Cerrar</button></div>
+    </div>
+</div>
+<div class="modal" id="modalFecha">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Consultar Tasa por Fecha</h3><button class="modal-close" onclick="cerrarModalFecha()">&times;</button></div>
+        <div class="modal-body">
+            <div class="form-group"><label>Selecciona una fecha</label><input type="date" id="modalFechaInput"></div>
+            <div class="modal-resultado" id="modalResultado"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="cerrarModalFecha()">Cerrar</button><button type="button" class="btn-primary" onclick="buscarTasaModal()">Consultar</button></div>
+    </div>
+</div>
+
+<!-- MODAL CORPORATIVO -->
+<div class="modal" id="modal-corporativo">
+    <div class="modal-content">
+        <div id="modal-corp-icon"></div>
+        <h3 id="modal-corp-titulo"></h3>
+        <p id="modal-corp-mensaje"></p>
+        <div id="modal-corp-botones"></div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+</div>
+
+
+    <!-- SheetJS para exportar Excel (agregado en refactor: antes no estaba cargado) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script src="js/panel.js"></script>
+    <script src="js/tienda-spa.js"></script>
+
+    <!-- jsPDF para exportar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+</body>
+</html>
+                
+
