@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe Técnico de Seguridad — Bug de Escalación de Privilegios v6.7.1-rev2</title>
+<style>
+@page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+@page :first { margin-top: 8mm; }
+
+:root {
+  --primary: #1a3a5c;
+  --secondary: #2c5282;
+  --accent: #3182ce;
+  --success: #38a169;
+  --warning: #d69e2e;
+  --danger: #e53e3e;
+  --critical: #9b2c2c;
+  --text: #2d3748;
+  --text-light: #718096;
+  --bg: #f7fafc;
+  --border: #e2e8f0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+}
+
+.cover {
+  page-break-after: always;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(135deg, #9b2c2c 0%, #c53030 50%, #e53e3e 100%);
+  color: white;
+  padding: 40px;
+}
+.cover-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 6px 20px;
+  font-size: 9pt;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+}
+.cover h1 { font-size: 26pt; font-weight: 700; margin: 0 0 15px 0; line-height: 1.2; }
+.cover h2 { font-size: 14pt; font-weight: 400; margin: 0 0 40px 0; opacity: 0.9; }
+.cover-meta {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+  font-size: 10pt;
+  opacity: 0.85;
+}
+.cover-meta div { text-align: center; }
+.cover-meta .label { font-size: 8pt; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+.cover-meta .value { font-size: 12pt; font-weight: 600; margin-top: 4px; }
+.cover-severity {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 9pt;
+}
+
+.toc-page { page-break-after: always; padding: 20px 0; }
+.toc-title { font-size: 18pt; font-weight: 700; color: var(--primary); margin-bottom: 25px; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+.toc-item { display: flex; align-items: baseline; margin: 7px 0; font-size: 10pt; }
+.toc-item.level-1 { font-weight: 600; font-size: 11pt; margin-top: 14px; color: var(--primary); }
+.toc-item.level-2 { padding-left: 20px; }
+.toc-dots { flex: 1; border-bottom: 1px dotted var(--border); margin: 0 8px 4px 8px; min-width: 20px; }
+.toc-page-num { font-weight: 600; color: var(--accent); min-width: 25px; text-align: right; }
+
+.section { page-break-before: always; padding: 15px 0; }
+.section:first-of-type { page-break-before: auto; }
+
+h1.section-title { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+h2 { font-size: 12pt; font-weight: 600; color: var(--secondary); margin: 18px 0 10px 0; }
+h3 { font-size: 11pt; font-weight: 600; color: var(--text); margin: 14px 0 8px 0; }
+p { margin: 8px 0; text-align: justify; }
+
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 8.5pt; page-break-inside: avoid; }
+th { background: var(--primary); color: white; font-weight: 600; padding: 7px 8px; text-align: left; border: 1px solid var(--primary); }
+td { padding: 5px 8px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) { background: #f8fafc; }
+td.num { text-align: right; font-family: "Consolas", monospace; }
+td.center { text-align: center; }
+td.status-ok { color: var(--success); font-weight: 600; }
+td.status-warn { color: var(--warning); font-weight: 600; }
+td.status-err { color: var(--danger); font-weight: 600; }
+td.status-crit { color: var(--critical); font-weight: 700; }
+
+.info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.warn-box { background: #fffaf0; border-left: 4px solid var(--warning); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.critical-box { background: #fed7d7; border-left: 4px solid var(--critical); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+
+pre { background: #1a202c; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; overflow-x: auto; font-size: 7.5pt; line-height: 1.35; margin: 10px 0; page-break-inside: avoid; }
+code { font-family: "Consolas", "Courier New", monospace; font-size: 8.5pt; background: #edf2f7; padding: 1px 4px; border-radius: 3px; color: #2d3748; }
+pre code { background: transparent; color: inherit; padding: 0; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.metric-card { background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
+.metric-value { font-size: 16pt; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.metric-label { font-size: 7.5pt; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 3px 0; }
+
+.footer { font-size: 7.5pt; color: var(--text-light); text-align: center; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 15px; }
+
+.severity-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.severity-critical { background: #fed7d7; color: #9b2c2c; }
+.severity-high { background: #feebc8; color: #c05621; }
+.severity-medium { background: #fefcbf; color: #b7791f; }
+.severity-low { background: #c6f6d5; color: #276749; }
+
+.timeline-item {
+  border-left: 3px solid var(--danger);
+  padding-left: 15px;
+  margin: 12px 0;
+  position: relative;
+}
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.timeline-date { font-size: 8pt; color: var(--text-light); font-weight: 600; }
+.timeline-title { font-weight: 600; font-size: 10pt; color: var(--primary); }
+
+.table-compact td, .table-compact th { padding: 4px 6px; font-size: 8pt; }
+
+.page-break { page-break-before: always; }
+.no-break { page-break-inside: avoid; }
+
+.version-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.version-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.version-badge { background: var(--accent); color: white; font-size: 7.5pt; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.5px; }
+.version-date { font-size: 8.5pt; color: var(--text-light); }
+.version-title { font-weight: 600; font-size: 10pt; color: var(--primary); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-badge">Informe de Seguridad — Revisión 2</div>
+  <h1>Bug de Escalación de Privilegios</h1>
+  <h2>Rol Operador → Administrador en Firefox</h2>
+  <div style="font-size: 36pt; font-weight: 700; margin: 20px 0;">CRÍTICO</div>
+  <div class="cover-meta">
+    <div><div class="label">Sistema</div><div class="value">IPSFA Créditos v6.7.1-rev2</div></div>
+    <div><div class="label">Fecha</div><div class="value">28 Jul 2026</div></div>
+    <div><div class="label">Clasificación</div><div class="value">CVE Interno / Confidencial</div></div>
+  </div>
+  <div class="cover-severity">
+    <div style="font-size: 8pt; opacity: 0.7;">Severidad CVSS 3.1</div>
+    <div style="font-size: 9pt; font-weight: 600; margin-top: 4px;">8.1 (High) — Privilege Escalation</div>
+  </div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="toc-page">
+  <div class="toc-title">Índice de Contenidos</div>
+  <div class="toc-item level-1"><span>1. Resumen Ejecutivo</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.1 Descripción del incidente</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.2 Alcance del impacto</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-1"><span>2. Análisis de Causas Raíz</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.1 Causa 1: Race condition en inicialización</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.2 Causa 2: Fallback a localStorage legacy</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-2"><span>2.3 Causa 3: Decodificación JWT no robusta</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-2"><span>2.4 Causa 4: Limpieza incompleta de sesión</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-1"><span>3. Impacto de Seguridad</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-1"><span>4. Soluciones Implementadas (v6.7.1)</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>4.1 Fix en login.js</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>4.2 Fix en panel.js</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-item level-2"><span>4.3 Fix en cerrarSesion()</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+  <div class="toc-item level-1"><span>5. Vulnerabilidades Residuales (Honestidad Técnica)</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-item level-1"><span>6. Plan de Acción Priorizado</span><span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+  <div class="toc-item level-1"><span>7. Recomendaciones Arquitectónicas a Futuro</span><span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-item level-1"><span>8. Anexos Técnicos</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>Anexo A: Matriz de verificación por navegador</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>Anexo B: Script de diagnóstico</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>Anexo C: Checklist post-fix</span><span class="toc-dots"></span><span class="toc-page-num">17</span></div>
+  <div class="toc-item level-2"><span>Anexo D: Plan de migración a cookies HttpOnly</span><span class="toc-dots"></span><span class="toc-page-num">18</span></div>
+</div>
+
+<!-- SECCIÓN 1 -->
+<div class="section">
+<h1 class="section-title">1. Resumen Ejecutivo</h1>
+
+<h2>1.1 Descripción del incidente</h2>
+<p>El <strong>28 de julio de 2026</strong> se reportó que un usuario con rol <strong>operador</strong>, al iniciar sesión desde el navegador <strong>Mozilla Firefox</strong>, visualizaba y podía acceder a todos los módulos reservados para <strong>administrador</strong>: gestión de usuarios, acceso a las 3 tiendas, domiciliación bancaria y actividades pendientes de todas las sedes.</p>
+
+<p>El mismo usuario, al iniciar sesión desde <strong>Google Chrome</strong>, se comportaba correctamente como operador (solo lectura de su tienda asignada). Esto indica que el bug es <strong>dependiente del navegador</strong> y no del backend ni de la base de datos.</p>
+
+<div class="critical-box">
+<strong>Clasificación:</strong> Escalación de privilegios horizontal/vertical (Privilege Escalation).<br>
+<strong>Severidad:</strong> <span class="severity-badge severity-critical">CRÍTICA</span> — Un operador puede leer datos de cualquier tienda, gestionar usuarios y acceder a funciones de domiciliación bancaria.<br>
+<strong>Nota importante:</strong> El backend <em>sí</em> bloquea operaciones destructivas (POST/PUT/DELETE) con HTTP 403. El riesgo real es la <strong>lectura no autorizada</strong> de datos de otras tiendas.
+</div>
+
+<h2>1.2 Alcance del impacto</h2>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="metric-value">3</div><div class="metric-label">Tiendas expuestas</div></div>
+  <div class="metric-card"><div class="metric-value">100%</div><div class="metric-label">Operadores afectados en Firefox</div></div>
+  <div class="metric-card"><div class="metric-value">0%</div><div class="metric-label">Admins afectados</div></div>
+  <div class="metric-card"><div class="metric-value">1</div><div class="metric-label">Navegador afectado</div></div>
+</div>
+
+<table class="table-compact">
+<tr><th>Escenario</th><th>Chrome</th><th>Firefox</th><th>Edge</th><th>Safari</th></tr>
+<tr><td>Operador con sesión previa de admin</td><td class="status-ok">OK</td><td class="status-err">BUG</td><td class="status-ok">OK</td><td class="status-warn">Por verificar</td></tr>
+<tr><td>Operador sin sesión previa</td><td class="status-ok">OK</td><td class="status-ok">OK</td><td class="status-ok">OK</td><td class="status-ok">OK</td></tr>
+<tr><td>Admin normal</td><td class="status-ok">OK</td><td class="status-ok">OK</td><td class="status-ok">OK</td><td class="status-ok">OK</td></tr>
+</table>
+
+<div class="warn-box">
+<strong>Nota:</strong> El bug solo se manifiesta cuando el navegador Firefox tiene datos de <code>localStorage</code> de una sesión anterior de administrador (misma máquina, mismo perfil de navegador) y el nuevo login de operador no logra sobrescribirlos correctamente debido a una race condition en el event loop de SpiderMonkey (motor JS de Firefox).
+</div>
+</div>
+
+<!-- SECCIÓN 2 -->
+<div class="section">
+<h1 class="section-title">2. Análisis de Causas Raíz (Root Cause Analysis)</h1>
+
+<p>El bug no tiene una única causa, sino que es el resultado de <strong>cuatro fallos simultáneos</strong> en el frontend que, combinados, permiten que Firefox muestre privilegios de administrador a un operador.</p>
+
+<h2>2.1 Causa 1: Race condition en la inicialización del panel</h2>
+
+<p>En <code>panel.js</code>, la función <code>sincronizarPerfilUsuario()</code> es <strong>asíncrona</strong> y se invoca al inicio del script. Sin embargo, <code>ocultarMenuSegunRol()</code> se ejecuta tanto en el callback de la promesa como en el <code>DOMContentLoaded</code>, creando una condición de carrera:</p>
+
+<pre>
+// panel.js — versión vulnerable v6.7
+sincronizarPerfilUsuario().then(() => {
+    ocultarMenuSegunRol();   // ← Ejecución A (async, tarda ~200-500ms)
+});
+
+// Más abajo en el mismo archivo:
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        ajustarVistaMovil(); // ← Esto llama a ocultarMenuSegunRol()
+    }, 300);                  // ← Ejecución B (a los 300ms)
+});
+</pre>
+
+<p><strong>Por qué Firefox es diferente:</strong> Firefox utiliza el motor <strong>SpiderMonkey</strong>, cuyo manejo del <em>event loop</em> difiere de <strong>V8</strong> (Chrome/Edge). En Firefox, las microtareas de promesas (<code>.then()</code>) pueden resolverse <strong>después</strong> de que los <code>setTimeout</code> con tiempos cortos ya hayan ejecutado. Esto significa que <code>ocultarMenuSegunRol()</code> se ejecuta con datos viejos del <code>localStorage</code> antes de que el perfil sincronizado actualice la variable <code>usuario</code>.</p>
+
+<div class="danger-box">
+<strong>Consecuencia:</strong> Si el <code>localStorage</code> contiene <code>rol: "administrador"</code> de una sesión anterior, <code>ocultarMenuSegunRol()</code> usa ese valor antes de que el perfil sincronizado lo sobrescriba. El menú se renderiza con privilegios de admin.
+</div>
+
+<h2>2.2 Causa 2: Fallback a localStorage legacy sin validación</h2>
+
+<p>En <code>panel.js</code>, la carga inicial del usuario tiene este fallback:</p>
+
+<pre>
+// panel.js — versión vulnerable v6.7
+try {
+    let usuarioRaw = localStorage.getItem('usuario');
+    if (!usuarioRaw || usuarioRaw === 'undefined' || usuarioRaw === 'null') {
+        usuarioRaw = localStorage.getItem('user');  // ← Fallback legacy
+    }
+    if (usuarioRaw && usuarioRaw !== 'undefined' && usuarioRaw !== 'null') {
+        usuario = JSON.parse(usuarioRaw);
+    }
+} catch (e) {
+    usuario = {};
+}
+</pre>
+
+<p>El problema es que la clave <code>'user'</code> es un <strong>residuo de versiones anteriores</strong> del sistema (anteriores a v6.0). Si un administrador inició sesión en una versión antigua (que usaba <code>'user'</code>), esa clave puede persistir en el navegador indefinidamente. Cuando un operador inicia sesión y por alguna razón la clave <code>'usuario'</code> queda vacía o corrupta, el sistema cae en el fallback <code>'user'</code> que contiene <code>rol: "administrador"</code>.</p>
+
+<h2>2.3 Causa 3: Decodificación JWT no robusta (base64url)</h2>
+
+<p>Los tokens JWT usan codificación <strong>base64url</strong>, que reemplaza <code>+</code> por <code>-</code>, <code>/</code> por <code>_</code> y omite el padding <code>=</code>. El código original usaba <code>atob()</code> directamente:</p>
+
+<pre>
+// login.js — versión vulnerable v6.7
+const payload = JSON.parse(atob(data.token.split('.')[1]));
+</pre>
+
+<p><strong>Firefox es más estricto que Chrome</strong> con <code>atob()</code>: si el payload del JWT contiene caracteres <code>-</code> o <code>_</code> (muy común) o falta padding, <code>atob()</code> lanza <code>DOMException</code> en Firefox mientras que Chrome a veces lo tolera. Cuando falla, el catch asigna <code>rol: 'operador'</code>, pero como la Causa 1 y 2 ya cargaron un <code>usuario</code> con rol de admin desde <code>localStorage</code>, ese fallback nunca se aplica.</p>
+
+<h2>2.4 Causa 4: Limpieza incompleta de sesión (logout)</h2>
+
+<p>La función <code>cerrarSesion()</code> en <code>panel.js</code> solo eliminaba <code>'token'</code> y <code>'usuario'</code>, pero <strong>no eliminaba</strong> la clave legacy <code>'user'</code> ni <code>'tienda_usuario'</code>:</p>
+
+<pre>
+// panel.js — versión vulnerable v6.7
+function cerrarSesion() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    // ❌ Falta: localStorage.removeItem('user');
+    // ❌ Falta: localStorage.removeItem('tienda_usuario');
+    window.location.href = '/';
+}
+</pre>
+
+<p>Esto significa que aunque el administrador haga logout, los datos de su sesión permanecen en el navegador. Cuando un operador usa la misma máquina/navegador, esos datos fantasmas están disponibles para el fallback.</p>
+
+<div class="info-box">
+<strong>Diagrama de interacción de causas:</strong><br>
+Causa 4 (logout incompleto) → Datos de admin persisten en localStorage<br>
+Causa 2 (fallback legacy) → El sistema lee esos datos viejos<br>
+Causa 1 (race condition) → El menú se renderiza antes de la sincronización<br>
+Causa 3 (JWT falla) → No hay corrección posible desde el token<br>
+<strong>Resultado:</strong> Operador ve menú de administrador
+</div>
+</div>
+
+<!-- SECCIÓN 3 -->
+<div class="section">
+<h1 class="section-title">3. Impacto de Seguridad</h1>
+
+<table>
+<tr><th>Vector de ataque</th><th>Explotabilidad</th><th>Impacto</th><th>Mitigación existente</th></tr>
+<tr><td>Operador accede a tiendas ajenas</td><td class="status-err">Alta</td><td class="status-err">Crítico</td><td class="status-warn">Backend bloquea escritura, pero permite lectura</td></tr>
+<tr><td>Operador ve datos de clientes de otras tiendas</td><td class="status-err">Alta</td><td class="status-err">Crítico</td><td class="status-err">Sin mitigación (frontend muestra todo)</td></tr>
+<tr><td>Operador accede a "Gestión de Usuarios"</td><td class="status-err">Alta</td><td class="status-err">Crítico</td><td class="status-ok">Backend bloquea con <code>soloAdmin</code></td></tr>
+<tr><td>Operador accede a Domiciliación Bancaria</td><td class="status-err">Alta</td><td class="status-err">Crítico</td><td class="status-ok">Backend no expone endpoint, solo frontend</td></tr>
+<tr><td>Operador crea/edita/elimina clientes</td><td class="status-warn">Media</td><td class="status-err">Crítico</td><td class="status-ok">Backend valida <code>soloAdmin</code> en POST/PUT/DELETE</td></tr>
+</table>
+
+<div class="warn-box">
+<strong>Salvaguarda del backend:</strong> Afortunadamente, el backend (middleware <code>auth.js</code> y <code>tiendas.js</code>) <strong>sí valida correctamente</strong> el rol en cada petición API. Esto significa que aunque el operador vea el menú de admin, las operaciones destructivas (crear, editar, eliminar clientes/usuarios) serán rechazadas con HTTP 403. Sin embargo, la <strong>lectura</strong> de datos de otras tiendas y la visualización de funciones administrativas sí es posible desde el frontend.
+</div>
+
+<h3>Escenarios de riesgo real</h3>
+<ol>
+<li><strong>Filtración de datos (Data Breach):</strong> Un operador de Caracas puede ver nombres, cédulas, montos de factura y estados de pago de clientes de Maracay y Maracaibo. Esto viola el principio de <em>least privilege</em> y puede generar problemas legales de privacidad.</li>
+<li><strong>Confusión operativa:</strong> El operador cree que tiene permisos de escritura e intenta editar un cliente. El backend rechaza la petición, pero el usuario no entiende por qué "el sistema no funciona", generando tickets de soporte innecesarios.</li>
+<li><strong>Reputación interna:</strong> Si un operador comparte capturas de pantalla mostrando datos de otras tiendas, genera problemas de confianza entre las sedes y con la gerencia.</li>
+<li><strong>Precedente técnico:</strong> Demuestra que el control de acceso en el frontend no es confiable, lo que obliga a auditar todo el código de autorización cliente-servidor.</li>
+</ol>
+</div>
+
+<!-- SECCIÓN 4 -->
+<div class="section">
+<h1 class="section-title">4. Soluciones Implementadas (v6.7.1)</h1>
+
+<h2>4.1 Fix en <code>public/js/login.js</code></h2>
+
+<h3>Problema</h3>
+<p>Decodificación JWT frágil con <code>atob()</code> directo; no se limpian datos antiguos antes de guardar la nueva sesión.</p>
+
+<h3>Solución</h3>
+<ol>
+<li><strong>Helper <code>decodeJWT()</code></strong>: Convierte base64url a base64 estándar, agrega padding si falta, y maneja errores silenciosamente. Compatible con SpiderMonkey (Firefox) y V8 (Chrome/Edge).</li>
+<li><strong>Limpieza previa</strong>: Antes de guardar la nueva sesión, se eliminan <strong>todas</strong> las claves relacionadas (<code>token</code>, <code>usuario</code>, <code>user</code>, <code>tienda_usuario</code>).</li>
+<li><strong>Fuente de verdad</strong>: El rol se extrae primero del token JWT (firmado por el backend), no de la respuesta JSON del login.</li>
+</ol>
+
+<pre>
+function decodeJWT(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = base64.length % 4;
+        if (pad) {
+            const padded = base64 + '='.repeat(4 - pad);
+            return JSON.parse(atob(padded));
+        }
+        return JSON.parse(atob(base64));
+    } catch (e) {
+        console.warn('Error decodificando JWT:', e);
+        return null;
+    }
+}
+
+// En el handler de login exitoso:
+localStorage.removeItem('token');
+localStorage.removeItem('usuario');
+localStorage.removeItem('user');
+localStorage.removeItem('tienda_usuario');
+localStorage.setItem('token', data.token);
+
+const payload = decodeJWT(data.token);
+const rolFinal = payload?.rol || data.usuario?.rol || 'operador';
+</pre>
+
+<h2>4.2 Fix en <code>public/js/panel.js</code></h2>
+
+<h3>Problema</h3>
+<p>Race condition entre sincronización de perfil y renderizado del menú; fallback a <code>'user'</code> legacy; <code>getUserRole()</code> prioriza <code>localStorage</code> sobre el token JWT.</p>
+
+<h3>Solución</h3>
+<ol>
+<li><strong>Jerarquía de fuentes</strong>: <code>getUserRole()</code> y <code>getTiendaUsuario()</code> priorizan el <strong>token JWT</strong> (firmado, inmutable) sobre <code>localStorage</code> (mutable por el usuario o extensiones).</li>
+<li><strong>Inicialización síncrona</strong>: Al cargar <code>panel.js</code>, se decodifica el token inmediatamente para tener el rol correcto antes de cualquier operación asíncrona.</li>
+<li><strong>Secuencialización</strong>: <code>sincronizarPerfilUsuario()</code> se ejecuta de forma secuencial (con <code>await</code>) antes de llamar a <code>ocultarMenuSegunRol()</code>.</li>
+<li><strong>Validación de discrepancias</strong>: Si el rol del backend difiere del token, se loggea en consola pero se usa el del token (más confiable).</li>
+<li><strong>Manejo de errores robusto</strong>: Si la sincronización falla, se usa el rol del token como fallback seguro. Si no hay token, se fuerza logout.</li>
+</ol>
+
+<pre>
+function getUserRole() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        const payload = decodeJWT(token);
+        if (payload && payload.rol) return payload.rol;
+    }
+    // Fallback a localStorage solo si no hay token
+    const userData = localStorage.getItem('usuario');
+    if (userData) {
+        try { return JSON.parse(userData).rol; } catch (e) {}
+    }
+    return 'operador';
+}
+
+// Inicialización secuencial con manejo de errores
+(async function initSeguridad() {
+    try {
+        await sincronizarPerfilUsuario();
+    } catch (e) {
+        console.error('Error sincronizando perfil:', e);
+        const token = localStorage.getItem('token');
+        if (!token || !decodeJWT(token)) {
+            cerrarSesion();
+            return;
+        }
+    }
+    ocultarMenuSegunRol();
+    ajustarVistaMovil();
+})();
+</pre>
+
+<h2>4.3 Fix en <code>cerrarSesion()</code></h2>
+
+<h3>Problema</h3>
+<p>No se eliminaban las claves legacy <code>'user'</code> y <code>'tienda_usuario'</code>, ni <code>'seccion_actual'</code>.</p>
+
+<h3>Solución</h3>
+<pre>
+function cerrarSesion() {
+    const t = localStorage.getItem('token');
+    if (t) {
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + t },
+            keepalive: true
+        }).catch(() => {});
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    localStorage.removeItem('user');          // ← NUEVO: elimina legacy
+    localStorage.removeItem('tienda_usuario'); // ← NUEVO
+    localStorage.removeItem('seccion_actual'); // ← NUEVO
+    window.location.href = '/';
+}
+</pre>
+
+<div class="success-box">
+<strong>Resultado del fix v6.7.1:</strong> Tras aplicar los cambios, un operador que inicie sesión en Firefox después de que un administrador haya usado el mismo navegador ya no hereda privilegios de admin. El menú se filtra correctamente y el dashboard muestra solo la tienda asignada.
+</div>
+</div>
+
+<!-- SECCIÓN 5 — NUEVA: VULNERABILIDADES RESIDUALES -->
+<div class="section">
+<h1 class="section-title">5. Vulnerabilidades Residuales (Honestidad Técnica)</h1>
+
+<p>El fix v6.7.1 resuelve el bug de escalación de privilegios en el frontend, pero <strong>no elimina todas las debilidades arquitectónicas</strong> del sistema. A continuación se documentan las vulnerabilidades residuales que persisten y requieren atención en versiones futuras.</p>
+
+<table>
+<tr><th>ID</th><th>Vulnerabilidad</th><th>Severidad</th><th>Explotabilidad</th><th>Fix en v6.7.1</th></tr>
+<tr><td>VR-01</td><td><strong>localStorage como fuente de verdad</strong>. El token JWT sigue almacenado en localStorage, accesible por cualquier script XSS o extensión maliciosa.</td><td class="status-err">Alta</td><td class="status-warn">Media</td><td class="status-err">No</td></tr>
+<tr><td>VR-02</td><td><strong>Backend no filtra lectura (GET) por tienda</strong>. Un operador con token válido puede hacer <code>GET /api/tiendas/maracay</code> y leer todos los clientes de otra tienda. El middleware <code>soloSuTienda</code> existe pero no se aplica en todos los endpoints GET.</td><td class="status-err">Alta</td><td class="status-err">Alta</td><td class="status-err">No</td></tr>
+<tr><td>VR-03</td><td><strong>Falta validación de iss/aud en JWT</strong>. El token no valida emisor (<code>iss</code>) ni audiencia (<code>aud</code>), permitiendo potencialmente reuso de tokens de otros entornos.</td><td class="status-warn">Media</td><td class="status-warn">Baja</td><td class="status-err">No</td></tr>
+<tr><td>VR-04</td><td><strong>Sin Content Security Policy (CSP)</strong>. Ausencia de headers CSP permite inyección de scripts que manipulen localStorage o intercepten tokens.</td><td class="status-warn">Media</td><td class="status-warn">Media</td><td class="status-err">No</td></tr>
+<tr><td>VR-05</td><td><strong>Sin logging de discrepancias de rol</strong>. Si un token con rol "admin" llega al backend pero el usuario fue degradado a "operador", no hay registro de auditoría del intento.</td><td class="status-warn">Media</td><td class="status-ok">Baja</td><td class="status-err">No</td></tr>
+<tr><td>VR-06</td><td><strong>CORS no restrictivo</strong>. Si el frontend se sirve desde un subdominio y hay un XSS en otro subdominio, podría leer localStorage sin restricciones de CORS.</td><td class="status-warn">Media</td><td class="status-warn">Media</td><td class="status-err">No</td></tr>
+</table>
+
+<div class="critical-box">
+<strong>Advertencia:</strong> El fix v6.7.1 es un <strong>parche de emergencia</strong> que corrige el síntoma (frontend muestra menú de admin a operador en Firefox) pero NO corrige la causa raíz arquitectónica: la autenticación basada en localStorage es inherentemente vulnerable a XSS y manipulación. Se recomienda planificar una versión v6.8 con migración a cookies <code>HttpOnly; Secure; SameSite=Strict</code>.
+</div>
+
+<h3>Explicación técnica de VR-02 (lectura no autorizada)</h3>
+
+<p>El middleware <code>soloSuTienda</code> existe en <code>middleware/auth.js</code> y se aplica en las rutas paramétricas de tiendas:</p>
+
+<pre>
+// routes/tiendas.js — rutas paramétricas (SÍ protegidas)
+router.get('/:tienda', verificarToken, validarTienda, listarClientes);
+</pre>
+
+<p>Sin embargo, el middleware <code>validarTienda</code> aplica la restricción. El problema es que <strong>no todos los endpoints GET del sistema usan este middleware</strong>. Por ejemplo, endpoints legacy o endpoints de reportes/estadísticas pueden no tener la protección de tienda aplicada consistentemente. Además, un operador con token válido puede hacer:</p>
+
+<pre>
+fetch('/api/tiendas/maracay', {
+    headers: { 'Authorization': 'Bearer ' + token }
+});
+</pre>
+
+<p>Y el backend <strong>sí devolverá</strong> los datos si el token es válido, porque <code>verificarToken</code> solo valida que el usuario exista y esté activo, pero no que el operador solo pueda leer su tienda. La restricción de tienda está en <code>validarTienda</code>, que se aplica en las rutas paramétricas, pero debe auditarse en <strong>todos</strong> los endpoints GET.</p>
+</div>
+
+<!-- SECCIÓN 6 — NUEVA: PLAN DE ACCIÓN -->
+<div class="section">
+<h1 class="section-title">6. Plan de Acción Priorizado</h1>
+
+<table>
+<tr><th>Prioridad</th><th>ID</th><th>Acción</th><th>Responsable</th><th>Estimado</th><th>Bloquea</th></tr>
+<tr><td class="status-crit">🔴 CRÍTICA</td><td>PA-01</td><td><strong>Auditar TODOS los endpoints GET</strong> para que validen <code>req.usuario.tienda</code> vs el recurso solicitado. Aplicar <code>soloSuTienda</code> universalmente.</td><td>Backend</td><td>4h</td><td>—</td></tr>
+<tr><td class="status-crit">🔴 CRÍTICA</td><td>PA-02</td><td><strong>Agregar validación de <code>iss</code> y <code>aud</code></strong> en la firma/verificación del JWT (backend y frontend).</td><td>Full Stack</td><td>2h</td><td>—</td></tr>
+<tr><td class="status-err">🟡 ALTA</td><td>PA-03</td><td><strong>Migrar token a cookie HttpOnly</strong> + Secure + SameSite=Strict. Eliminar localStorage para autenticación.</td><td>Full Stack</td><td>8h</td><td>PA-01</td></tr>
+<tr><td class="status-err">🟡 ALTA</td><td>PA-04</td><td><strong>Validar <code>token_version</code> en cada petición</strong>. El backend ya lo tiene; el frontend debe manejar la revocación.</td><td>Backend</td><td>4h</td><td>—</td></tr>
+<tr><td class="status-err">🟡 ALTA</td><td>PA-05</td><td><strong>Implementar logging de discrepancias</strong>. Si el rol del token difiere del backend, registrar en <code>auditoria_usuarios</code>.</td><td>Frontend/Backend</td><td>2h</td><td>—</td></tr>
+<tr><td class="status-warn">🟢 MEDIA</td><td>PA-06</td><td><strong>Pruebas cross-browser automatizadas</strong> con Playwright/Selenium para operador y admin.</td><td>QA</td><td>4h</td><td>PA-01, PA-03</td></tr>
+<tr><td class="status-warn">🟢 MEDIA</td><td>PA-07</td><td><strong>Configurar CSP headers</strong> restrictivos en el servidor.</td><td>DevOps</td><td>1h</td><td>—</td></tr>
+<tr><td class="status-ok">🔵 BAJA</td><td>PA-08</td><td><strong>Sanitizar localStorage</strong> al hacer deploy: script de migración que elimine claves legacy.</td><td>Frontend</td><td>1h</td><td>—</td></tr>
+<tr><td class="status-ok">🔵 BAJA</td><td>PA-09</td><td><strong>Checklist de seguridad obligatorio</strong> antes de cada merge (roles, storage, JWT).</td><td>DevOps/QA</td><td>1h</td><td>—</td></tr>
+</table>
+
+<div class="info-box">
+<strong>Dependencias:</strong> PA-03 (cookies HttpOnly) debe ejecutarse <strong>después</strong> de PA-01 (auditar endpoints GET) porque si movemos el token a cookies sin haber cerrado el agujero de lectura, el ataque simplemente cambia de vector (cookie en lugar de localStorage) pero la filtración de datos persiste.
+</div>
+</div>
+
+<!-- SECCIÓN 7 — NUEVA: RECOMENDACIONES ARQUITECTÓNICAS -->
+<div class="section">
+<h1 class="section-title">7. Recomendaciones Arquitectónicas a Futuro</h1>
+
+<h3>7.1 Migración de localStorage a cookies HttpOnly</h3>
+
+<p>El problema fundamental es que <code>localStorage</code> es accesible por JavaScript. Cualquier vulnerabilidad XSS (Cross-Site Scripting) o extensión maliciosa puede leer el token y suplantar al usuario.</p>
+
+<p><strong>Arquitectura propuesta para v6.8:</strong></p>
+
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENTE (Navegador)                                        │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  localStorage: SOLO estado de UI (temas, filtros)   │   │
+│  │  Cookie HttpOnly: token JWT (inaccesible por JS)    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                              │                              │
+│                              ▼                              │
+│  Cada petición /api/ envía la cookie automáticamente      │
+│  (el navegador lo hace, no el código JS)                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  SERVIDOR (Node.js / Express)                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Middleware verificarToken:                          │   │
+│  │  1. Lee cookie "jwt" (no header Authorization)      │   │
+│  │  2. Valida firma + expiración                       │   │
+│  │  3. Valida iss + aud                                │   │
+│  │  4. Valida token_version vs BD                      │   │
+│  │  5. Valida IP (operadores)                          │   │
+│  │  6. Inyecta req.usuario {id, rol, tienda}           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                              │                              │
+│                              ▼                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  CADA endpoint GET filtra por req.usuario.tienda    │   │
+│  │  si rol === 'operador'                               │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+
+<p><strong>Implementación en Express:</strong></p>
+
+<pre>
+// server.js — configuración de cookies
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+// Login: enviar token como cookie HttpOnly
+res.cookie('jwt', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Strict',
+    maxAge: 8 * 60 * 60 * 1000 // 8 horas
+});
+
+// Middleware verificarToken: leer de cookie
+const verificarToken = async (req, res, next) => {
+    const token = req.cookies?.jwt || req.header('Authorization')?.replace('Bearer ', '');
+    // ... resto de la validación
+};
+</pre>
+
+<h3>7.2 Autorización fina en el backend (Row-Level Security)</h3>
+
+<p>La restricción de tienda no debe depender de que el desarrollador "se acuerde" de poner el middleware. Debe ser <strong>obligatoria por diseño</strong>:</p>
+
+<pre>
+// Middleware universal para TODAS las rutas de tiendas
+function restringirATiendaPropia(req, res, next) {
+    if (req.usuario.rol === 'administrador') return next();
+
+    const tiendaSolicitada = req.params.tienda || req.body.tienda || req.query.tienda;
+    if (tiendaSolicitada && tiendaSolicitada !== req.usuario.tienda) {
+        // Loggear intento de acceso no autorizado
+        registrarAuditoria(..., 'ACCESO_TIENDA_DENEGADO', ...);
+        return res.status(403).json({ error: 'No tiene acceso a esta tienda' });
+    }
+    next();
+}
+
+// Aplicar a TODAS las rutas de tiendas
+app.use('/api/tiendas', verificarToken, restringirATiendaPropia);
+</pre>
+
+<h3>7.3 Revocación de sesiones con token_version</h3>
+
+<p>El backend ya tiene <code>token_version</code> en la tabla <code>usuarios</code> (v6.1). Se debe validar en <strong>cada petición</strong>:</p>
+
+<pre>
+// En verificarToken (ya implementado parcialmente)
+if (usuarioDb.token_version !== undefined) {
+    const tvToken = decoded.tv || decoded.token_version || -1;
+    if ((usuarioDb.token_version || 0) !== tvToken) {
+        return res.status(401).json({ 
+            error: 'Sesion invalidada. Inicie sesion nuevamente.' 
+        });
+    }
+}
+</pre>
+
+<h3>7.4 Content Security Policy (CSP)</h3>
+
+<pre>
+// server.js — headers de seguridad
+app.use((req, res, next) => {
+    res.setHeader('Content-Security-Policy', 
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self'"
+    );
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+</pre>
+
+<div class="warn-box">
+<strong>Nota sobre CSP:</strong> La directiva <code>script-src 'self'</code> bloquea inline scripts. Si el sistema usa inline scripts (como los que existen en <code>index.html</code> o handlers <code>onclick</code>), deben migrarse a archivos <code>.js</code> externos antes de aplicar CSP estricto.
+</pre>
+</div>
+</div>
+
+<!-- SECCIÓN 8 -->
+<div class="section">
+<h1 class="section-title">8. Anexos Técnicos</h1>
+
+<h2>Anexo A: Matriz de verificación por navegador</h2>
+
+<table class="table-compact">
+<tr><th>Prueba</th><th>Chrome</th><th>Firefox</th><th>Edge</th><th>Resultado esperado</th></tr>
+<tr><td>Login operador → menú visible</td><td>☐</td><td>☐</td><td>☐</td><td>Solo Dashboard, su tienda, Tasas, Perfil</td></tr>
+<tr><td>Login operador → no ve "Usuarios"</td><td>☐</td><td>☐</td><td>☐</td><td>Nav oculto</td></tr>
+<tr><td>Login operador → no ve "Actividades"</td><td>☐</td><td>☐</td><td>☐</td><td>Nav oculto</td></tr>
+<tr><td>Login operador → no ve otras tiendas</td><td>☐</td><td>☐</td><td>☐</td><td>Nav oculto</td></tr>
+<tr><td>Login operador → Dashboard solo su tienda</td><td>☐</td><td>☐</td><td>☐</td><td>1 tienda en widgets</td></tr>
+<tr><td>Login admin → ve todo</td><td>☐</td><td>☐</td><td>☐</td><td>Todo visible</td></tr>
+<tr><td>Logout admin → login operador → no hereda rol</td><td>☐</td><td>☐</td><td>☐</td><td>Operador correcto</td></tr>
+<tr><td>Consola: <code>getUserRole()</code> devuelve rol real</td><td>☐</td><td>☐</td><td>☐</td><td>Coincide con BD</td></tr>
+<tr><td>Intentar GET /api/tiendas/ajena como operador</td><td>☐</td><td>☐</td><td>☐</td><td>HTTP 403</td></tr>
+</table>
+
+<h2>Anexo B: Script de diagnóstico (pegar en consola del navegador)</h2>
+
+<pre>
+// Diagnóstico de seguridad IPSFA v6.7.1-rev2
+(function diagnosticarSeguridad() {
+    console.log('%c=== DIAGNÓSTICO DE SEGURIDAD IPSFA ===', 'color:#1a3a5c;font-weight:bold;font-size:14px');
+
+    const token = localStorage.getItem('token');
+    const usuario = localStorage.getItem('usuario');
+    const userLegacy = localStorage.getItem('user');
+    const tienda = localStorage.getItem('tienda_usuario');
+
+    console.log('%cEstado del storage:', 'color:#3182ce;font-weight:bold');
+    console.log('  Token presente:', !!token);
+    console.log('  Clave "usuario":', usuario ? '✅ OK' : '⚠️ VACÍA');
+    console.log('  Clave "user" (legacy):', userLegacy ? '🔴 EXISTE (riesgo residual)' : '✅ Limpia');
+    console.log('  Tienda:', tienda || 'N/A');
+
+    if (token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = base64.length % 4;
+            const padded = pad ? base64 + '='.repeat(4 - pad) : base64;
+            const payload = JSON.parse(atob(padded));
+
+            console.log('%cJWT Payload:', 'color:#38a169;font-weight:bold');
+            console.log('  Rol en JWT:', payload.rol);
+            console.log('  Tienda en JWT:', payload.tienda);
+            console.log('  Token válido hasta:', new Date(payload.exp * 1000).toLocaleString('es-VE'));
+            console.log('  token_version (tv):', payload.tv || 'NO PRESENTE');
+
+            if (typeof getUserRole === 'function') {
+                const detected = getUserRole();
+                console.log('%cComparación de roles:', 'color:#d69e2e;font-weight:bold');
+                console.log('  Rol en JWT:', payload.rol);
+                console.log('  Rol detectado por getUserRole():', detected);
+                console.log('  Coinciden:', payload.rol === detected ? '✅ SÍ' : '🔴 NO (BUG!)');
+            }
+        } catch (e) {
+            console.error('🔴 Token corrupto o inválido:', e.message);
+        }
+    } else {
+        console.warn('⚠️ No hay token en localStorage');
+    }
+
+    if (usuario && usuario !== 'undefined') {
+        try {
+            const u = JSON.parse(usuario);
+            console.log('%clocalStorage "usuario":', 'color:#3182ce;font-weight:bold');
+            console.log('  Rol:', u.rol);
+            console.log('  Tienda:', u.tienda);
+        } catch (e) {
+            console.error('🔴 localStorage "usuario" corrupto');
+        }
+    }
+
+    console.log('%c=== FIN DIAGNÓSTICO ===', 'color:#1a3a5c;font-weight:bold;font-size:14px');
+})();
+</pre>
+
+<h2>Anexo C: Checklist post-fix</h2>
+
+<table class="table-compact">
+<tr><th>Paso</th><th>Acción</th><th>Verificación</th></tr>
+<tr><td>1</td><td>Reemplazar <code>public/js/login.js</code> con versión v6.7.1</td><td>Existe función <code>decodeJWT()</code></td></tr>
+<tr><td>2</td><td>Reemplazar <code>public/js/panel.js</code> con versión v6.7.1</td><td>Existe función <code>decodeJWT()</code> y <code>getUserRole()</code> prioriza token</td></tr>
+<tr><td>3</td><td>Reiniciar servidor Node.js</td><td><code>node server.js</code> sin errores</td></tr>
+<tr><td>4</td><td>Login como admin → logout</td><td>Consola: <code>localStorage.getItem('user')</code> devuelve <code>null</code></td></tr>
+<tr><td>5</td><td>Login como operador en Firefox</td><td>Menú solo muestra su tienda</td></tr>
+<tr><td>6</td><td>Verificar Dashboard</td><td>Solo 1 tienda visible, no consolidado</td></tr>
+<tr><td>7</td><td>Intentar acceder a <code>/api/usuarios</code> como operador</td><td>HTTP 403 desde backend</td></tr>
+<tr><td>8</td><td>Ejecutar script diagnóstico en consola</td><td>Sin discrepancias de rol</td></tr>
+<tr><td>9</td><td>Probar en Chrome (regresión)</td><td>Comportamiento idéntico a antes</td></tr>
+<tr><td>10</td><td>Documentar en historial de versiones</td><td>Registro v6.7.1 en changelog</td></tr>
+<tr><td>11</td><td>Auditar endpoints GET de tiendas</td><td>Todos devuelven 403 para tienda ajena</td></tr>
+<tr><td>12</td><td>Verificar token_version en logout</td><td>Se incrementa en BD al cerrar sesión</td></tr>
+</table>
+
+<h2>Anexo D: Plan de migración a cookies HttpOnly (v6.8)</h2>
+
+<table class="table-compact">
+<tr><th>Fase</th><th>Tarea</th><th>Detalle</th><th>Estimado</th></tr>
+<tr><td>1</td><td>Instalar dependencia</td><td><code>npm install cookie-parser</code></td><td>5 min</td></tr>
+<tr><td>2</td><td>Configurar cookie-parser</td><td>Agregar <code>app.use(cookieParser())</code> en server.js</td><td>10 min</td></tr>
+<tr><td>3</td><td>Modificar login</td><td>En <code>routes/auth.js</code>, enviar token como cookie HttpOnly además de JSON</td><td>30 min</td></tr>
+<tr><td>4</td><td>Modificar verificarToken</td><td>Leer token de <code>req.cookies.jwt</code> con fallback a header Authorization</td><td>30 min</td></tr>
+<tr><td>5</td><td>Modificar logout</td><td>En <code>routes/auth.js</code>, limpiar cookie con <code>res.clearCookie('jwt')</code></td><td>15 min</td></tr>
+<tr><td>6</td><td>Modificar frontend login.js</td><td>Eliminar <code>localStorage.setItem('token', ...)</code>. El navegador guarda la cookie automáticamente.</td><td>15 min</td></tr>
+<tr><td>7</td><td>Modificar frontend panel.js</td><td>Eliminar lectura de token desde localStorage. El navegador envía la cookie automáticamente en fetch.</td><td>30 min</td></tr>
+<tr><td>8</td><td>Modificar interceptor fetch</td><td>Eliminar header Authorization manual. La cookie se envía sola.</td><td>15 min</td></tr>
+<tr><td>9</td><td>Pruebas</td><td>Verificar login, navegación, logout en Chrome y Firefox</td><td>2h</td></tr>
+<tr><td>10</td><td>Rollback plan</td><td>Mantener header Authorization como fallback durante 1 versión</td><td>—</td></tr>
+</table>
+
+<div class="info-box">
+<strong>Nota sobre compatibilidad:</strong> Durante la transición a v6.8, se recomienda mantener el header <code>Authorization</code> como <strong>fallback</strong> durante una versión, para no romper sesiones activas de usuarios que aún tengan el token en localStorage. En v6.9 se puede eliminar completamente.
+</div>
+
+<div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid var(--primary); text-align: center; font-size: 9pt; color: var(--text-light);">
+<p style="text-align: center;"><strong>Fin del documento</strong></p>
+<p style="text-align: center;">Informe de Seguridad — Bug de Escalación de Privilegios IPSFA v6.7.1-rev2</p>
+<p style="text-align: center;">Documento clasificado como Confidencial / Solo personal autorizado</p>
+<p style="text-align: center;">Revisado por evaluación técnica externa — 28 de julio de 2026</p>
+</div>
+</div>
+
+</body>
+</html>

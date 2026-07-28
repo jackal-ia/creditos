@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe Técnico — Rediseño Nuevo Registro Conciliaciones v6.7.2-rev3</title>
+<style>
+@page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+@page :first { margin-top: 8mm; }
+
+:root {
+  --primary: #1a3a5c;
+  --secondary: #2c5282;
+  --accent: #3182ce;
+  --success: #38a169;
+  --warning: #d69e2e;
+  --danger: #e53e3e;
+  --critical: #9b2c2c;
+  --text: #2d3748;
+  --text-light: #718096;
+  --bg: #f7fafc;
+  --border: #e2e8f0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+}
+
+.cover {
+  page-break-after: always;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 50%, #3182ce 100%);
+  color: white;
+  padding: 40px;
+}
+.cover-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 6px 20px;
+  font-size: 9pt;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+}
+.cover h1 { font-size: 26pt; font-weight: 700; margin: 0 0 15px 0; line-height: 1.2; }
+.cover h2 { font-size: 14pt; font-weight: 400; margin: 0 0 40px 0; opacity: 0.9; }
+.cover-meta {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+  font-size: 10pt;
+  opacity: 0.85;
+}
+.cover-meta div { text-align: center; }
+.cover-meta .label { font-size: 8pt; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+.cover-meta .value { font-size: 12pt; font-weight: 600; margin-top: 4px; }
+
+.toc-page { page-break-after: always; padding: 20px 0; }
+.toc-title { font-size: 18pt; font-weight: 700; color: var(--primary); margin-bottom: 25px; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+.toc-item { display: flex; align-items: baseline; margin: 7px 0; font-size: 10pt; }
+.toc-item.level-1 { font-weight: 600; font-size: 11pt; margin-top: 14px; color: var(--primary); }
+.toc-item.level-2 { padding-left: 20px; }
+.toc-dots { flex: 1; border-bottom: 1px dotted var(--border); margin: 0 8px 4px 8px; min-width: 20px; }
+.toc-page-num { font-weight: 600; color: var(--accent); min-width: 25px; text-align: right; }
+
+.section { page-break-before: always; padding: 15px 0; }
+.section:first-of-type { page-break-before: auto; }
+
+h1.section-title { font-size: 16pt; font-weight: 700; color: var(--primary); margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+h2 { font-size: 12pt; font-weight: 600; color: var(--secondary); margin: 18px 0 10px 0; }
+h3 { font-size: 11pt; font-weight: 600; color: var(--text); margin: 14px 0 8px 0; }
+p { margin: 8px 0; text-align: justify; }
+
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 8.5pt; page-break-inside: avoid; }
+th { background: var(--primary); color: white; font-weight: 600; padding: 7px 8px; text-align: left; border: 1px solid var(--primary); }
+td { padding: 5px 8px; border: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) { background: #f8fafc; }
+td.num { text-align: right; font-family: "Consolas", monospace; }
+td.center { text-align: center; }
+td.status-ok { color: var(--success); font-weight: 600; }
+td.status-warn { color: var(--warning); font-weight: 600; }
+td.status-err { color: var(--danger); font-weight: 600; }
+td.status-crit { color: var(--critical); font-weight: 700; }
+
+.info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.warn-box { background: #fffaf0; border-left: 4px solid var(--warning); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.critical-box { background: #fed7d7; border-left: 4px solid var(--critical); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+.success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 10px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9pt; }
+
+pre { background: #1a202c; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; overflow-x: auto; font-size: 7.5pt; line-height: 1.35; margin: 10px 0; page-break-inside: avoid; }
+code { font-family: "Consolas", "Courier New", monospace; font-size: 8.5pt; background: #edf2f7; padding: 1px 4px; border-radius: 3px; color: #2d3748; }
+pre code { background: transparent; color: inherit; padding: 0; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+.metric-card { background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
+.metric-value { font-size: 16pt; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.metric-label { font-size: 7.5pt; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 3px 0; }
+
+.footer { font-size: 7.5pt; color: var(--text-light); text-align: center; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 15px; }
+
+.table-compact td, .table-compact th { padding: 4px 6px; font-size: 8pt; }
+
+.page-break { page-break-before: always; }
+.no-break { page-break-inside: avoid; }
+
+.diagram-box { border: 2px dashed var(--border); border-radius: 8px; padding: 15px; margin: 12px 0; page-break-inside: avoid; background: #f8fafc; }
+.diagram-title { font-weight: 600; color: var(--primary); margin-bottom: 8px; font-size: 10pt; }
+
+.version-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 8px 0; page-break-inside: avoid; }
+.version-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.version-badge { background: var(--accent); color: white; font-size: 7.5pt; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.5px; }
+.version-date { font-size: 8.5pt; color: var(--text-light); }
+.version-title { font-weight: 600; font-size: 10pt; color: var(--primary); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-badge">Documento Técnico de Implementación — Revisión 3</div>
+  <h1>Rediseño Nuevo Registro</h1>
+  <h2>Módulo de Conciliaciones — Sistema de Créditos IPSFA</h2>
+  <div style="font-size: 36pt; font-weight: 700; margin: 20px 0;">v6.7.2-rev3</div>
+  <div class="cover-meta">
+    <div><div class="label">Sistema</div><div class="value">IPSFA Créditos</div></div>
+    <div><div class="label">Fecha</div><div class="value">28 Jul 2026</div></div>
+    <div><div class="label">Alcance</div><div class="value">3 Tiendas</div></div>
+  </div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="toc-page">
+  <div class="toc-title">Índice de Contenidos</div>
+  <div class="toc-item level-1"><span>1. Resumen Ejecutivo</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.1 Propósito del rediseño</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-2"><span>1.2 Alcance y limitaciones</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-item level-1"><span>2. Análisis del Esquema Actual</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.1 Campos existentes en tienda_caracas</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-item level-2"><span>2.2 Semántica de cuota_1 a cuota_11</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-item level-1"><span>3. Campos Nuevos en Base de Datos</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>3.1 Matriz de campos nuevos</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-2"><span>3.2 Script SQL de migración (con transacción e índices)</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-item level-1"><span>4. Lógica de Cálculos</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-2"><span>4.1 Fórmulas paso a paso</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-item level-2"><span>4.2 Orden de ejecución</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>4.3 Manejo de redondeo (corregido)</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-item level-2"><span>4.4 Descalce de centavos y última cuota</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-item level-1"><span>5. Diagrama de Flujo de Guardado</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+  <div class="toc-item level-1"><span>6. API REST — Cambios en Backend</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-item level-2"><span>6.1 Sanitización de parámetro tienda (aplicar a TODAS las rutas)</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-item level-2"><span>6.2 Rate limiting en endpoint BCV (anti-DoS)</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-item level-2"><span>6.3 Payload del POST</span><span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+  <div class="toc-item level-2"><span>6.4 Validaciones backend (ampliadas)</span><span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+  <div class="toc-item level-2"><span>6.5 Cálculos en el servidor</span><span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+  <div class="toc-item level-2"><span>6.6 Auditoría con IP y user-agent</span><span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-item level-1"><span>7. Frontend — Nuevo Formulario</span><span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+  <div class="toc-item level-2"><span>7.1 Estructura del formulario</span><span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+  <div class="toc-item level-2"><span>7.2 Eventos con debounce y AbortController</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>7.3 Código JavaScript corregido</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+  <div class="toc-item level-2"><span>7.4 Manejo de error 413 (payload grande)</span><span class="toc-dots"></span><span class="toc-page-num">18</span></div>
+  <div class="toc-item level-1"><span>8. Tasa BCV — Estrategia de Integración</span><span class="toc-dots"></span><span class="toc-page-num">19</span></div>
+  <div class="toc-item level-1"><span>9. Registros Existentes vs. Nuevos</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+  <div class="toc-item level-2"><span>9.1 Compatibilidad hacia atrás</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+  <div class="toc-item level-2"><span>9.2 Cuota inicial vs. cuota_1</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+  <div class="toc-item level-2"><span>9.3 COALESCE para consultas unificadas</span><span class="toc-dots"></span><span class="toc-page-num">21</span></div>
+  <div class="toc-item level-1"><span>10. Plan de Implementación</span><span class="toc-dots"></span><span class="toc-page-num">22</span></div>
+  <div class="toc-item level-1"><span>11. Mejoras Futuras (v6.8+)</span><span class="toc-dots"></span><span class="toc-page-num">23</span></div>
+  <div class="toc-item level-1"><span>12. Anexos</span><span class="toc-dots"></span><span class="toc-page-num">24</span></div>
+  <div class="toc-item level-2"><span>Anexo A: SQL completo de migración</span><span class="toc-dots"></span><span class="toc-page-num">24</span></div>
+  <div class="toc-item level-2"><span>Anexo B: Código backend corregido</span><span class="toc-dots"></span><span class="toc-page-num">25</span></div>
+  <div class="toc-item level-2"><span>Anexo C: Código frontend corregido</span><span class="toc-dots"></span><span class="toc-page-num">27</span></div>
+  <div class="toc-item level-2"><span>Anexo D: Checklist de despliegue</span><span class="toc-dots"></span><span class="toc-page-num">29</span></div>
+</div>
+
+<!-- SECCIÓN 1 -->
+<div class="section">
+<h1 class="section-title">1. Resumen Ejecutivo</h1>
+
+<h2>1.1 Propósito del rediseño</h2>
+<p>El módulo de <strong>Conciliaciones Bancarias</strong> actual permite registrar una factura y su primera cuota de pago de forma aislada. El negocio requiere que al crear un <strong>nuevo crédito</strong> se capture la <strong>estructura financiera completa</strong> desde el origen: monto facturado en Bs y en $, depósito inicial (down payment), número de cuotas, deuda resultante y monto de cada cuota mensual en dólares.</p>
+
+<h2>1.2 Alcance y limitaciones</h2>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="metric-value">3</div><div class="metric-label">Tablas afectadas</div></div>
+  <div class="metric-card"><div class="metric-value">7</div><div class="metric-label">Campos nuevos por tabla</div></div>
+  <div class="metric-card"><div class="metric-value">1</div><div class="metric-label">Archivo JS genérico</div></div>
+  <div class="metric-card"><div class="metric-value">1</div><div class="metric-label">Endpoint modificado</div></div>
+</div>
+
+<table class="table-compact">
+<tr><th>Aspecto</th><th>Incluido</th><th>Excluido</th></tr>
+<tr><td>Campos nuevos en BD</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Rediseño frontend</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Validaciones backend</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Cálculos en tiempo real (con debounce)</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Cache de tasas BCV (sessionStorage)</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>AbortController para peticiones</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Índices en nuevos campos</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Rate limiting en BCV</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Auditoría con IP</td><td class="status-ok">Sí</td><td>—</td></tr>
+<tr><td>Modificación de registros viejos</td><td class="status-err">No</td><td>Se mantienen intactos</td></tr>
+<tr><td>Cambio de semántica de cuota_1..11</td><td class="status-err">No</td><td>Siguen siendo pagos mensuales</td></tr>
+<tr><td>Migración a cookies HttpOnly</td><td class="status-err">No</td><td>Postergado a v6.8</td></tr>
+<tr><td>Borrador automático de formulario</td><td class="status-err">No</td><td>Postergado a v6.8</td></tr>
+</table>
+
+<div class="warn-box">
+<strong>Nota de revisión v6.7.2-rev3:</strong> Esta versión corrige errores identificados en las revisiones técnicas anteriores: redondeo IEEE 754, race conditions, validación de fechas lógicas, descalce de centavos, inyección SQL, ausencia de índices, <strong>rate limiting en BCV, validación de cuotas como entero, auditoría con IP, y manejo de error 413</strong>.
+</div>
+</div>
+
+<!-- SECCIÓN 2 -->
+<div class="section">
+<h1 class="section-title">2. Análisis del Esquema Actual</h1>
+
+<h2>2.1 Campos existentes en tienda_caracas</h2>
+
+<p>La tabla <code>tienda_caracas</code> contiene <strong>73 columnas</strong> (homologada en Maracay y Maracaibo). Resumen semántico:</p>
+
+<table class="table-compact">
+<tr><th>#</th><th>Campo</th><th>Tipo</th><th>Semántica actual</th><th>Se reutiliza</th></tr>
+<tr><td>1</td><td>id</td><td>integer (PK)</td><td>Identificador único</td><td class="status-ok">Sí</td></tr>
+<tr><td>2</td><td>numero</td><td>integer</td><td>Número correlativo interno</td><td class="status-ok">Sí</td></tr>
+<tr><td>3</td><td>nro_factura</td><td>varchar(50)</td><td>N° de factura del proveedor</td><td class="status-ok">Sí</td></tr>
+<tr><td>4</td><td>nombre_apellido</td><td>varchar(255)</td><td>Cliente</td><td class="status-ok">Sí</td></tr>
+<tr><td>5</td><td>monto_factura</td><td>numeric(15,2)</td><td>Monto total en Bs</td><td class="status-ok">Sí</td></tr>
+<tr><td>6</td><td>fecha_factura</td><td>date</td><td>Fecha de emisión</td><td class="status-ok">Sí</td></tr>
+<tr><td>7</td><td>cedula</td><td>varchar(20)</td><td>Documento de identidad</td><td class="status-ok">Sí</td></tr>
+<tr><td>8</td><td>telefono</td><td>varchar(20)</td><td>Teléfono del cliente</td><td class="status-ok">Sí</td></tr>
+<tr><td>9</td><td>monto_facturado_divisa</td><td>numeric(15,2)</td><td>Monto total en $ (calculado)</td><td class="status-ok">Sí</td></tr>
+<tr><td>10</td><td>cuotas</td><td>integer (default 11)</td><td>Número total de cuotas</td><td class="status-ok">Sí</td></tr>
+<tr><td>11</td><td>monto_pendiente</td><td>numeric(15,2)</td><td>Saldo pendiente en Bs</td><td class="status-ok">Sí</td></tr>
+<tr><td>12</td><td>monto_depositados</td><td>numeric(15,2)</td><td>Total depositado en Bs</td><td class="status-ok">Sí</td></tr>
+<tr><td>13</td><td>deuda</td><td>numeric(15,2)</td><td>Deuda actual en Bs</td><td class="status-ok">Sí</td></tr>
+<tr><td>14-68</td><td>cuota_1..11 y metadatos</td><td>varios</td><td>Pagos mensuales (monto, ref, fecha, tasa, dolar)</td><td class="status-ok">Sí</td></tr>
+<tr><td>69</td><td>created_at</td><td>timestamp</td><td>Fecha de creación</td><td class="status-ok">Sí</td></tr>
+<tr><td>70</td><td>updated_at</td><td>timestamp</td><td>Fecha de última modificación</td><td class="status-ok">Sí</td></tr>
+<tr><td>71</td><td>dolar_facturado</td><td>numeric(15,2)</td><td>Campo heredado/duplicado</td><td class="status-warn">Revisar</td></tr>
+<tr><td>72</td><td>numero_cuenta</td><td>varchar(20)</td><td>Cuenta bancaria (v6.3)</td><td class="status-ok">Sí</td></tr>
+<tr><td>73</td><td>banco</td><td>varchar(100)</td><td>Banco (v6.3)</td><td class="status-ok">Sí</td></tr>
+</table>
+
+<h2>2.2 Semántica de cuota_1 a cuota_11</h2>
+
+<p>Cada cuota tiene <strong>5 campos asociados</strong>, repitiendo el patrón para las 11 cuotas:</p>
+
+<pre>
+cuota_N              → numeric(15,2)  → Monto en Bs depositado por el cliente
+ref_cuota_N          → varchar(50)    → Número de referencia bancaria
+fecha_cuota_N        → date           → Fecha del depósito
+tasa_cuota_N         → numeric(15,4)  → Tasa BCV del día del depósito
+dolar_depositado_cuota_N → numeric(15,2) → Equivalente en $ (cuota_N / tasa)
+</pre>
+
+<div class="warn-box">
+<strong>Observación crítica:</strong> En el diseño actual, <code>cuota_1</code> representa el <strong>primer pago mensual</strong> del cliente, no el depósito inicial. Esto genera confusión operativa porque el "down payment" (inicial) no tiene campo propio. Los registros existentes almacenan la inicial en <code>cuota_1</code> y los pagos subsiguientes en <code>cuota_2..11</code>, lo cual es semánticamente incorrecto pero funcional.
+</div>
+
+<p><strong>Decisión arquitectónica:</strong> Para no romper los <strong>registros existentes</strong>, se crean campos nuevos (<code>inicial_bs</code>, <code>inicial_usd</code>, etc.) exclusivamente para <strong>nuevos registros</strong>. Los campos <code>cuota_1..11</code> siguen siendo pagos mensuales. En un futuro (v6.9+) se puede migrar la semántica, pero eso requiere script de transformación de datos con backup completo.</p>
+</div>
+
+<!-- SECCIÓN 3 -->
+<div class="section">
+<h1 class="section-title">3. Campos Nuevos en Base de Datos</h1>
+
+<h2>3.1 Matriz de campos nuevos</h2>
+
+<table>
+<tr><th>Campo UI</th><th>Campo BD</th><th>Tipo</th><th>NULL</th><th>Default</th><th>Descripción</th></tr>
+<tr><td>Inicial bs</td><td>inicial_bs</td><td>NUMERIC(15,2)</td><td>YES</td><td>NULL</td><td>Monto del depósito inicial en Bs</td></tr>
+<tr><td>Inicial $</td><td>inicial_usd</td><td>NUMERIC(15,2)</td><td>YES</td><td>NULL</td><td>Monto del depósito inicial en $ (calculado)</td></tr>
+<tr><td>Referencia inicial</td><td>ref_inicial</td><td>VARCHAR(50)</td><td>YES</td><td>NULL</td><td>N° de referencia bancaria del depósito inicial</td></tr>
+<tr><td>Fecha de inicial</td><td>fecha_inicial</td><td>DATE</td><td>YES</td><td>NULL</td><td>Fecha del depósito inicial</td></tr>
+<tr><td>Tasa BCV inicial</td><td>tasa_inicial</td><td>NUMERIC(15,4)</td><td>YES</td><td>NULL</td><td>Tasa BCV del día del depósito inicial</td></tr>
+<tr><td>Tasa BCV factura</td><td>tasa_bcv_factura</td><td>NUMERIC(15,4)</td><td>YES</td><td>NULL</td><td>Tasa BCV del día de la factura</td></tr>
+<tr><td>Monto cuotas</td><td>monto_cuota_usd</td><td>NUMERIC(15,2)</td><td>YES</td><td>NULL</td><td>Deuda $ / Total cuotas (en dólares)</td></tr>
+</table>
+
+<h2>3.2 Script SQL de migración (con transacción e índices)</h2>
+
+<pre>
+-- ============================================================
+-- MIGRACIÓN NUEVO REGISTRO v6.7.2-rev3
+-- Agrega campos para el nuevo formulario de conciliaciones
+-- Incluye: transacción, índices, verificación
+-- Afecta: tienda_caracas, tienda_maracay, tienda_maracaibo
+-- Los registros viejos quedan intactos (campos nuevos = NULL)
+-- ============================================================
+
+BEGIN;
+
+-- -----------------------------------------------------------
+-- tienda_caracas
+-- -----------------------------------------------------------
+LOCK TABLE tienda_caracas IN ACCESS EXCLUSIVE MODE;
+
+ALTER TABLE tienda_caracas
+  ADD COLUMN IF NOT EXISTS inicial_bs NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS inicial_usd NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS ref_inicial VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS fecha_inicial DATE,
+  ADD COLUMN IF NOT EXISTS tasa_inicial NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS tasa_bcv_factura NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS monto_cuota_usd NUMERIC(15,2);
+
+CREATE INDEX IF NOT EXISTS idx_caracas_fecha_inicial 
+    ON tienda_caracas(fecha_inicial);
+CREATE INDEX IF NOT EXISTS idx_caracas_inicial_bs 
+    ON tienda_caracas(inicial_bs);
+
+-- -----------------------------------------------------------
+-- tienda_maracay
+-- -----------------------------------------------------------
+LOCK TABLE tienda_maracay IN ACCESS EXCLUSIVE MODE;
+
+ALTER TABLE tienda_maracay
+  ADD COLUMN IF NOT EXISTS inicial_bs NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS inicial_usd NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS ref_inicial VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS fecha_inicial DATE,
+  ADD COLUMN IF NOT EXISTS tasa_inicial NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS tasa_bcv_factura NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS monto_cuota_usd NUMERIC(15,2);
+
+CREATE INDEX IF NOT EXISTS idx_maracay_fecha_inicial 
+    ON tienda_maracay(fecha_inicial);
+CREATE INDEX IF NOT EXISTS idx_maracay_inicial_bs 
+    ON tienda_maracay(inicial_bs);
+
+-- -----------------------------------------------------------
+-- tienda_maracaibo
+-- -----------------------------------------------------------
+LOCK TABLE tienda_maracaibo IN ACCESS EXCLUSIVE MODE;
+
+ALTER TABLE tienda_maracaibo
+  ADD COLUMN IF NOT EXISTS inicial_bs NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS inicial_usd NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS ref_inicial VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS fecha_inicial DATE,
+  ADD COLUMN IF NOT EXISTS tasa_inicial NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS tasa_bcv_factura NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS monto_cuota_usd NUMERIC(15,2);
+
+CREATE INDEX IF NOT EXISTS idx_maracaibo_fecha_inicial 
+    ON tienda_maracaibo(fecha_inicial);
+CREATE INDEX IF NOT EXISTS idx_maracaibo_inicial_bs 
+    ON tienda_maracaibo(inicial_bs);
+
+COMMIT;
+
+-- -----------------------------------------------------------
+-- VERIFICACIÓN: debe devolver 21 filas (7 columnas × 3 tablas)
+-- -----------------------------------------------------------
+SELECT 
+    table_name AS tabla,
+    column_name AS columna,
+    data_type AS tipo,
+    is_nullable AS permite_null
+FROM information_schema.columns 
+WHERE table_name IN ('tienda_caracas', 'tienda_maracay', 'tienda_maracaibo')
+  AND column_name IN (
+      'inicial_bs', 'inicial_usd', 'ref_inicial', 'fecha_inicial',
+      'tasa_inicial', 'tasa_bcv_factura', 'monto_cuota_usd'
+  )
+ORDER BY table_name, ordinal_position;
+</pre>
+
+<div class="info-box">
+<strong>Nota de idempotencia y concurrencia:</strong> El script usa <code>BEGIN...COMMIT</code> con <code>LOCK TABLE</code> para evitar que dos administradores ejecuten la migración simultáneamente. <code>IF NOT EXISTS</code> permite reejecución sin error. Los índices mejoran el rendimiento de consultas futuras por fecha e inicial.
+</div>
+</div>
+
+<!-- SECCIÓN 4 -->
+<div class="section">
+<h1 class="section-title">4. Lógica de Cálculos</h1>
+
+<h2>4.1 Fórmulas paso a paso</h2>
+
+<table class="table-compact">
+<tr><th>#</th><th>Campo calculado</th><th>Fórmula</th><th>Depende de</th></tr>
+<tr><td>1</td><td><strong>Monto Facturado $</strong></td><td><code>monto_factura / tasa_bcv_factura</code></td><td>Monto Factura (Bs) + Tasa BCV factura</td></tr>
+<tr><td>2</td><td><strong>Inicial $</strong></td><td><code>inicial_bs / tasa_inicial</code></td><td>Inicial bs + Tasa BCV inicial</td></tr>
+<tr><td>3</td><td><strong>Deuda $</strong></td><td><code>monto_facturado_usd - inicial_usd</code></td><td>Monto Facturado $ + Inicial $</td></tr>
+<tr><td>4</td><td><strong>Monto cuotas</strong></td><td><code>deuda_usd / total_cuotas</code></td><td>Deuda $ + Total de cuotas</td></tr>
+</table>
+
+<h3>Ejemplo numérico</h3>
+
+<pre>
+Monto Factura (Bs)     = 123,456.00 Bs
+Tasa BCV (factura)     = 742.8108
+─────────────────────────────────────────
+Monto Facturado $      = 123,456 / 742.8108 = 166.15 $
+
+Inicial bs             = 37,000.00 Bs
+Tasa BCV (inicial)     = 742.8108
+─────────────────────────────────────────
+Inicial $              = 37,000 / 742.8108 = 49.81 $
+
+Deuda $                = 166.15 - 49.81 = 116.34 $
+
+Total de cuotas        = 4
+─────────────────────────────────────────
+Monto cuota            = 116.34 / 4 = 29.09 $
+</pre>
+
+<h2>4.2 Orden de ejecución</h2>
+
+<p>Los cálculos deben ejecutarse en cadena. Un cambio en un campo upstream dispara el recálculo de todos los campos downstream:</p>
+
+<pre>
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  monto_factura  │────▶│ monto_facturado │────▶│                 │     │                 │
+│     (Bs)        │     │     _divisa ($) │     │                 │     │                 │
+└─────────────────┘     └─────────────────┘     │                 │     │                 │
+        │                                       │    deuda_usd    │────▶│  monto_cuota_usd│
+        │                                       │                 │     │                 │
+┌─────────────────┐     ┌─────────────────┐     │                 │     │                 │
+│   inicial_bs    │────▶│   inicial_usd   │────▶│                 │     │                 │
+│                 │     │                 │     └─────────────────┘     └─────────────────┘
+└─────────────────┘     └─────────────────┘              ▲
+        │                                                │
+        │         ┌─────────────────┐                    │
+        │         │  tasa_bcv_      │────────────────────┘
+        │         │  factura        │
+        │         └─────────────────┘
+        │
+        │         ┌─────────────────┐
+        └────────▶│   tasa_inicial  │
+                  └─────────────────┘
+</pre>
+
+<h2>4.3 Manejo de redondeo (corregido)</h2>
+
+<p>La versión anterior usaba <code>Math.round(valor * 100) / 100</code>, que es vulnerable a errores de precisión del estándar IEEE 754. La versión corregida usa <code>Number.EPSILON</code> para compensar:</p>
+
+<pre>
+// Función de redondeo unificada (frontend y backend)
+function redondearDecimales(valor, decimales = 2) {
+    if (typeof valor !== 'number' || isNaN(valor) || !isFinite(valor)) return 0;
+    const factor = Math.pow(10, decimales);
+    // Number.EPSILON corrige errores de precisión de punto flotante
+    return Math.round((valor + Number.EPSILON) * factor) / factor;
+}
+
+function aDosDecimales(valor) {
+    return redondearDecimales(valor, 2).toFixed(2);
+}
+
+// Ejemplo corregido:
+// redondearDecimales(123456.55 / 742.8108) = redondearDecimales(166.1987...) = 166.20
+// Sin EPSILON podría dar 166.19 en algunos casos límite
+</pre>
+
+<div class="info-box">
+<strong>¿Por qué Number.EPSILON?</strong> En JavaScript, <code>0.1 + 0.2 !== 0.3</code> debido a la representación binaria de decimales. Al multiplicar por el factor de redondeo, pequeños errores de precisión pueden hacer que <code>Math.round</code> redondee hacia abajo en lugar de arriba. <code>Number.EPSILON</code> (≈ 2.22×10⁻¹⁶) compensa ese error sin afectar el resultado para números normales.
+</div>
+
+<h2>4.4 Descalce de centavos y última cuota</h2>
+
+<p><strong>Problema identificado:</strong> Si <code>deuda_usd = 100.00</code> y <code>total_cuotas = 3</code>, entonces <code>100 / 3 = 33.3333...</code>. Redondeando a 2 decimales: 3 cuotas de 33.33 = 99.99. Queda <strong>1 centavo sin saldar</strong>.</p>
+
+<p><strong>Solución:</strong> Las primeras <code>N-1</code> cuotas usan el redondeo estándar. La <strong>última cuota absorbe el remanente</strong>:</p>
+
+<pre>
+function calcularPlanCuotas(deudaUSD, totalCuotas) {
+    const cuotaBase = redondearDecimales(deudaUSD / totalCuotas, 2);
+    const acumulado = redondearDecimales(cuotaBase * (totalCuotas - 1), 2);
+    const ultimaCuota = redondearDecimales(deudaUSD - acumulado, 2);
+
+    return {
+        monto_cuota_regular: cuotaBase,      // cuotas 1 a N-1
+        monto_ultima_cuota: ultimaCuota     // cuota N (absorbe centavos)
+    };
+}
+
+// Ejemplo: deuda = 100.00, cuotas = 3
+// cuotaBase = 33.33
+// acumulado = 33.33 * 2 = 66.66
+// ultimaCuota = 100.00 - 66.66 = 33.34
+// Total: 33.33 + 33.33 + 33.34 = 100.00 ✅
+</pre>
+
+<div class="warn-box">
+<strong>Nota:</strong> El campo <code>monto_cuota_usd</code> en la base de datos almacena la <strong>cuota base</strong> (redondeada). El frontend y los reportes deben aplicar la lógica del remanente al mostrar la última cuota. Para simplificar, en esta versión almacenamos solo la cuota base y el sistema de conciliaciones maneja el ajuste visualmente.
+</div>
+</div>
+
+<!-- SECCIÓN 5 -->
+<div class="section">
+<h1 class="section-title">5. Diagrama de Flujo de Guardado</h1>
+
+<div class="diagram-box">
+<div class="diagram-title">Flujo completo: Nuevo Registro → Base de Datos</div>
+<pre>
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OPERADOR (Navegador)                                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  1. Completa formulario:                                           │   │
+│  │     • N° Factura, Fecha, Nombre, Cédula                            │   │
+│  │     • Monto Factura (Bs) — min="0", step="0.01"                    │   │
+│  │     • Inicial bs, Ref inicial, Fecha inicial — min="0"             │   │
+│  │     • Total cuotas (select 1-11, default 4)                        │   │
+│  │  2. Frontend calcula con debounce (300ms):                         │   │
+│  │     • Obtiene tasa BCV de la fecha (cache sessionStorage)        │   │
+│  │     • Monto Facturado $ = Bs / tasa_bcv_factura                  │   │
+│  │     • Inicial $ = inicial_bs / tasa_inicial                      │   │
+│  │     • Deuda $ = Monto $ - Inicial $                               │   │
+│  │     • Monto cuota = Deuda $ / cuotas (con remanente en última)   │   │
+│  │  3. Clic en "Guardar Registro"                                     │   │
+│  │  4. Valida: inicial_bs <= monto_factura, fecha_inicial >= fecha   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  POST /api/tiendas/{tienda}                                               │
+│  {                                                                          │
+│    nro_factura: "1234",                                                    │
+│    fecha_factura: "2026-07-28",                                            │
+│    nombre_apellido: "Juan Pérez",                                          │
+│    cedula: "V12345678",                                                    │
+│    monto_factura: 123456.00,                                               │
+│    monto_facturado_divisa: 166.15,  ← calculado con tasa_bcv_factura    │
+│    cuotas: 4,                                                               │
+│    inicial_bs: 37000.00,                                                   │
+│    inicial_usd: 49.81,                                                     │
+│    ref_inicial: "REF001",                                                  │
+│    fecha_inicial: "2026-07-28",                                            │
+│    tasa_inicial: 742.8108,                                                │
+│    tasa_bcv_factura: 742.8108,                                             │
+│    monto_cuota_usd: 29.09,                                                 │
+│    telefono: "04121234567",                                                │
+│    numero_cuenta: "",                                                      │
+│    banco: ""                                                               │
+│  }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  SERVIDOR (Node.js / Express)                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  Middleware verificarToken + validarTienda (whitelist)            │   │
+│  │  └── Rechaza si: token inválido, rol != admin, tienda no válida   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  Router tiendas.js — POST /:tienda                                │   │
+│  │  └── Validaciones:                                                  │   │
+│  │      • monto_factura > 0                                           │   │
+│  │      • inicial_bs > 0 && inicial_bs <= monto_factura               │   │
+│  │      • cuotas entre 1 y 11 (entero)                                │   │
+│  │      • fecha_inicial >= fecha_factura                              │   │
+│  │      • tasa_bcv_factura entre 0.1 y 10000                          │   │
+│  │      • tasa_inicial entre 0.1 y 10000                              │   │
+│  │      • Verificar cálculos del frontend (± 0.01 tolerancia)       │   │
+│  │      • nro_factura único en la tienda                              │   │
+│  │      • ref_inicial único (opcional, configurable)                  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  INSERT INTO tienda_{tienda}  ← sanitizado por whitelist           │   │
+│  │  (nro_factura, fecha_factura, nombre_apellido, cedula,             │   │
+│  │   monto_factura, monto_facturado_divisa, cuotas,                   │   │
+│  │   inicial_bs, inicial_usd, ref_inicial, fecha_inicial,             │   │
+│  │   tasa_inicial, tasa_bcv_factura, monto_cuota_usd,                 │   │
+│  │   telefono, numero_cuenta, banco,                                  │   │
+│  │   created_at, updated_at)                                          │   │
+│  │  VALUES (...)                                                      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  INSERT INTO auditoria_usuarios (usuario_id, accion, tabla,        │   │
+│  │   registro_id, detalles, ip, user_agent, created_at)               │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  RETURN 201 Created { exito: true, id: 123, mensaje: "Registro creado" } │
+└─────────────────────────────────────────────────────────────────────────────┘
+</pre>
+</div>
+</div>
+
+<!-- SECCIÓN 6 -->
+<div class="section">
+<h1 class="section-title">6. API REST — Cambios en Backend</h1>
+
+<h2>6.1 Sanitización de parámetro tienda (aplicar a TODAS las rutas)</h2>
+
+<p><strong>Error identificado:</strong> El código anterior concatenaba <code>tienda_${tienda}</code> directamente en la consulta SQL, lo cual es vulnerable a inyección si el parámetro no está sanitizado.</p>
+
+<p><strong>Solución:</strong> Middleware de whitelist que valida el parámetro antes de usarlo. <strong>Debe aplicarse a TODAS las rutas que usen <code>:tienda</code></strong>, no solo al POST:</p>
+
+<pre>
+// middleware/validarTienda.js
+const TIENDAS_PERMITIDAS = ['caracas', 'maracay', 'maracaibo'];
+
+function validarTienda(req, res, next) {
+    const tienda = req.params.tienda ? req.params.tienda.toLowerCase().trim() : '';
+    if (!TIENDAS_PERMITIDAS.includes(tienda)) {
+        return res.status(400).json({ error: 'Tienda no válida' });
+    }
+    req.params.tienda = tienda; // Sanitizado
+    next();
+}
+
+module.exports = { validarTienda };
+
+// ============================
+// routes/tiendas.js — APLICAR A TODAS LAS RUTAS
+// ============================
+const { validarTienda } = require('../middleware/validarTienda');
+
+// GET listar clientes
+router.get('/:tienda', verificarToken, validarTienda, async (req, res) => { ... });
+
+// POST crear cliente
+router.post('/:tienda', verificarToken, soloAdmin, validarTienda, async (req, res) => { ... });
+
+// GET ver cliente
+router.get('/:tienda/:id', verificarToken, validarTienda, async (req, res) => { ... });
+
+// PUT editar cliente
+router.put('/:tienda/:id', verificarToken, soloAdmin, validarTienda, async (req, res) => { ... });
+
+// DELETE eliminar cliente
+router.delete('/:tienda/:id', verificarToken, soloAdmin, validarTienda, async (req, res) => { ... });
+</pre>
+
+<h2>6.2 Rate limiting en endpoint BCV (anti-DoS)</h2>
+
+<p><strong>Error identificado:</strong> El endpoint <code>/api/bcv/tasa</code> sin rate limiting podría ser explotado para hacer múltiples peticiones a la API externa del BCV, causando bloqueo o consumo excesivo de recursos.</p>
+
+<p><strong>Solución:</strong> Agregar rate limiting específico para el endpoint BCV:</p>
+
+<pre>
+// routes/bcv.js — rate limiting
+const rateLimit = require('express-rate-limit');
+
+const bcvLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minuto
+    max: 30,              // 30 peticiones por minuto por IP
+    message: { 
+        error: 'Demasiadas peticiones de tasa BCV. Intente nuevamente en un minuto.' 
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+router.get('/tasa', verificarToken, bcvLimiter, async (req, res) => {
+    const fecha = req.query.fecha;
+    // ... resto del endpoint
+});
+</pre>
+
+<div class="info-box">
+<strong>Nota:</strong> El rate limit de 30 peticiones/minuto es suficiente para un operador normal (cada cambio de fecha en el formulario genera 1 petición, con debounce de 300ms). Si hay múltiples usuarios simultáneos, considerar aumentar a 60 o usar un cache compartido en Redis.
+</div>
+
+<h2>6.3 Payload del POST</h2>
+
+<pre>
+{
+  // Campos existentes (se mantienen)
+  "nro_factura": "1234",
+  "fecha_factura": "2026-07-28",
+  "nombre_apellido": "Juan Pérez",
+  "cedula": "V12345678",
+  "telefono": "04121234567",
+  "monto_factura": 123456.00,
+  "monto_facturado_divisa": 166.15,
+  "cuotas": 4,
+  "numero_cuenta": "",
+  "banco": "",
+
+  // Campos NUEVOS v6.7.2
+  "inicial_bs": 37000.00,
+  "inicial_usd": 49.81,
+  "ref_inicial": "REF001",
+  "fecha_inicial": "2026-07-28",
+  "tasa_inicial": 742.8108,
+  "tasa_bcv_factura": 742.8108,
+  "monto_cuota_usd": 29.09
+}
+</pre>
+
+<h2>6.4 Validaciones backend (ampliadas)</h2>
+
+<table class="table-compact">
+<tr><th>#</th><th>Validación</th><th>Error si falla</th><th>HTTP</th></tr>
+<tr><td>1</td><td><code>nro_factura</code> no vacío, único en tienda</td><td>"N° de factura ya existe"</td><td>400</td></tr>
+<tr><td>2</td><td><code>monto_factura</code> > 0</td><td>"Monto debe ser mayor a cero"</td><td>400</td></tr>
+<tr><td>3</td><td><code>inicial_bs</code> > 0</td><td>"Inicial debe ser mayor a cero"</td><td>400</td></tr>
+<tr><td>4</td><td><code>inicial_bs</code> <= <code>monto_factura</code></td><td>"Inicial no puede superar el monto total"</td><td>400</td></tr>
+<tr><td>5</td><td><code>cuotas</code> entre 1 y 11, <strong>entero</strong></td><td>"Cuotas debe ser un entero entre 1 y 11"</td><td>400</td></tr>
+<tr><td>6</td><td><code>fecha_inicial</code> >= <code>fecha_factura</code></td><td>"Fecha de inicial no puede ser anterior a la factura"</td><td>400</td></tr>
+<tr><td>7</td><td><code>tasa_bcv_factura</code> entre 0.1 y 10000</td><td>"Tasa BCV de factura fuera de rango"</td><td>400</td></tr>
+<tr><td>8</td><td><code>tasa_inicial</code> entre 0.1 y 10000</td><td>"Tasa BCV de inicial fuera de rango"</td><td>400</td></tr>
+<tr><td>9</td><td><code>monto_facturado_divisa</code> ≈ <code>monto_factura / tasa_bcv_factura</code> (±0.01)</td><td>"Cálculo de monto en $ incorrecto"</td><td>400</td></tr>
+<tr><td>10</td><td><code>inicial_usd</code> ≈ <code>inicial_bs / tasa_inicial</code> (±0.01)</td><td>"Cálculo de inicial en $ incorrecto"</td><td>400</td></tr>
+<tr><td>11</td><td><code>monto_cuota_usd</code> ≈ <code>(monto_facturado_divisa - inicial_usd) / cuotas</code> (±0.01)</td><td>"Cálculo de cuota incorrecto"</td><td>400</td></tr>
+<tr><td>12</td><td><code>fecha_inicial</code> <= hoy</td><td>"Fecha de inicial no puede ser futura"</td><td>400</td></tr>
+<tr><td>13</td><td><code>ref_inicial</code> único (opcional, configurable)</td><td>"Referencia de inicial ya existe"</td><td>400</td></tr>
+</table>
+
+<h2>6.5 Cálculos en el servidor</h2>
+
+<p>El backend debe usar la <strong>misma función de redondeo</strong> que el frontend para evitar discrepancias:</p>
+
+<pre>
+// routes/tiendas.js — funciones de utilidad
+function redondearDecimales(valor, decimales = 2) {
+    if (typeof valor !== 'number' || isNaN(valor) || !isFinite(valor)) return 0;
+    const factor = Math.pow(10, decimales);
+    return Math.round((valor + Number.EPSILON) * factor) / factor;
+}
+
+function validarCalculos(body) {
+    const tolerancia = 0.01;
+
+    // 1. Validar monto_facturado_divisa
+    const calculadoMontoUSD = redondearDecimales(
+        parseFloat(body.monto_factura) / parseFloat(body.tasa_bcv_factura)
+    );
+    if (Math.abs(calculadoMontoUSD - parseFloat(body.monto_facturado_divisa)) > tolerancia) {
+        throw new Error('Monto Facturado $ no coincide con el cálculo');
+    }
+
+    // 2. Validar inicial_usd
+    const calculadoInicialUSD = redondearDecimales(
+        parseFloat(body.inicial_bs) / parseFloat(body.tasa_inicial)
+    );
+    if (Math.abs(calculadoInicialUSD - parseFloat(body.inicial_usd)) > tolerancia) {
+        throw new Error('Inicial $ no coincide con el cálculo');
+    }
+
+    // 3. Validar monto_cuota_usd
+    const deudaUSD = redondearDecimales(
+        parseFloat(body.monto_facturado_divisa) - parseFloat(body.inicial_usd)
+    );
+    const cuotaUSD = redondearDecimales(deudaUSD / parseInt(body.cuotas));
+    if (Math.abs(cuotaUSD - parseFloat(body.monto_cuota_usd)) > tolerancia) {
+        throw new Error('Monto de cuota no coincide con el cálculo');
+    }
+
+    // 4. Validar que inicial no supere el monto
+    if (parseFloat(body.inicial_bs) > parseFloat(body.monto_factura)) {
+        throw new Error('Inicial no puede ser mayor al monto total');
+    }
+
+    // 5. Validar fechas lógicas
+    if (new Date(body.fecha_inicial) < new Date(body.fecha_factura)) {
+        throw new Error('Fecha de inicial no puede ser anterior a la fecha de la factura');
+    }
+
+    // 6. Validar rango de tasas
+    const tasaFactura = parseFloat(body.tasa_bcv_factura);
+    const tasaInicial = parseFloat(body.tasa_inicial);
+    if (tasaFactura <= 0.1 || tasaFactura > 10000 || tasaInicial <= 0.1 || tasaInicial > 10000) {
+        throw new Error('Tasa BCV fuera de rango válido');
+    }
+
+    // 7. Validar que cuotas sea entero
+    const cuotas = parseInt(body.cuotas);
+    if (isNaN(cuotas) || cuotas < 1 || cuotas > 11) {
+        throw new Error('Cuotas debe ser un número entero entre 1 y 11');
+    }
+
+    return true;
+}
+</pre>
+
+<div class="info-box">
+<strong>Principio de defensa en profundidad:</strong> El frontend calcula para UX (feedback inmediato). El backend recalcula para seguridad (evita que un usuario malicioso envíe valores falsos manipulando la petición HTTP). Ambos usan la <strong>misma función de redondeo</strong> con <code>Number.EPSILON</code> para garantizar consistencia.
+</div>
+
+<h2>6.6 Auditoría con IP y user-agent</h2>
+
+<p><strong>Error identificado:</strong> No se registraba la IP ni el user-agent del usuario al crear un nuevo registro, lo cual dificulta el cumplimiento de auditoría de seguridad.</p>
+
+<p><strong>Solución:</strong> Insertar en la tabla <code>auditoria_usuarios</code> después de crear el registro:</p>
+
+<pre>
+// Después del INSERT exitoso en tiendas.js
+const registroId = result.rows[0].id;
+
+// Registrar en auditoría
+await pool.query(`
+    INSERT INTO auditoria_usuarios (
+        usuario_id, accion, tabla, registro_id, 
+        detalles, ip, user_agent, created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+`, [
+    req.usuario.id,
+    'CREAR_REGISTRO_CONCILIACION',
+    `tienda_${tienda}`,
+    registroId,
+    JSON.stringify({ 
+        nro_factura: body.nro_factura, 
+        monto_factura: body.monto_factura,
+        inicial_bs: body.inicial_bs 
+    }),
+    req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown',
+    req.headers['user-agent'] || ''
+]);
+</pre>
+
+<div class="warn-box">
+<strong>Nota:</strong> Si la tabla <code>auditoria_usuarios</code> no tiene las columnas <code>ip</code> y <code>user_agent</code>, agregarlas con:
+<code>ALTER TABLE auditoria_usuarios ADD COLUMN IF NOT EXISTS ip VARCHAR(45), ADD COLUMN IF NOT EXISTS user_agent TEXT;</code>
+</div>
+</div>
+
+<!-- SECCIÓN 7 -->
+<div class="section">
+<h1 class="section-title">7. Frontend — Nuevo Formulario</h1>
+
+<h2>7.1 Estructura del formulario</h2>
+
+<p>El formulario se divide en <strong>3 bloques visuales</strong>. Todos los inputs monetarios incluyen <code>min="0"</code> y <code>step="0.01"</code>:</p>
+
+<h3>Bloque 1: Datos de la Factura</h3>
+<table class="table-compact">
+<tr><th>Campo</th><th>Tipo HTML</th><th>Atributos</th><th>Calculado</th></tr>
+<tr><td>N° Factura</td><td>text</td><td>required</td><td>No</td></tr>
+<tr><td>Fecha Factura</td><td>date</td><td>required</td><td>No</td></tr>
+<tr><td>Nombre y Apellido</td><td>text</td><td>required</td><td>No</td></tr>
+<tr><td>Cédula</td><td>text</td><td>—</td><td>No</td></tr>
+<tr><td>Monto Factura (Bs)</td><td>number</td><td>min="0" step="0.01" required</td><td>No</td></tr>
+<tr><td>Monto Facturado $</td><td>number</td><td>readonly</td><td class="status-ok">Sí</td></tr>
+<tr><td>Tasa BCV Factura</td><td>number</td><td>min="0.1" step="0.0001" required</td><td>No (auto/manual)</td></tr>
+</table>
+
+<h3>Bloque 2: Depósito Inicial</h3>
+<table class="table-compact">
+<tr><th>Campo</th><th>Tipo HTML</th><th>Atributos</th><th>Calculado</th></tr>
+<tr><td>Inicial bs</td><td>number</td><td>min="0" step="0.01" required</td><td>No</td></tr>
+<tr><td>Inicial $</td><td>number</td><td>readonly</td><td class="status-ok">Sí</td></tr>
+<tr><td>Referencia inicial</td><td>text</td><td>required</td><td>No</td></tr>
+<tr><td>Fecha de inicial</td><td>date</td><td>required</td><td>No</td></tr>
+<tr><td>Tasa BCV inicial</td><td>number</td><td>min="0.1" step="0.0001" required</td><td>No (auto/manual)</td></tr>
+</table>
+
+<h3>Bloque 3: Plan de Cuotas</h3>
+<table class="table-compact">
+<tr><th>Campo</th><th>Tipo HTML</th><th>Atributos</th><th>Calculado</th></tr>
+<tr><td>Total de cuotas</td><td>select (1-11)</td><td>required, default 4</td><td>No</td></tr>
+<tr><td>Deuda $</td><td>number</td><td>readonly</td><td class="status-ok">Sí</td></tr>
+<tr><td>Monto cuotas</td><td>number</td><td>readonly</td><td class="status-ok">Sí</td></tr>
+</table>
+
+<h2>7.2 Eventos con debounce y AbortController</h2>
+
+<p><strong>Problema identificado:</strong> El código anterior usaba <code>addEventListener('input', ...)</code> sin debounce, generando múltiples peticiones a la API BCV por cada tecla presionada.</p>
+
+<p><strong>Solución:</strong></p>
+<ul>
+<li><strong>Debounce de 300ms:</strong> Solo se ejecuta el cálculo 300ms después de que el usuario deja de escribir.</li>
+<li><strong>AbortController:</strong> Cancela peticiones fetch anteriores si el usuario cambia el campo antes de que termine.</li>
+<li><strong>Cache en sessionStorage:</strong> Evita pedir la misma tasa BCV dos veces en la misma sesión.</li>
+</ul>
+
+<h2>7.3 Código JavaScript corregido</h2>
+
+<pre>
+// ============================================================
+// tienda-spa.js — CÁLCULOS NUEVO REGISTRO v6.7.2-rev3
+// ============================================================
+
+// ============================
+// 1. CONFIGURACIÓN
+// ============================
+const DEBOUNCE_MS = 300;
+const TASA_MIN = 0.1;
+const TASA_MAX = 10000;
+
+// ============================
+// 2. FUNCIONES DE REDONDEO (UNIFICADAS CON BACKEND)
+// ============================
+function redondearDecimales(valor, decimales = 2) {
+    if (typeof valor !== 'number' || isNaN(valor) || !isFinite(valor)) return 0;
+    const factor = Math.pow(10, decimales);
+    return Math.round((valor + Number.EPSILON) * factor) / factor;
+}
+
+function aDosDecimales(valor) {
+    return redondearDecimales(valor, 2).toFixed(2);
+}
+
+// ============================
+// 3. VALIDACIONES AUXILIARES
+// ============================
+function validarTasaBCV(tasa) {
+    if (!tasa || typeof tasa !== 'number') return false;
+    if (tasa <= TASA_MIN || tasa > TASA_MAX) return false;
+    return true;
+}
+
+function validarValorMonetario(valor) {
+    if (typeof valor !== 'number' || isNaN(valor)) return false;
+    if (valor < 0) return false;
+    return true;
+}
+
+// ============================
+// 4. OBTENCIÓN DE TASA BCV CON CACHÉ Y ABORTCONTROLLER
+// ============================
+let abortControllerBCV = null;
+
+async function obtenerTasaBCV(fecha) {
+    if (!fecha) return null;
+
+    const cacheKey = `tasa_bcv_${fecha}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+        const tasa = parseFloat(cached);
+        if (validarTasaBCV(tasa)) return tasa;
+        sessionStorage.removeItem(cacheKey);
+    }
+
+    // Cancelar petición anterior si existe
+    if (abortControllerBCV) {
+        abortControllerBCV.abort();
+    }
+    abortControllerBCV = new AbortController();
+
+    try {
+        const timeoutId = setTimeout(() => abortControllerBCV.abort(), 5000);
+
+        const response = await fetch(`/api/bcv/tasa?fecha=${fecha}`, {
+            signal: abortControllerBCV.signal,
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error('Error en la API');
+
+        const data = await response.json();
+        if (!validarTasaBCV(data.tasa)) {
+            throw new Error('Tasa inválida');
+        }
+
+        sessionStorage.setItem(cacheKey, data.tasa);
+        return data.tasa;
+
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.warn('Petición BCV cancelada (nueva petición iniciada)');
+        } else {
+            console.warn('Error obteniendo tasa BCV:', error.message);
+        }
+        return null;
+    }
+}
+
+// ============================
+// 5. CÁLCULOS CON DEBOUNCE
+// ============================
+let timeoutCalcularMontoUSD = null;
+let timeoutCalcularInicialUSD = null;
+let timeoutCalcularDeudaCuota = null;
+
+async function calcularMontoFacturadoUSD() {
+    clearTimeout(timeoutCalcularMontoUSD);
+    timeoutCalcularMontoUSD = setTimeout(async () => {
+        const montoBs = parseFloat(document.getElementById('nueva-monto').value) || 0;
+        const fechaFactura = document.getElementById('nueva-fecha-factura').value;
+
+        if (!validarValorMonetario(montoBs) || montoBs <= 0) {
+            document.getElementById('nueva-monto-usd').value = '';
+            return;
+        }
+        if (!fechaFactura) {
+            document.getElementById('nueva-monto-usd').value = '';
+            return;
+        }
+
+        let tasa = parseFloat(document.getElementById('nueva-tasa-factura').value);
+        if (!validarTasaBCV(tasa)) {
+            tasa = await obtenerTasaBCV(fechaFactura);
+            if (tasa) {
+                document.getElementById('nueva-tasa-factura').value = tasa.toFixed(4);
+            } else {
+                document.getElementById('nueva-tasa-factura').readOnly = false;
+                document.getElementById('nueva-tasa-factura').placeholder = 'Ingresar manualmente';
+                return;
+            }
+        }
+
+        const usd = redondearDecimales(montoBs / tasa);
+        document.getElementById('nueva-monto-usd').value = aDosDecimales(usd);
+        calcularDeudaYCuota();
+
+    }, DEBOUNCE_MS);
+}
+
+async function calcularInicialUSD() {
+    clearTimeout(timeoutCalcularInicialUSD);
+    timeoutCalcularInicialUSD = setTimeout(async () => {
+        const inicialBs = parseFloat(document.getElementById('nueva-inicial-bs').value) || 0;
+        const fechaInicial = document.getElementById('nueva-fecha-inicial').value;
+
+        if (!validarValorMonetario(inicialBs) || inicialBs <= 0) {
+            document.getElementById('nueva-inicial-usd').value = '';
+            return;
+        }
+        if (!fechaInicial) {
+            document.getElementById('nueva-inicial-usd').value = '';
+            return;
+        }
+
+        let tasa = parseFloat(document.getElementById('nueva-tasa-inicial').value);
+        if (!validarTasaBCV(tasa)) {
+            tasa = await obtenerTasaBCV(fechaInicial);
+            if (tasa) {
+                document.getElementById('nueva-tasa-inicial').value = tasa.toFixed(4);
+            } else {
+                document.getElementById('nueva-tasa-inicial').readOnly = false;
+                document.getElementById('nueva-tasa-inicial').placeholder = 'Ingresar manualmente';
+                return;
+            }
+        }
+
+        const usd = redondearDecimales(inicialBs / tasa);
+        document.getElementById('nueva-inicial-usd').value = aDosDecimales(usd);
+        calcularDeudaYCuota();
+
+    }, DEBOUNCE_MS);
+}
+
+function calcularDeudaYCuota() {
+    clearTimeout(timeoutCalcularDeudaCuota);
+    timeoutCalcularDeudaCuota = setTimeout(() => {
+        const montoUsd = parseFloat(document.getElementById('nueva-monto-usd').value) || 0;
+        const inicialUsd = parseFloat(document.getElementById('nueva-inicial-usd').value) || 0;
+        const totalCuotas = parseInt(document.getElementById('nueva-total-cuotas').value) || 4;
+
+        if (totalCuotas <= 0) {
+            document.getElementById('nueva-deuda-usd').value = '';
+            document.getElementById('nueva-monto-cuota').value = '';
+            return;
+        }
+
+        const deuda = redondearDecimales(montoUsd - inicialUsd);
+        const cuota = redondearDecimales(deuda / totalCuotas);
+
+        document.getElementById('nueva-deuda-usd').value = aDosDecimales(deuda);
+        document.getElementById('nueva-monto-cuota').value = aDosDecimales(cuota);
+
+        // Validación visual: inicial no puede superar monto
+        const montoBs = parseFloat(document.getElementById('nueva-monto').value) || 0;
+        const inicialBs = parseFloat(document.getElementById('nueva-inicial-bs').value) || 0;
+        const inicialInput = document.getElementById('nueva-inicial-bs');
+        const errorDiv = document.getElementById('error-inicial');
+
+        if (inicialBs > montoBs && montoBs > 0) {
+            inicialInput.style.borderColor = '#e53e3e';
+            inicialInput.title = 'La inicial no puede superar el monto total';
+            if (errorDiv) errorDiv.textContent = '⚠️ La inicial excede el monto de la factura';
+        } else {
+            inicialInput.style.borderColor = '';
+            inicialInput.title = '';
+            if (errorDiv) errorDiv.textContent = '';
+        }
+
+    }, DEBOUNCE_MS);
+}
+
+// ============================
+// 6. INICIALIZACIÓN DE EVENT LISTENERS
+// ============================
+function inicializarFormularioNuevoRegistro() {
+    const ids = {
+        monto: 'nueva-monto',
+        inicialBs: 'nueva-inicial-bs',
+        fechaFactura: 'nueva-fecha-factura',
+        fechaInicial: 'nueva-fecha-inicial',
+        cuotas: 'nueva-total-cuotas',
+        tasaFactura: 'nueva-tasa-factura',
+        tasaInicial: 'nueva-tasa-inicial'
+    };
+
+    const el = (id) => document.getElementById(id);
+
+    el(ids.monto)?.addEventListener('input', calcularMontoFacturadoUSD);
+    el(ids.inicialBs)?.addEventListener('input', calcularInicialUSD);
+    el(ids.fechaFactura)?.addEventListener('change', calcularMontoFacturadoUSD);
+    el(ids.fechaInicial)?.addEventListener('change', calcularInicialUSD);
+    el(ids.cuotas)?.addEventListener('change', calcularDeudaYCuota);
+
+    // Permitir entrada manual de tasas
+    el(ids.tasaFactura)?.addEventListener('input', () => {
+        const tasa = parseFloat(el(ids.tasaFactura).value);
+        if (validarTasaBCV(tasa)) calcularMontoFacturadoUSD();
+    });
+
+    el(ids.tasaInicial)?.addEventListener('input', () => {
+        const tasa = parseFloat(el(ids.tasaInicial).value);
+        if (validarTasaBCV(tasa)) calcularInicialUSD();
+    });
+
+    // Validar que fecha_inicial >= fecha_factura
+    el(ids.fechaInicial)?.addEventListener('change', () => {
+        const fechaFactura = el(ids.fechaFactura)?.value;
+        const fechaInicial = el(ids.fechaInicial)?.value;
+        const errorDiv = document.getElementById('error-fecha-inicial');
+
+        if (fechaFactura && fechaInicial && fechaInicial < fechaFactura) {
+            el(ids.fechaInicial).style.borderColor = '#e53e3e';
+            if (errorDiv) errorDiv.textContent = 
+                '⚠️ La fecha del depósito no puede ser anterior a la fecha de la factura';
+        } else {
+            el(ids.fechaInicial).style.borderColor = '';
+            if (errorDiv) errorDiv.textContent = '';
+        }
+    });
+}
+</pre>
+
+<h2>7.4 Manejo de error 413 (payload grande)</h2>
+
+<p><strong>Error identificado:</strong> Si el formulario crece en el futuro y envía muchos datos, el servidor podría responder con HTTP 413 (Payload Too Large). El frontend no manejaba este caso.</p>
+
+<p><strong>Solución:</strong> Agregar manejo del error 413 en la función de guardado:</p>
+
+<pre>
+// tienda-spa.js — dentro de guardarNuevaConciliacion()
+async function guardarNuevaConciliacion() {
+    // ... validaciones previas ...
+
+    try {
+        const response = await fetch(`/api/tiendas/${tienda}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.status === 413) {
+            mostrarError('Los datos enviados son demasiado grandes. Reduzca el tamaño o contacte al administrador.');
+            return;
+        }
+
+        if (response.status === 429) {
+            mostrarError('Demasiadas peticiones. Espere un minuto e intente nuevamente.');
+            return;
+        }
+
+        if (!response.ok) {
+            const data = await response.json();
+            mostrarError(data.error || 'Error al guardar el registro');
+            return;
+        }
+
+        const data = await response.json();
+        mostrarExito('Registro creado exitosamente');
+
+        // Limpiar borrador si existe
+        localStorage.removeItem('borrador_conciliacion');
+
+    } catch (err) {
+        mostrarError('Error de conexión. Verifique su internet e intente nuevamente.');
+    }
+}
+</pre>
+</div>
+
+<!-- SECCIÓN 8 -->
+<div class="section">
+<h1 class="section-title">8. Tasa BCV — Estrategia de Integración</h1>
+
+<h3>Problema</h3>
+<p>El sistema actual obtiene la tasa BCV del <strong>día actual</strong> mediante <code>/api/bcv/tasa</code>. El nuevo formulario necesita la tasa de <strong>fechas pasadas</strong> (fecha de la factura y fecha del depósito inicial).</p>
+
+<h3>Solución propuesta: Endpoint con parámetro de fecha + fallback</h3>
+
+<pre>
+// NUEVO endpoint (modificación del existente)
+GET /api/bcv/tasa?fecha=2026-07-28
+
+// Respuesta exitosa:
+{
+  "tasa": 742.8108,
+  "fecha": "2026-07-28",
+  "fuente": "bcv.org.ve"
+}
+
+// Respuesta si no hay tasa para esa fecha (fin de semana/feriado):
+{
+  "tasa": 742.8108,
+  "fecha": "2026-07-25",
+  "fuente": "bcv.org.ve (última disponible)",
+  "nota": "Tasa del último día hábil anterior"
+}
+</pre>
+
+<h3>Implementación backend con fallback a última fecha disponible</h3>
+
+<pre>
+// routes/bcv.js — modificación
+const rateLimit = require('express-rate-limit');
+
+const bcvLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    message: { error: 'Demasiadas peticiones de tasa BCV' }
+});
+
+router.get('/tasa', verificarToken, bcvLimiter, async (req, res) => {
+    const fecha = req.query.fecha;
+
+    try {
+        const fechaConsulta = fecha || new Date().toISOString().split('T')[0];
+
+        // 1. Intentar obtener tasa exacta para la fecha
+        let tasa = await obtenerTasaBCVExacta(fechaConsulta);
+
+        // 2. Si no existe, buscar la tasa más reciente anterior
+        if (!tasa) {
+            tasa = await obtenerTasaBCVUltimaDisponible(fechaConsulta);
+            if (tasa) {
+                return res.json({
+                    tasa: tasa.valor,
+                    fecha: tasa.fecha,
+                    fuente: 'bcv.org.ve (última disponible)',
+                    nota: 'Tasa del último día hábil anterior'
+                });
+            }
+        }
+
+        if (tasa) {
+            res.json({ tasa: tasa.valor, fecha: fechaConsulta, fuente: 'bcv.org.ve' });
+        } else {
+            res.status(404).json({ 
+                error: 'Tasa no disponible',
+                fecha: fechaConsulta 
+            });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'Error consultando tasa BCV' });
+    }
+});
+
+// SQL para buscar tasa del último día hábil anterior
+async function obtenerTasaBCVUltimaDisponible(fecha) {
+    const query = `
+        SELECT tasa, fecha 
+        FROM bcv_tasas 
+        WHERE fecha <= $1 
+        ORDER BY fecha DESC 
+        LIMIT 1
+    `;
+    const result = await pool.query(query, [fecha]);
+    return result.rows[0] || null;
+}
+</pre>
+
+<h3>Fallback manual</h3>
+
+<p>Si la API del BCV no tiene datos para la fecha solicitada y no hay registro histórico, el frontend debe:</p>
+<ol>
+<li>Mostrar un mensaje: <em>"No se pudo obtener la tasa automáticamente. Por favor ingrésela manualmente."</em></li>
+<li>Habilitar el campo de tasa para edición manual (<code>readOnly = false</code>).</li>
+<li>El operador puede consultar la tasa en bcv.org.ve y escribirla.</li>
+<li>La validación de rango (0.1 - 10000) asegura que el valor manual sea razonable.</li>
+</ol>
+
+<div class="info-box">
+<strong>Nota:</strong> Si no se implementa el endpoint con fecha en esta versión, el frontend puede usar la <strong>tasa del día actual</strong> como aproximación, con la opción de que el operador la corrija manualmente. Esto es aceptable si las facturas se registran el mismo día de su emisión.
+</div>
+</div>
+
+<!-- SECCIÓN 9 -->
+<div class="section">
+<h1 class="section-title">9. Registros Existentes vs. Nuevos</h1>
+
+<h2>9.1 Compatibilidad hacia atrás</h2>
+
+<p>Los <strong>registros existentes</strong> (creados antes de v6.7.2) tienen los campos nuevos en <code>NULL</code>. Esto es intencional y no afecta su funcionamiento:</p>
+
+<table class="table-compact">
+<tr><th>Escenario</th><th>Comportamiento</th><th>Riesgo</th></tr>
+<tr><td>Ver registro viejo en tabla</td><td>Los campos nuevos aparecen vacíos o con "—"</td><td>Ninguno</td></tr>
+<tr><td>Editar registro viejo</td><td>El modal de edición puede mostrar campos vacíos</td><td>Bajo (solo visual)</td></tr>
+<tr><td>Reportes/estadísticas</td><td>Las funciones SQL deben manejar NULL con COALESCE</td><td>Medio (verificar)</td></tr>
+<tr><td>Conciliaciones sobre registro viejo</td><td>Funciona igual que antes (cuota_1..11)</td><td>Ninguno</td></tr>
+</table>
+
+<h2>9.2 Cuota inicial vs. cuota_1</h2>
+
+<p>Esta es la distinción más importante del rediseño:</p>
+
+<div class="diagram-box">
+<div class="diagram-title">Semántica: Registros Viejos vs. Nuevos</div>
+<pre>
+REGISTRO VIEJO (pre-v6.7.2)                    REGISTRO NUEVO (v6.7.2+)
+┌─────────────────────────────┐                ┌─────────────────────────────┐
+│  cuota_1 = 37,000 Bs        │                │  inicial_bs = 37,000 Bs   │
+│  (era el "down payment")     │                │  (campo nuevo, semántico)   │
+│  ref_cuota_1 = "REF001"      │                │  ref_inicial = "REF001"      │
+│  fecha_cuota_1 = 2026-07-28  │                │  fecha_inicial = 2026-07-28  │
+│  dolar_depositado_1 = 49.81  │                │  inicial_usd = 49.81        │
+│                              │                │                             │
+│  cuota_2 = 29,090 Bs        │                │  cuota_1 = 29,090 Bs        │
+│  (primer pago mensual)       │                │  (primer pago mensual)       │
+│  cuota_3 = 29,090 Bs        │                │  cuota_2 = 29,090 Bs        │
+│  cuota_4 = 29,090 Bs        │                │  cuota_3 = 29,090 Bs        │
+│  ...                         │                │  cuota_4 = 29,090 Bs        │
+└─────────────────────────────┘                └─────────────────────────────┘
+</pre>
+</div>
+
+<h3>Implicaciones</h3>
+<ul>
+<li><strong>Registros viejos:</strong> La "inicial" está en <code>cuota_1</code>. Los pagos mensuales empiezan en <code>cuota_2</code>.</li>
+<li><strong>Registros nuevos:</strong> La "inicial" está en <code>inicial_bs/usd</code>. Los pagos mensuales empiezan en <code>cuota_1</code>.</li>
+<li><strong>Para el operador:</strong> No hay cambio visible. El sistema internamente sabe qué campos usar según si el registro tiene <code>inicial_bs</code> o no.</li>
+</ul>
+
+<h2>9.3 COALESCE para consultas unificadas</h2>
+
+<p>Los reportes y estadísticas que necesiten mostrar la "inicial" de todos los registros (viejos y nuevos) deben usar <code>COALESCE</code>:</p>
+
+<pre>
+-- Ejemplo: consulta unificada que funciona para registros viejos y nuevos
+SELECT 
+    id,
+    nro_factura,
+    nombre_apellido,
+    COALESCE(inicial_bs, cuota_1) AS inicial_bs_unificada,
+    COALESCE(inicial_usd, dolar_depositado_cuota_1) AS inicial_usd_unificada,
+    COALESCE(ref_inicial, ref_cuota_1) AS ref_inicial_unificada,
+    COALESCE(fecha_inicial, fecha_cuota_1) AS fecha_inicial_unificada,
+    monto_factura,
+    monto_facturado_divisa,
+    cuotas,
+    deuda
+FROM tienda_caracas;
+</pre>
+
+<div class="warn-box">
+<strong>Advertencia para futuras versiones:</strong> Si en v6.9+ se decide unificar la semántica (migrar registros viejos a los nuevos campos), se necesitará un <strong>script de transformación de datos</strong> que:
+<ol>
+<li>Copie <code>cuota_1</code> → <code>inicial_bs</code></li>
+<li>Copie <code>ref_cuota_1</code> → <code>ref_inicial</code></li>
+<li>Copie <code>fecha_cuota_1</code> → <code>fecha_inicial</code></li>
+<li>Copie <code>dolar_depositado_cuota_1</code> → <code>inicial_usd</code></li>
+<li>Recalcule <code>tasa_inicial</code> = <code>inicial_bs / inicial_usd</code></li>
+<li>Mueva <code>cuota_2</code> → <code>cuota_1</code>, <code>cuota_3</code> → <code>cuota_2</code>, etc.</li>
+</ol>
+Esto es <strong>riesgoso</strong> y debe hacerse con backup completo de la base de datos.
+</div>
+</div>
+
+<!-- SECCIÓN 10 -->
+<div class="section">
+<h1 class="section-title">10. Plan de Implementación</h1>
+
+<table>
+<tr><th>Fase</th><th>Tarea</th><th>Archivos</th><th>Estimado</th><th>Depende de</th></tr>
+<tr><td>1</td><td><strong>Ejecutar migración SQL</strong> en las 3 tablas (con transacción)</td><td><code>migracion-nuevo-registro-v6.7.2.sql</code></td><td>10 min</td><td>—</td></tr>
+<tr><td>2</td><td><strong>Crear middleware validarTienda</strong> (whitelist)</td><td><code>middleware/validarTienda.js</code></td><td>15 min</td><td>—</td></tr>
+<tr><td>3</td><td><strong>Aplicar validarTienda a TODAS las rutas</strong> de tiendas</td><td><code>routes/tiendas.js</code></td><td>15 min</td><td>Fase 2</td></tr>
+<tr><td>4</td><td><strong>Agregar rate limiting</strong> en endpoint BCV</td><td><code>routes/bcv.js</code></td><td>15 min</td><td>—</td></tr>
+<tr><td>5</td><td><strong>Modificar backend POST</strong>: aceptar campos nuevos</td><td><code>routes/tiendas.js</code></td><td>1h</td><td>Fase 1, 2, 3</td></tr>
+<tr><td>6</td><td><strong>Agregar validaciones</strong> de cálculo en backend</td><td><code>routes/tiendas.js</code></td><td>1h</td><td>Fase 5</td></tr>
+<tr><td>7</td><td><strong>Agregar auditoría</strong> con IP y user-agent</td><td><code>routes/tiendas.js</code></td><td>30 min</td><td>Fase 5</td></tr>
+<tr><td>8</td><td><strong>Modificar endpoint BCV</strong> para aceptar fecha + fallback</td><td><code>routes/bcv.js</code></td><td>45 min</td><td>Fase 4</td></tr>
+<tr><td>9</td><td><strong>Rediseñar HTML</strong> del formulario en tienda-spa.js</td><td><code>public/js/tienda-spa.js</code></td><td>2h</td><td>Fase 1</td></tr>
+<tr><td>10</td><td><strong>Implementar cálculos</strong> con debounce, AbortController, cache</td><td><code>public/js/tienda-spa.js</code></td><td>2h</td><td>Fase 9</td></tr>
+<tr><td>11</td><td><strong>Modificar guardado</strong> para enviar nuevo payload + manejo 413</td><td><code>public/js/tienda-spa.js</code></td><td>1h</td><td>Fase 10</td></tr>
+<tr><td>12</td><td><strong>Pruebas</strong> en las 3 tiendas (Chrome + Firefox)</td><td>—</td><td>2h</td><td>Fase 11</td></tr>
+<tr><td>13</td><td><strong>Verificar compatibilidad</strong> con registros viejos</td><td>—</td><td>1h</td><td>Fase 12</td></tr>
+<tr><td>14</td><td><strong>Documentar</strong> en changelog y generar ZIP</td><td>—</td><td>30 min</td><td>Fase 13</td></tr>
+</table>
+
+<div class="success-box">
+<strong>Total estimado:</strong> ~13 horas de trabajo distribuidas en 2-3 días (considerando pruebas, ajustes y validación cruzada).
+</div>
+</div>
+
+<!-- SECCIÓN 11 -->
+<div class="section">
+<h1 class="section-title">11. Mejoras Futuras (v6.8+)</h1>
+
+<p>Las siguientes mejoras fueron identificadas durante la revisión técnica pero se postergan a versiones futuras para no bloquear el despliegue de v6.7.2-rev3:</p>
+
+<table class="table-compact">
+<tr><th>#</th><th>Mejora</th><th>Prioridad</th><th>Versión</th><th>Estimado</th></tr>
+<tr><td>1</td><td><strong>Borrador automático del formulario</strong>: Guardar en localStorage cada 30 segundos y restaurar al volver al formulario (válido por 24h)</td><td class="status-warn">Media</td><td>v6.8</td><td>2h</td></tr>
+<tr><td>2</td><td><strong>Migración a cookies HttpOnly</strong>: Eliminar localStorage para autenticación, usar cookies Secure + SameSite=Strict</td><td class="status-err">Alta</td><td>v6.8</td><td>8h</td></tr>
+<tr><td>3</td><td><strong>Cache compartido de tasas BCV</strong>: Usar Redis o PostgreSQL para cachear tasas entre usuarios/sesiones</td><td class="status-warn">Media</td><td>v6.8</td><td>2h</td></tr>
+<tr><td>4</td><td><strong>Validación de ref_inicial como configurable</strong>: Permitir al admin activar/desactivar la unicidad de referencias</td><td class="status-ok">Baja</td><td>v6.9</td><td>1h</td></tr>
+<tr><td>5</td><td><strong>Dashboard de auditoría</strong>: Página para ver logs de creación de registros con filtros por fecha, usuario, tienda</td><td class="status-ok">Baja</td><td>v6.9</td><td>3h</td></tr>
+<tr><td>6</td><td><strong>Script de migración de registros viejos</strong>: Unificar semántica de cuota_1 → inicial_bs para todos los registros históricos</td><td class="status-err">Alta</td><td>v6.9</td><td>4h</td></tr>
+</table>
+
+<div class="info-box">
+<strong>Nota sobre el borrador:</strong> Aunque no se implementa en esta versión, el código del frontend ya incluye la llamada <code>localStorage.removeItem('borrador_conciliacion')</code> al guardar exitosamente, preparando el terreno para v6.8.
+</div>
+</div>
+
+<!-- SECCIÓN 12 -->
+<div class="section">
+<h1 class="section-title">12. Anexos</h1>
+
+<h2>Anexo A: SQL completo de migración</h2>
+
+<pre>
+-- ============================================================
+-- MIGRACIÓN NUEVO REGISTRO v6.7.2-rev3
+-- Ejecutar en pgAdmin Query Editor (seleccionar todo + F5)
+-- ============================================================
+
+BEGIN;
+
+-- tienda_caracas
+LOCK TABLE tienda_caracas IN ACCESS EXCLUSIVE MODE;
+ALTER TABLE tienda_caracas
+  ADD COLUMN IF NOT EXISTS inicial_bs NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS inicial_usd NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS ref_inicial VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS fecha_inicial DATE,
+  ADD COLUMN IF NOT EXISTS tasa_inicial NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS tasa_bcv_factura NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS monto_cuota_usd NUMERIC(15,2);
+CREATE INDEX IF NOT EXISTS idx_caracas_fecha_inicial ON tienda_caracas(fecha_inicial);
+CREATE INDEX IF NOT EXISTS idx_caracas_inicial_bs ON tienda_caracas(inicial_bs);
+
+-- tienda_maracay
+LOCK TABLE tienda_maracay IN ACCESS EXCLUSIVE MODE;
+ALTER TABLE tienda_maracay
+  ADD COLUMN IF NOT EXISTS inicial_bs NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS inicial_usd NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS ref_inicial VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS fecha_inicial DATE,
+  ADD COLUMN IF NOT EXISTS tasa_inicial NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS tasa_bcv_factura NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS monto_cuota_usd NUMERIC(15,2);
+CREATE INDEX IF NOT EXISTS idx_maracay_fecha_inicial ON tienda_maracay(fecha_inicial);
+CREATE INDEX IF NOT EXISTS idx_maracay_inicial_bs ON tienda_maracay(inicial_bs);
+
+-- tienda_maracaibo
+LOCK TABLE tienda_maracaibo IN ACCESS EXCLUSIVE MODE;
+ALTER TABLE tienda_maracaibo
+  ADD COLUMN IF NOT EXISTS inicial_bs NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS inicial_usd NUMERIC(15,2),
+  ADD COLUMN IF NOT EXISTS ref_inicial VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS fecha_inicial DATE,
+  ADD COLUMN IF NOT EXISTS tasa_inicial NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS tasa_bcv_factura NUMERIC(15,4),
+  ADD COLUMN IF NOT EXISTS monto_cuota_usd NUMERIC(15,2);
+CREATE INDEX IF NOT EXISTS idx_maracaibo_fecha_inicial ON tienda_maracaibo(fecha_inicial);
+CREATE INDEX IF NOT EXISTS idx_maracaibo_inicial_bs ON tienda_maracaibo(inicial_bs);
+
+COMMIT;
+
+-- Verificación
+SELECT table_name, column_name, data_type, is_nullable
+FROM information_schema.columns 
+WHERE table_name IN ('tienda_caracas', 'tienda_maracay', 'tienda_maracaibo')
+  AND column_name IN ('inicial_bs','inicial_usd','ref_inicial','fecha_inicial',
+                      'tasa_inicial','tasa_bcv_factura','monto_cuota_usd')
+ORDER BY table_name, ordinal_position;
+</pre>
+
+<h2>Anexo B: Código backend corregido</h2>
+
+<pre>
+// middleware/validarTienda.js
+const TIENDAS_PERMITIDAS = ['caracas', 'maracay', 'maracaibo'];
+
+function validarTienda(req, res, next) {
+    const tienda = req.params.tienda ? req.params.tienda.toLowerCase().trim() : '';
+    if (!TIENDAS_PERMITIDAS.includes(tienda)) {
+        return res.status(400).json({ error: 'Tienda no válida' });
+    }
+    req.params.tienda = tienda;
+    next();
+}
+
+module.exports = { validarTienda };
+
+// ============================
+// routes/tiendas.js — fragmento POST
+// ============================
+const { validarTienda } = require('../middleware/validarTienda');
+
+function redondearDecimales(valor, decimales = 2) {
+    if (typeof valor !== 'number' || isNaN(valor) || !isFinite(valor)) return 0;
+    const factor = Math.pow(10, decimales);
+    return Math.round((valor + Number.EPSILON) * factor) / factor;
+}
+
+router.post('/:tienda', verificarToken, soloAdmin, validarTienda, async (req, res) => {
+    const tienda = req.params.tienda;
+    const body = req.body;
+
+    try {
+        // Validaciones básicas
+        if (!body.nro_factura || !body.monto_factura || body.inicial_bs === undefined) {
+            return res.status(400).json({ error: 'Campos obligatorios faltantes' });
+        }
+
+        // Validar que cuotas sea entero
+        const cuotas = parseInt(body.cuotas);
+        if (isNaN(cuotas) || cuotas < 1 || cuotas > 11) {
+            return res.status(400).json({ error: 'Cuotas debe ser un número entero entre 1 y 11' });
+        }
+
+        const montoFactura = parseFloat(body.monto_factura);
+        const inicialBs = parseFloat(body.inicial_bs);
+
+        if (inicialBs <= 0) {
+            return res.status(400).json({ error: 'Inicial debe ser mayor a cero' });
+        }
+        if (inicialBs > montoFactura) {
+            return res.status(400).json({ error: 'Inicial no puede superar el monto total' });
+        }
+
+        // Validar fechas lógicas
+        if (body.fecha_inicial && body.fecha_factura) {
+            if (new Date(body.fecha_inicial) < new Date(body.fecha_factura)) {
+                return res.status(400).json({ 
+                    error: 'Fecha de inicial no puede ser anterior a la fecha de la factura' 
+                });
+            }
+        }
+
+        // Validar rango de tasas
+        const tasaFactura = parseFloat(body.tasa_bcv_factura);
+        const tasaInicial = parseFloat(body.tasa_inicial);
+        if (tasaFactura <= 0.1 || tasaFactura > 10000 || tasaInicial <= 0.1 || tasaInicial > 10000) {
+            return res.status(400).json({ error: 'Tasa BCV fuera de rango válido (0.1-10000)' });
+        }
+
+        // Validar cálculos del frontend (± 0.01 tolerancia)
+        const tolerancia = 0.01;
+
+        const calculadoMontoUSD = redondearDecimales(montoFactura / tasaFactura);
+        if (Math.abs(calculadoMontoUSD - parseFloat(body.monto_facturado_divisa)) > tolerancia) {
+            return res.status(400).json({ error: 'Cálculo de monto en $ incorrecto' });
+        }
+
+        const calculadoInicialUSD = redondearDecimales(inicialBs / tasaInicial);
+        if (Math.abs(calculadoInicialUSD - parseFloat(body.inicial_usd)) > tolerancia) {
+            return res.status(400).json({ error: 'Cálculo de inicial en $ incorrecto' });
+        }
+
+        const deudaUSD = redondearDecimales(calculadoMontoUSD - calculadoInicialUSD);
+        const calculadoCuotaUSD = redondearDecimales(deudaUSD / cuotas);
+        if (Math.abs(calculadoCuotaUSD - parseFloat(body.monto_cuota_usd)) > tolerancia) {
+            return res.status(400).json({ error: 'Cálculo de cuota incorrecto' });
+        }
+
+        // Insertar (tienda ya sanitizada por middleware)
+        const query = `
+            INSERT INTO tienda_${tienda} (
+                nro_factura, fecha_factura, nombre_apellido, cedula, telefono,
+                monto_factura, monto_facturado_divisa, cuotas,
+                inicial_bs, inicial_usd, ref_inicial, fecha_inicial,
+                tasa_inicial, tasa_bcv_factura, monto_cuota_usd,
+                numero_cuenta, banco, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
+            RETURNING id
+        `;
+
+        const values = [
+            body.nro_factura, body.fecha_factura, body.nombre_apellido,
+            body.cedula, body.telefono || '',
+            montoFactura, body.monto_facturado_divisa, cuotas,
+            inicialBs, body.inicial_usd, body.ref_inicial, body.fecha_inicial,
+            tasaInicial, tasaFactura, body.monto_cuota_usd,
+            body.numero_cuenta || '', body.banco || ''
+        ];
+
+        const result = await pool.query(query, values);
+        const registroId = result.rows[0].id;
+
+        // AUDITORÍA: Registrar IP y user-agent
+        try {
+            await pool.query(`
+                INSERT INTO auditoria_usuarios (
+                    usuario_id, accion, tabla, registro_id, 
+                    detalles, ip, user_agent, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+            `, [
+                req.usuario.id,
+                'CREAR_REGISTRO_CONCILIACION',
+                `tienda_${tienda}`,
+                registroId,
+                JSON.stringify({ 
+                    nro_factura: body.nro_factura, 
+                    monto_factura: body.monto_factura 
+                }),
+                req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown',
+                req.headers['user-agent'] || ''
+            ]);
+        } catch (auditErr) {
+            console.warn('Error registrando auditoría:', auditErr.message);
+            // No fallar el registro principal si la auditoría falla
+        }
+
+        res.status(201).json({ exito: true, id: registroId });
+
+    } catch (err) {
+        console.error('Error creando registro:', err);
+        res.status(500).json({ error: 'Error al crear registro' });
+    }
+});
+</pre>
+
+<h2>Anexo C: Código frontend corregido</h2>
+
+<pre>
+// ============================================================
+// tienda-spa.js — NUEVO REGISTRO v6.7.2-rev3 (fragmento)
+// ============================================================
+
+// Configuración
+const DEBOUNCE_MS = 300;
+const TASA_MIN = 0.1;
+const TASA_MAX = 10000;
+
+// Redondeo unificado con backend
+function redondearDecimales(valor, decimales = 2) {
+    if (typeof valor !== 'number' || isNaN(valor) || !isFinite(valor)) return 0;
+    const factor = Math.pow(10, decimales);
+    return Math.round((valor + Number.EPSILON) * factor) / factor;
+}
+
+function aDosDecimales(valor) {
+    return redondearDecimales(valor, 2).toFixed(2);
+}
+
+// Validaciones
+function validarTasaBCV(tasa) {
+    if (!tasa || typeof tasa !== 'number') return false;
+    if (tasa <= TASA_MIN || tasa > TASA_MAX) return false;
+    return true;
+}
+
+function validarValorMonetario(valor) {
+    if (typeof valor !== 'number' || isNaN(valor)) return false;
+    if (valor < 0) return false;
+    return true;
+}
+
+// Tasa BCV con cache y AbortController
+let abortControllerBCV = null;
+
+async function obtenerTasaBCV(fecha) {
+    if (!fecha) return null;
+
+    const cacheKey = `tasa_bcv_${fecha}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+        const tasa = parseFloat(cached);
+        if (validarTasaBCV(tasa)) return tasa;
+        sessionStorage.removeItem(cacheKey);
+    }
+
+    if (abortControllerBCV) abortControllerBCV.abort();
+    abortControllerBCV = new AbortController();
+
+    try {
+        const timeoutId = setTimeout(() => abortControllerBCV.abort(), 5000);
+        const response = await fetch(`/api/bcv/tasa?fecha=${fecha}`, {
+            signal: abortControllerBCV.signal,
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error('Error en la API');
+        const data = await response.json();
+        if (!validarTasaBCV(data.tasa)) throw new Error('Tasa inválida');
+
+        sessionStorage.setItem(cacheKey, data.tasa);
+        return data.tasa;
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.warn('Error obteniendo tasa BCV:', error.message);
+        }
+        return null;
+    }
+}
+
+// Debounce timers
+let tMontoUSD = null, tInicialUSD = null, tDeudaCuota = null;
+
+async function calcularMontoFacturadoUSD() {
+    clearTimeout(tMontoUSD);
+    tMontoUSD = setTimeout(async () => {
+        const montoBs = parseFloat(document.getElementById('nueva-monto').value) || 0;
+        const fechaFactura = document.getElementById('nueva-fecha-factura').value;
+
+        if (!validarValorMonetario(montoBs) || montoBs <= 0 || !fechaFactura) {
+            document.getElementById('nueva-monto-usd').value = '';
+            return;
+        }
+
+        let tasa = parseFloat(document.getElementById('nueva-tasa-factura').value);
+        if (!validarTasaBCV(tasa)) {
+            tasa = await obtenerTasaBCV(fechaFactura);
+            if (tasa) document.getElementById('nueva-tasa-factura').value = tasa.toFixed(4);
+        }
+
+        if (validarTasaBCV(tasa)) {
+            const usd = redondearDecimales(montoBs / tasa);
+            document.getElementById('nueva-monto-usd').value = aDosDecimales(usd);
+            calcularDeudaYCuota();
+        }
+    }, DEBOUNCE_MS);
+}
+
+async function calcularInicialUSD() {
+    clearTimeout(tInicialUSD);
+    tInicialUSD = setTimeout(async () => {
+        const inicialBs = parseFloat(document.getElementById('nueva-inicial-bs').value) || 0;
+        const fechaInicial = document.getElementById('nueva-fecha-inicial').value;
+
+        if (!validarValorMonetario(inicialBs) || inicialBs <= 0 || !fechaInicial) {
+            document.getElementById('nueva-inicial-usd').value = '';
+            return;
+        }
+
+        let tasa = parseFloat(document.getElementById('nueva-tasa-inicial').value);
+        if (!validarTasaBCV(tasa)) {
+            tasa = await obtenerTasaBCV(fechaInicial);
+            if (tasa) document.getElementById('nueva-tasa-inicial').value = tasa.toFixed(4);
+        }
+
+        if (validarTasaBCV(tasa)) {
+            const usd = redondearDecimales(inicialBs / tasa);
+            document.getElementById('nueva-inicial-usd').value = aDosDecimales(usd);
+            calcularDeudaYCuota();
+        }
+    }, DEBOUNCE_MS);
+}
+
+function calcularDeudaYCuota() {
+    clearTimeout(tDeudaCuota);
+    tDeudaCuota = setTimeout(() => {
+        const montoUsd = parseFloat(document.getElementById('nueva-monto-usd').value) || 0;
+        const inicialUsd = parseFloat(document.getElementById('nueva-inicial-usd').value) || 0;
+        const totalCuotas = parseInt(document.getElementById('nueva-total-cuotas').value) || 4;
+
+        if (totalCuotas <= 0) {
+            document.getElementById('nueva-deuda-usd').value = '';
+            document.getElementById('nueva-monto-cuota').value = '';
+            return;
+        }
+
+        const deuda = redondearDecimales(montoUsd - inicialUsd);
+        const cuota = redondearDecimales(deuda / totalCuotas);
+
+        document.getElementById('nueva-deuda-usd').value = aDosDecimales(deuda);
+        document.getElementById('nueva-monto-cuota').value = aDosDecimales(cuota);
+
+        // Validación visual
+        const montoBs = parseFloat(document.getElementById('nueva-monto').value) || 0;
+        const inicialBs = parseFloat(document.getElementById('nueva-inicial-bs').value) || 0;
+        const inicialInput = document.getElementById('nueva-inicial-bs');
+        const errorDiv = document.getElementById('error-inicial');
+
+        if (inicialBs > montoBs && montoBs > 0) {
+            inicialInput.style.borderColor = '#e53e3e';
+            if (errorDiv) errorDiv.textContent = '⚠️ La inicial excede el monto de la factura';
+        } else {
+            inicialInput.style.borderColor = '';
+            if (errorDiv) errorDiv.textContent = '';
+        }
+    }, DEBOUNCE_MS);
+}
+
+// Inicialización
+function inicializarFormularioNuevoRegistro() {
+    const el = (id) => document.getElementById(id);
+
+    el('nueva-monto')?.addEventListener('input', calcularMontoFacturadoUSD);
+    el('nueva-inicial-bs')?.addEventListener('input', calcularInicialUSD);
+    el('nueva-fecha-factura')?.addEventListener('change', calcularMontoFacturadoUSD);
+    el('nueva-fecha-inicial')?.addEventListener('change', calcularInicialUSD);
+    el('nueva-total-cuotas')?.addEventListener('change', calcularDeudaYCuota);
+
+    el('nueva-tasa-factura')?.addEventListener('input', () => {
+        const tasa = parseFloat(el('nueva-tasa-factura').value);
+        if (validarTasaBCV(tasa)) calcularMontoFacturadoUSD();
+    });
+
+    el('nueva-tasa-inicial')?.addEventListener('input', () => {
+        const tasa = parseFloat(el('nueva-tasa-inicial').value);
+        if (validarTasaBCV(tasa)) calcularInicialUSD();
+    });
+
+    el('nueva-fecha-inicial')?.addEventListener('change', () => {
+        const ff = el('nueva-fecha-factura')?.value;
+        const fi = el('nueva-fecha-inicial')?.value;
+        const err = document.getElementById('error-fecha-inicial');
+        if (ff && fi && fi < ff) {
+            el('nueva-fecha-inicial').style.borderColor = '#e53e3e';
+            if (err) err.textContent = '⚠️ La fecha del depósito no puede ser anterior a la factura';
+        } else {
+            el('nueva-fecha-inicial').style.borderColor = '';
+            if (err) err.textContent = '';
+        }
+    });
+}
+
+// Guardado con manejo de errores 413 y 429
+async function guardarNuevaConciliacion(tienda) {
+    const payload = {
+        nro_factura: document.getElementById('nueva-factura').value,
+        fecha_factura: document.getElementById('nueva-fecha-factura').value,
+        nombre_apellido: document.getElementById('nueva-nombre').value,
+        cedula: document.getElementById('nueva-cedula').value,
+        telefono: document.getElementById('nueva-telefono')?.value || '',
+        monto_factura: parseFloat(document.getElementById('nueva-monto').value),
+        monto_facturado_divisa: parseFloat(document.getElementById('nueva-monto-usd').value),
+        cuotas: parseInt(document.getElementById('nueva-total-cuotas').value),
+        inicial_bs: parseFloat(document.getElementById('nueva-inicial-bs').value),
+        inicial_usd: parseFloat(document.getElementById('nueva-inicial-usd').value),
+        ref_inicial: document.getElementById('nueva-ref-inicial').value,
+        fecha_inicial: document.getElementById('nueva-fecha-inicial').value,
+        tasa_inicial: parseFloat(document.getElementById('nueva-tasa-inicial').value),
+        tasa_bcv_factura: parseFloat(document.getElementById('nueva-tasa-factura').value),
+        monto_cuota_usd: parseFloat(document.getElementById('nueva-monto-cuota').value),
+        numero_cuenta: '',
+        banco: ''
+    };
+
+    try {
+        const response = await fetch(`/api/tiendas/${tienda}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.status === 413) {
+            alert('Los datos enviados son demasiado grandes. Contacte al administrador.');
+            return;
+        }
+
+        if (response.status === 429) {
+            alert('Demasiadas peticiones. Espere un minuto e intente nuevamente.');
+            return;
+        }
+
+        if (!response.ok) {
+            const data = await response.json();
+            alert(data.error || 'Error al guardar el registro');
+            return;
+        }
+
+        const data = await response.json();
+        alert('Registro creado exitosamente');
+
+        // Limpiar borrador si existe
+        localStorage.removeItem('borrador_conciliacion');
+
+    } catch (err) {
+        alert('Error de conexión. Verifique su internet e intente nuevamente.');
+    }
+}
+</pre>
+
+<h2>Anexo D: Checklist de despliegue</h2>
+
+<table class="table-compact">
+<tr><th>#</th><th>Verificación</th><th>Resultado</th></tr>
+<tr><td>1</td><td>Ejecutar SQL de migración en las 3 tablas sin errores</td><td>☐</td></tr>
+<tr><td>2</td><td>Verificar que campos nuevos aparecen en pgAdmin</td><td>☐</td></tr>
+<tr><td>3</td><td>Verificar que índices fueron creados</td><td>☐</td></tr>
+<tr><td>4</td><td>Reiniciar servidor Node.js</td><td>☐</td></tr>
+<tr><td>5</td><td>Login como admin → ir a Conciliaciones → Nuevo Registro</td><td>☐</td></tr>
+<tr><td>6</td><td>Completar formulario con datos de prueba</td><td>☐</td></tr>
+<tr><td>7</td><td>Verificar cálculos automáticos (Monto $, Inicial $, Deuda, Cuota)</td><td>☐</td></tr>
+<tr><td>8</td><td>Verificar debounce: escribir rápido no genera múltiples peticiones BCV</td><td>☐</td></tr>
+<tr><td>9</td><td>Verificar cache: cambiar fecha y volver a la anterior no repite fetch</td><td>☐</td></tr>
+<tr><td>10</td><td>Verificar fallback manual: desconectar internet permite tasa manual</td><td>☐</td></tr>
+<tr><td>11</td><td>Guardar registro → verificar HTTP 201</td><td>☐</td></tr>
+<tr><td>12</td><td>Verificar en pgAdmin que los campos nuevos tienen valores</td><td>☐</td></tr>
+<tr><td>13</td><td>Probar validación: inicial > monto debe bloquear con borde rojo</td><td>☐</td></tr>
+<tr><td>14</td><td>Probar validación: fecha inicial < fecha factura debe mostrar error</td><td>☐</td></tr>
+<tr><td>15</td><td>Probar en Firefox (regresión del bug v6.7.1)</td><td>☐</td></tr>
+<tr><td>16</td><td>Verificar que registros viejos siguen funcionando</td><td>☐</td></tr>
+<tr><td>17</td><td>Probar en las 3 tiendas (Caracas, Maracay, Maracaibo)</td><td>☐</td></tr>
+<tr><td>18</td><td>Verificar que validarTienda bloquea tiendas inválidas (ej. /api/tiendas/hack)</td><td>☐</td></tr>
+<tr><td>19</td><td>Verificar rate limiting en BCV (30 peticiones/minuto)</td><td>☐</td></tr>
+<tr><td>20</td><td>Verificar auditoría: registro en auditoria_usuarios con IP</td><td>☐</td></tr>
+<tr><td>21</td><td>Documentar en changelog v6.7.2-rev3</td><td>☐</td></tr>
+</table>
+
+<div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid var(--primary); text-align: center; font-size: 9pt; color: var(--text-light);">
+<p style="text-align: center;"><strong>Fin del documento</strong></p>
+<p style="text-align: center;">Informe Técnico — Rediseño Nuevo Registro Conciliaciones v6.7.2-rev3</p>
+<p style="text-align: center;">Sistema de Créditos IPSFA — 28 de julio de 2026</p>
+<p style="text-align: center;">Revisado por evaluación técnica externa — Correcciones aplicadas</p>
+</div>
+</div>
+
+</body>
+</html>
