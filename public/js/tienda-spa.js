@@ -125,7 +125,7 @@
     };
 
     const API_BASE_URL = window.location.origin + '/api';
-    const TOTAL_CUOTAS = 11;
+    const TOTAL_CUOTAS = 30;
     const ITEMS_PER_PAGE_DEFAULT = 25;
 
     // ========================================================
@@ -227,9 +227,9 @@
 
     function formatDate(dateString) {
         if (!dateString) return '-';
-        const date = new Date(dateString);
-        if (isNaN(date)) return '-';
-        return date.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const f = tmParseFecha(dateString);
+        if (!f) return '-';
+        return String(f.dia).padStart(2, '0') + '-' + String(f.mes).padStart(2, '0') + '-' + f.anio;
     }
 
     function showLoading(show) {
@@ -244,6 +244,12 @@
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    function redondearDecimales(valor, decimales = 2) {
+        if (typeof valor !== 'number' || isNaN(valor) || !isFinite(valor)) return 0;
+        const factor = Math.pow(10, decimales);
+        return Math.round((valor + Number.EPSILON) * factor) / factor;
     }
 
     // --- Rol del usuario (lectura localStorage, misma clave 'usuario') ---
@@ -344,13 +350,18 @@
     class TiendaApp {
         constructor(cfg) {
             this.cfg = cfg;
+            this.key = cfg.key;
+            this.nombre = cfg.nombre;
+            this.color = TM_COLORES[cfg.key]?.acento || '#3182ce';
+            this.key    = cfg.key;
+            this.color  = TM_COLORES[cfg.key]?.acento || '#3182ce';
 
             // Estado - Base de datos
             this.allData = [];
             this.filteredData = [];
             this.currentPage = 1;
             this.itemsPerPage = ITEMS_PER_PAGE_DEFAULT;
-            this.currentFilter = 'all';
+            this.currentFilter = 'abiertas';
             this.initialized = false;
             this.debounceTimer = null;
 
@@ -444,7 +455,7 @@
                 </div>`;
 
             return `
-            <div id="${this.id('menu-principal')}" class="tm2" style="display: none;">
+            <div id="${this.id('menu-principal')}" class="tm2" data-view="menu" style="display: none;">
                 <div class="tm2-modulos">
                     ${card('show-base-datos', svg.bd, 'Base de Datos', 'Clientes, créditos, cuotas y datos bancarios', id('badge-bd'), id('met-bd'))}
                     ${card('show-conciliaciones', svg.conc, 'Conciliaciones Bancarias', 'Registro y verificación de pagos por factura', id('badge-conc'), id('met-conc'))}
@@ -505,18 +516,22 @@
                     <div class="tm2-panel">
                         <h3>Mayor tiempo sin pagar</h3>
                         <div class="tm2-sub">Ordenado por meses sin pagar; en empate, mayor deuda</div>
+                        <div class="table-responsive">
                         <table class="tm2-tabla">
                             <thead><tr><th>Cliente</th><th>Sin pagar</th><th class="num">Deuda</th></tr></thead>
                             <tbody id="${id('tb-sinpagar')}"></tbody>
                         </table>
+                        </div>
                     </div>
                     <div class="tm2-panel">
                         <h3>Últimos pagos registrados</h3>
                         <div class="tm2-sub">Actividad reciente de la tienda</div>
+                        <div class="table-responsive">
                         <table class="tm2-tabla">
                             <thead><tr><th>Cliente</th><th>Fecha</th><th class="num">Monto</th></tr></thead>
                             <tbody id="${id('tb-ultimos')}"></tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
             </div>`;
@@ -671,10 +686,10 @@
             // --- Alertas ---
             let alertas = '';
             if (r.morosos > 0) {
-                alertas += `<div class="tm2-al r"><div class="tm2-al-ico">!</div><div><b>${r.morosos} clientes con 2+ meses sin pagar</b>Gestión de cobro urgente</div><span class="tm2-al-acc" data-action="show-base-datos">Ver lista</span></div>`;
+                alertas += `<div class="tm2-al r"><div class="tm2-al-ico">!</div><div><b>${r.morosos} clientes con 2+ meses sin pagar</b>Gestión de cobro urgente</div><span class="tm2-al-acc" data-action="ver-morosos">Ver lista</span></div>`;
             }
             if (r.porCobrar > 0) {
-                alertas += `<div class="tm2-al a"><div class="tm2-al-ico">◷</div><div><b>${r.porCobrar} clientes sin cuota este mes</b>Aún no registran pago en ${TM_MESES[new Date().getMonth()]}</div><span class="tm2-al-acc" data-action="show-base-datos">Ver lista</span></div>`;
+                alertas += `<div class="tm2-al a"><div class="tm2-al-ico">◷</div><div><b>${r.porCobrar} clientes sin cuota este mes</b>Aún no registran pago en ${TM_MESES[new Date().getMonth()]}</div><span class="tm2-al-acc" data-action="ver-sin-cuota-mes">Ver lista</span></div>`;
             }
             alertas += r.pagosHoy > 0
                 ? `<div class="tm2-al v"><div class="tm2-al-ico">✓</div><div><b>${r.pagosHoy} pagos registrados hoy</b>Bs ${TM_FMT.format(r.cobradoHoy)} cobrados hoy</div></div>`
@@ -798,7 +813,7 @@
                         <div class="summary-card danger"><span class="number" id="total-deuda${sfx}">$0</span><span class="label">Total Deuda</span></div>
                         <div class="summary-card success"><span class="number" id="total-recaudado${sfx}">$0</span><span class="label">Total Recaudado</span></div>
                     </div>
-                    <div class="table-container">
+                    <div class="table-container table-responsive">
                         <table class="data-table" id="tabla-clientes${sfx}">
                             <thead><tr><th>N</th><th>Fact.</th><th>Cliente</th><th>Monto (Bs)</th><th>Fecha</th><th>Cedula</th><th>Cuotas</th><th>Depositado (Bs)</th><th>Deuda (Bs)</th><th>Estado</th><th>Acc.</th></tr></thead>
                             <tbody id="tabla-body${sfx}"></tbody>
@@ -829,93 +844,169 @@
         // ====================================================
         renderConciliaciones() {
             const c = this.cfg.concPfx;
+            const color = this.color;
             return `
                 <div id="${this.id('conciliaciones')}" style="display: none;">
                     <button data-action="show-menu" class="btn-volver">&#8592; Volver al Menu</button>
                     <div class="section-header"><h3>Conciliaciones Bancarias</h3><p>Registro de depositos bancarios por numero de factura</p></div>
+
                     <div class="card" style="margin-bottom: 20px; padding: 25px;">
-                        <input type="text" id="${c}-factura-buscar" placeholder="Ingrese N de factura..." data-action-keypress="buscar-factura">
-                        <button data-action="buscar-factura">&#128269; Buscar Factura</button>
-                    </div>
-                    <div id="${c}-mensaje-inicial" class="card" style="padding: 40px; text-align: center;">
-                        <p>Ingrese un numero de factura para buscar</p>
-                    </div>
-                    <div id="${c}-no-encontrada" class="card" style="display: none; padding: 40px; text-align: center; background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-left: 4px solid #ed8936;">
-                        <div style="font-size: 48px; margin-bottom: 15px;">&#128269;</div>
-                        <h4 style="color: #ed8936; margin-bottom: 10px;">Factura No Encontrada</h4>
-                        <p style="color: #666; margin-bottom: 20px;">La factura <strong id="${c}-no-encontrada-numero" style="color: #1a3a5c;"></strong> no existe en la base de datos.</p>
-                        <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Puede registrarla como un nuevo cliente usando el formulario a continuacion.</p>
-                        <button data-action="mostrar-nuevo-registro" style="padding: 12px 28px; background: linear-gradient(135deg, #ed8936, #dd6b20); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128221; Registrar Nuevo Cliente</button>
-                        <button data-action="volver-buscar-factura" style="padding: 12px 28px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                    </div>
-                    <div id="${c}-resultado-encontrada" style="display: none;">
-                        <div class="card">
-                            <h4>&#128196; Informacion de la Factura</h4>
-                            <div class="info-row"><span class="info-label">N° Factura:</span><span class="info-value" id="${c}-info-factura">-</span></div>
-                            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value" id="${c}-info-nombre">-</span></div>
-                            <div class="info-row"><span class="info-label">Cedula:</span><span class="info-value" id="${c}-info-cedula">-</span></div>
-                            <div class="info-row"><span class="info-label">Monto Factura:</span><span class="info-value" id="${c}-info-monto">-</span></div>
-                            <div class="info-row"><span class="info-label">Deuda:</span><span class="info-value" id="${c}-info-deuda">-</span></div>
-                            <div class="info-row"><span class="info-label">Cuotas:</span><span class="info-value" id="${c}-info-cuotas">-</span></div>
+                        <!-- MENSAJE INICIAL -->
+                        <div id="${c}-mensaje-inicial" style="text-align:center;padding:30px;color:#718096;">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:10px;opacity:.5;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                            <p>Ingrese un número de factura para buscar o cree un nuevo registro.</p>
                         </div>
-                        <div class="card">
-                            <h4>&#128178; Historial de Cuotas</h4>
-                            <div class="table-container">
-                                <table class="data-table" id="${c}-tabla-cuotas">
-                                    <thead><tr><th>Cuota</th><th>Monto (Bs)</th><th>Referencia</th><th>Fecha</th><th>Tasa</th><th>Dolar</th></tr></thead>
+
+                        <!-- BÚSQUEDA -->
+                        <div id="${c}-busqueda">
+                            <h4>Buscar Factura</h4>
+                            <div class="form-row conc-form-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">
+                                <input type="text" id="${c}-factura-buscar" placeholder="Numero de Factura" style="flex:1;min-width:200px;padding:10px;border:1px solid #ddd;border-radius:6px;" onkeypress="if(event.key==='Enter')window.Tiendas.get('${this.cfg.key}').buscarFactura()">
+                                <button onclick="window.Tiendas.get('${this.cfg.key}').buscarFactura()" class="btn-primary" style="background:${color};color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;">Buscar</button>
+                                <button onclick="window.Tiendas.get('${this.cfg.key}').mostrarNuevoRegistro()" class="btn-success" style="background:#38a169;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;">+ Nuevo Registro</button>
+                            </div>
+                        </div>
+
+                        <!-- RESULTADO ENCONTRADA -->
+                        <div id="${c}-resultado-encontrada" style="display:none;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                                <h4 style="color:${color};margin:0;">Factura Encontrada</h4>
+                                <button onclick="window.Tiendas.get('${this.cfg.key}').volverABuscarFactura()" style="background:#e2e8f0;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px;">&#8592; Volver a búsqueda</button>
+                            </div>
+                            <div class="conc-info-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
+                                <div style="background:#f8fafc;padding:12px;border-radius:8px;"><div style="font-size:10px;color:#718096;text-transform:uppercase;">Factura</div><div style="font-size:16px;font-weight:700;color:#1a365d;" id="${c}-info-factura">-</div></div>
+                                <div style="background:#f8fafc;padding:12px;border-radius:8px;"><div style="font-size:10px;color:#718096;text-transform:uppercase;">Cliente</div><div style="font-size:16px;font-weight:700;color:#1a365d;" id="${c}-info-nombre">-</div></div>
+                                <div style="background:#f8fafc;padding:12px;border-radius:8px;"><div style="font-size:10px;color:#718096;text-transform:uppercase;">Cédula</div><div style="font-size:16px;font-weight:700;color:#1a365d;" id="${c}-info-cedula">-</div></div>
+                                <div style="background:#f8fafc;padding:12px;border-radius:8px;"><div style="font-size:10px;color:#718096;text-transform:uppercase;">Monto</div><div style="font-size:16px;font-weight:700;color:#1a365d;" id="${c}-info-monto">-</div></div>
+                                <div style="background:#fff5f5;padding:12px;border-radius:8px;"><div style="font-size:10px;color:#718096;text-transform:uppercase;">Deuda</div><div style="font-size:16px;font-weight:700;color:#e53e3e;" id="${c}-info-deuda">-</div></div>
+                                <div style="background:#f0fff4;padding:12px;border-radius:8px;"><div style="font-size:10px;color:#718096;text-transform:uppercase;">Cuotas</div><div style="font-size:16px;font-weight:700;color:#38a169;" id="${c}-info-cuotas">-</div></div>
+                            </div>
+
+                            <h5 style="margin:15px 0 8px;color:#1a365d;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Historial de Cuotas</h5>
+                            <div class="table-responsive" style="margin-bottom:20px;">
+                                <table class="data-table" style="font-size:11px;">
+                                    <thead><tr><th>Cuota</th><th>Monto Bs</th><th>Referencia</th><th>Fecha</th><th>Tasa</th><th>Monto $</th></tr></thead>
                                     <tbody id="${c}-tabla-cuotas-body"></tbody>
                                 </table>
                             </div>
-                        </div>
-                        <div class="card" data-card="form-cuota">
-                            <h4>&#128181; Registrar Nueva Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Cuota</label><input type="number" id="${c}-cuota-numero" readonly></div>
-                                <div class="form-group"><label>Monto (Bs)</label><input type="number" step="0.01" id="${c}-cuota-monto" data-action-input="calcular-dolar"></div>
-                                <div class="form-group"><label>Referencia</label><input type="text" id="${c}-cuota-ref"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Fecha Deposito</label><input type="date" id="${c}-cuota-fecha" data-action-change="obtener-tasa"></div>
-                                <div class="form-group"><label>Tasa BCV</label><input type="number" step="0.0001" id="${c}-cuota-tasa" data-action-input="calcular-dolar"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="${c}-cuota-dolar" readonly></div>
-                            </div>
-                            <div id="${c}-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button data-action="guardar-cuota" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Cuota</button>
-                                <button data-action="volver-buscar-factura" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="${c}-resultado-nueva" style="display: none;">
-                        <div class="card">
-                            <h4>&#128221; Nuevo Registro</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>N° Factura *</label><input type="text" id="${c}-nueva-factura" readonly></div>
-                                <div class="form-group"><label>Fecha Factura *</label><input type="date" id="${c}-nueva-fecha-factura"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Nombre y Apellido *</label><input type="text" id="${c}-nueva-nombre"></div>
-                                <div class="form-group"><label>Cedula</label><input type="text" id="${c}-nueva-cedula"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto Factura (Bs) *</label><input type="number" step="0.01" id="${c}-nueva-monto"></div>
+
+                            <div data-card="form-cuota" style="border:1px solid #e2e8f0;border-radius:10px;padding:18px;background:#fff;">
+                                <h5 style="margin:0 0 12px;color:${color};font-size:13px;">Registrar Nueva Cuota</h5>
+                                <div class="form-grid-cuota" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;">
+                                    <div class="form-group"><label>N° Cuota</label><input type="number" id="${c}-cuota-numero" readonly style="background:#f7fafc;font-weight:700;"></div>
+                                    <div class="form-group"><label>Monto (Bs) *</label><input type="number" id="${c}-cuota-monto" step="0.01" oninput="window.Tiendas.get('${this.cfg.key}').calcularDolar()"></div>
+                                    <div class="form-group"><label>Referencia *</label><input type="text" id="${c}-cuota-ref"></div>
+                                    <div class="form-group"><label>Fecha *</label><input type="date" id="${c}-cuota-fecha" onchange="window.Tiendas.get('${this.cfg.key}').obtenerTasaPorFecha()"></div>
+                                    <div class="form-group"><label>Tasa BCV *</label><input type="number" id="${c}-cuota-tasa" step="0.0001" oninput="window.Tiendas.get('${this.cfg.key}').calcularDolar()"></div>
+                                    <div class="form-group"><label>Monto ($)</label><input type="number" id="${c}-cuota-dolar" readonly style="background:#ebf8ff;font-weight:600;"></div>
+                                </div>
+                                <div id="${c}-tasa-mensaje" style="margin-top:8px;font-size:11px;"></div>
+                                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
+                                    <button onclick="window.Tiendas.get('${this.cfg.key}').limpiarFormularioConciliacion()" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Limpiar</button>
+                                    <button onclick="window.Tiendas.get('${this.cfg.key}').guardarCuota()" style="background:${color};color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600;">&#128190; Guardar Cuota</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="card">
-                            <h4>&#128181; Primera Cuota</h4>
-                            <div class="form-row">
-                                <div class="form-group"><label>Monto (Bs) *</label><input type="number" step="0.01" id="${c}-nueva-cuota-monto" data-action-input="calcular-dolar-nueva"></div>
-                                <div class="form-group"><label>Referencia *</label><input type="text" id="${c}-nueva-cuota-ref"></div>
-                                <div class="form-group"><label>Fecha Deposito *</label><input type="date" id="${c}-nueva-cuota-fecha" data-action-change="obtener-tasa-nueva"></div>
+
+                        <!-- NO ENCONTRADA -->
+                        <div id="${c}-no-encontrada" style="display:none;text-align:center;padding:30px;">
+                            <div style="font-size:48px;margin-bottom:10px;">&#128269;</div>
+                            <h4 style="color:#e53e3e;margin:0 0 8px;">Factura no encontrada</h4>
+                            <p style="color:#718096;margin:0 0 15px;">No existe la factura N° <strong id="${c}-no-encontrada-numero"></strong> en esta tienda.</p>
+                            <button onclick="window.Tiendas.get('${this.cfg.key}').mostrarFormularioNuevoRegistro()" style="background:${color};color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;">Crear nuevo registro</button>
+                        </div>
+
+                        <!-- NUEVO REGISTRO -->
+                        <div id="${c}-nuevo-registro" style="display:none;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                                <h4 style="color:${color};margin:0;">Nuevo Registro de Credito</h4>
+                                <button onclick="window.Tiendas.get('${this.cfg.key}').volverABuscar()" style="background:#e2e8f0;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px;">&#8592; Volver</button>
                             </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Tasa BCV *</label><input type="number" step="0.0001" id="${c}-nueva-cuota-tasa" data-action-input="calcular-dolar-nueva"></div>
-                                <div class="form-group"><label>Dolar Depositado</label><input type="number" step="0.01" id="${c}-nueva-cuota-dolar" readonly></div>
+
+                            <!-- PESTAÑAS -->
+                            <div class="tabs-nuevo-registro" style="margin-bottom:20px;">
+                                <div class="tab-header" style="display:flex;border-bottom:2px solid #e2e8f0;gap:4px;">
+                                    <button type="button" class="tab-btn active" data-tab="factura" onclick="window.Tiendas.get('${this.cfg.key}').cambiarTabNuevoRegistro('factura')" style="flex:1;padding:12px 16px;border:none;background:transparent;color:#718096;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid ${color};transition:all 0.3s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                                        <span style="font-size:16px;">&#128196;</span> Datos de la Factura
+                                    </button>
+                                    <button type="button" class="tab-btn" data-tab="inicial" onclick="window.Tiendas.get('${this.cfg.key}').cambiarTabNuevoRegistro('inicial')" style="flex:1;padding:12px 16px;border:none;background:transparent;color:#718096;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.3s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                                        <span style="font-size:16px;">&#128176;</span> Deposito Inicial
+                                    </button>
+                                    <button type="button" class="tab-btn" data-tab="cuotas" onclick="window.Tiendas.get('${this.cfg.key}').cambiarTabNuevoRegistro('cuotas')" style="flex:1;padding:12px 16px;border:none;background:transparent;color:#718096;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.3s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                                        <span style="font-size:16px;">&#128202;</span> Plan de Cuotas
+                                    </button>
+                                </div>
                             </div>
-                            <div id="${c}-nueva-tasa-mensaje"></div>
-                            <div style="margin-top: 15px;">
-                                <button data-action="guardar-nueva-conciliacion" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;">&#128190; Guardar Registro</button>
-                                <button data-action="volver-buscar-factura" style="padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;">&#8592; Volver a Buscar</button>
+
+                            <div class="nuevo-registro-form">
+                                <!-- PESTAÑA 1: DATOS DE LA FACTURA -->
+                                <div id="${c}-tab-factura" class="tab-panel active" style="display:block;">
+                                    <div class="form-bloque" style="border:1px solid #e2e8f0;border-radius:10px;padding:20px;background:#f8fafc;">
+                                        <h4 style="margin:0 0 16px 0;font-size:14px;color:#1a365d;">&#128196; Datos de la Factura</h4>
+                                        <div class="form-grid-2">
+                                            <div class="form-group"><label>N° Factura *</label><input type="text" id="${c}-nueva-factura" required></div>
+                                            <div class="form-group"><label>Fecha Factura *</label><input type="date" id="${c}-nueva-fecha-factura" required></div>
+                                            <div class="form-group"><label>Nombre y Apellido *</label><input type="text" id="${c}-nueva-nombre" required></div>
+                                            <div class="form-group"><label>Cedula</label><input type="text" id="${c}-nueva-cedula"></div>
+                                            <div class="form-group"><label>Telefono</label><input type="text" id="${c}-nueva-telefono" placeholder="0412-1234567"></div>
+                                            <div class="form-group"><label>Monto Factura (Bs) *</label><input type="number" id="${c}-nueva-monto" min="0" step="0.01" required></div>
+                                            <div class="form-group"><label>Tasa BCV Factura *</label><input type="number" id="${c}-nueva-tasa-factura" min="0.0001" step="0.0001" required placeholder="Auto"></div>
+                                            <div class="form-group"><label>Monto Facturado ($)</label><input type="number" id="${c}-nueva-monto-usd" readonly class="calculado"></div>
+                                        </div>
+                                        <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+                                            <button type="button" onclick="window.Tiendas.get('${this.cfg.key}').siguienteTabNuevoRegistro('inicial')" style="background:${color};color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">Siguiente &#8594;</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- PESTAÑA 2: DEPOSITO INICIAL -->
+                                <div id="${c}-tab-inicial" class="tab-panel" style="display:none;">
+                                    <div class="form-bloque" style="border:1px solid #e2e8f0;border-radius:10px;padding:20px;background:#f8fafc;">
+                                        <h4 style="margin:0 0 16px 0;font-size:14px;color:#1a365d;">&#128176; Deposito Inicial</h4>
+                                        <div class="form-grid-2">
+                                            <div class="form-group"><label>Inicial (Bs) *</label><input type="number" id="${c}-nueva-inicial-bs" min="0" step="0.01" required><div class="form-error" id="${c}-error-inicial"></div></div>
+                                            <div class="form-group"><label>Inicial ($)</label><input type="number" id="${c}-nueva-inicial-usd" readonly class="calculado"></div>
+                                            <div class="form-group"><label>Referencia Inicial *</label><input type="text" id="${c}-nueva-ref-inicial" required></div>
+                                            <div class="form-group"><label>Fecha Inicial *</label><input type="date" id="${c}-nueva-fecha-inicial" required><div class="form-error" id="${c}-error-fecha-inicial"></div></div>
+                                            <div class="form-group"><label>Tasa BCV Inicial *</label><input type="number" id="${c}-nueva-tasa-inicial" min="0.0001" step="0.0001" required placeholder="Auto"></div>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin-top:16px;">
+                                            <button type="button" onclick="window.Tiendas.get('${this.cfg.key}').cambiarTabNuevoRegistro('factura')" style="background:#e2e8f0;color:#4a5568;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">&#8592; Anterior</button>
+                                            <button type="button" onclick="window.Tiendas.get('${this.cfg.key}').siguienteTabNuevoRegistro('cuotas')" style="background:${color};color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">Siguiente &#8594;</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- PESTAÑA 3: PLAN DE CUOTAS -->
+                                <div id="${c}-tab-cuotas" class="tab-panel" style="display:none;">
+                                    <div class="form-bloque" style="border:1px solid #e2e8f0;border-radius:10px;padding:20px;background:#f8fafc;">
+                                        <h4 style="margin:0 0 16px 0;font-size:14px;color:#1a365d;">&#128202; Plan de Cuotas</h4>
+                                        <div class="form-grid-3">
+                                            <div class="form-group"><label>Total de Cuotas *</label><select id="${c}-nueva-total-cuotas" required>
+                                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                                                <option value="4" selected>4</option><option value="5">5</option><option value="6">6</option>
+                                                <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                                                <option value="10">10</option><option value="11">11</option>
+                                                <option value="12">12</option><option value="13">13</option><option value="14">14</option>
+                                                <option value="15">15</option><option value="16">16</option><option value="17">17</option>
+                                                <option value="18">18</option><option value="19">19</option><option value="20">20</option>
+                                                <option value="21">21</option><option value="22">22</option><option value="23">23</option>
+                                                <option value="24">24</option><option value="25">25</option><option value="26">26</option>
+                                                <option value="27">27</option><option value="28">28</option><option value="29">29</option>
+                                                <option value="30">30</option>
+                                            </select></div>
+                                            <div class="form-group"><label>Deuda ($)</label><input type="number" id="${c}-nueva-deuda-usd" readonly class="calculado"></div>
+                                            <div class="form-group"><label>Monto Cuota ($)</label><input type="number" id="${c}-nueva-monto-cuota" readonly class="calculado"></div>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin-top:16px;">
+                                            <button type="button" onclick="window.Tiendas.get('${this.cfg.key}').cambiarTabNuevoRegistro('inicial')" style="background:#e2e8f0;color:#4a5568;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">&#8592; Anterior</button>
+                                            <div style="display:flex;gap:10px;">
+                                                <button onclick="window.Tiendas.get('${this.cfg.key}').limpiarFormularioNuevaConciliacion()" style="background:#e2e8f0;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:13px;">Limpiar</button>
+                                                <button onclick="window.Tiendas.get('${this.cfg.key}').guardarNuevaConciliacion()" style="background:${color};color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">&#128190; Guardar Registro</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -940,7 +1031,7 @@
 
                     <div class="card" style="margin-bottom: 20px; padding: 25px;">
                         <h4 style="margin-bottom: 15px; color: #1a365d;"><i class="fas fa-filter"></i> Filtros del Reporte</h4>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                        <div class="rep-filtros-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
                             <div class="form-group"><label>Fecha Desde</label><input type="date" id="${b}-fecha-desde"></div>
                             <div class="form-group"><label>Fecha Hasta</label><input type="date" id="${b}-fecha-hasta"></div>
                             <div class="form-group"><label>Estado</label><select id="${b}-estado"><option value="todos">Todos</option><option value="pendiente">Pendiente</option><option value="pagado">Pagado</option><option value="mora">En Mora</option><option value="abiertas">Facturas Abiertas</option><option value="canceladas">Facturas Canceladas</option></select></div>
@@ -955,7 +1046,7 @@
                     </div>
 
                     <div id="${b}-resumen" style="display: none; margin-bottom: 20px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                        <div class="rep-resumen-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
                             <div class="card" style="border-left: 4px solid #4299e1; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="${b}-res-total">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Clientes</div></div>
                             <div class="card" style="border-left: 4px solid #f56565; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="${b}-res-deuda">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Deuda Total</div></div>
                             <div class="card" style="border-left: 4px solid #48bb78; padding: 20px;"><div style="font-size: 28px; font-weight: 700; color: #1a365d;" id="${b}-res-pagado">0</div><div style="font-size: 12px; color: #718096; text-transform: uppercase;">Total Pagado</div></div>
@@ -969,7 +1060,7 @@
                             <h4 style="color: #1a365d;"><i class="fas fa-list"></i> Resultados</h4>
                             <span style="font-size: 13px; color: #718096; background: #edf2f7; padding: 6px 14px; border-radius: 20px;" id="${b}-contador">0 registros</span>
                         </div>
-                        <div style="overflow-x: auto;">
+                        <div class="table-responsive">
                             <table class="data-table" id="${b}-tabla">
                                 <thead><tr style="background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white;"><th>Nro</th><th>Factura</th><th>Cliente</th><th>Cedula</th><th>Monto</th><th>Cuotas</th><th>Depositado</th><th>Deuda</th><th>Estado</th><th>Fecha</th></tr></thead>
                                 <tbody id="${b}-tbody"></tbody>
@@ -978,13 +1069,13 @@
                         <div id="${b}-paginacion"></div>
                     </div>
 
-                    <div id="${b}-graficos" style="display: none; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div id="${b}-graficos" class="rep-graficos-grid" style="display: none; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
                         <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-bar"></i> Deuda por Estado</h4><div id="${b}-graf-barras"></div></div>
                         <div class="card" style="padding: 25px;"><h4 style="margin-bottom: 20px; color: #1a365d;"><i class="fas fa-chart-pie"></i> Distribución de Pagos</h4><div id="${b}-graf-pastel" style="display: flex; align-items: center; justify-content: center; gap: 30px;"></div></div>
                     </div>
 
                     <div id="${b}-exportar" style="display: none; text-align: center; padding: 20px; border-top: 1px solid #e2e8f0;">
-                        <div style="display: inline-flex; gap: 20px;">
+                        <div class="rep-export-btns" style="display: inline-flex; gap: 20px;">
                             <button data-action="exportar-reporte-excel" style="padding: 15px 30px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; color: #15803d; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-excel" style="font-size: 32px; color: #22c55e;"></i><span>Exportar Excel</span><small style="font-size: 11px; opacity: 0.7;">.xlsx</small></button>
                             <button data-action="exportar-reporte-pdf" style="padding: 15px 30px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; color: #b91c1c; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 180px;"><i class="fas fa-file-pdf" style="font-size: 32px; color: #ef4444;"></i><span>Exportar PDF</span><small style="font-size: 11px; opacity: 0.7;">.pdf</small></button>
                         </div>
@@ -997,15 +1088,55 @@
         // NAVEGACIÓN INTERNA DEL MÓDULO
         // ====================================================
         showView(vista) {
+            /* ========== FIX v6.7.3 ==========
+               Asegurar que el contenedor principal de la tienda esté visible.
+               En navegación interna el contenedor puede quedar con la clase
+               'hidden' heredada de mostrarSeccion(), lo que anula cualquier
+               display:block de los paneles internos. */
+            const contenedorPrincipal = document.getElementById(this.cfg.contentId);
+            if (contenedorPrincipal) {
+                contenedorPrincipal.classList.remove('hidden');
+                contenedorPrincipal.style.removeProperty('display');
+            }
+            /* ================================ */
+
             const menu = this.el(this.id('menu-principal'));
             const baseDatos = this.el(this.id('base-datos'));
             const conciliaciones = this.el(this.id('conciliaciones'));
             const busqueda = this.el(this.id('busqueda'));
 
-            if (menu) menu.style.display = vista === 'menu' ? 'block' : 'none'; // v6.5: era 'grid'
-            if (baseDatos) baseDatos.style.display = vista === 'baseDatos' ? 'block' : 'none';
-            if (conciliaciones) conciliaciones.style.display = vista === 'conciliaciones' ? 'block' : 'none';
-            if (busqueda) busqueda.style.display = vista === 'reportes' ? 'block' : 'none';
+            // v6.7.5-fix-nuclear: usar setProperty con !important para anular cualquier CSS externo
+            const mostrar = (el, activo) => {
+                if (!el) return;
+                if (activo) {
+                    el.style.setProperty('display', 'block', 'important');
+                    el.removeAttribute('hidden');
+                    el.classList.remove('hidden', 'oculto');
+                    el.style.setProperty('visibility', 'visible', 'important');
+                    el.style.setProperty('opacity', '1', 'important');
+                    el.style.setProperty('width', '100%', 'important');
+                    el.style.setProperty('min-width', '100%', 'important');
+                    el.style.setProperty('min-height', '100px', 'important');
+                    el.style.setProperty('position', 'relative', 'important');
+                    el.style.setProperty('box-sizing', 'border-box', 'important');
+                    el.style.setProperty('overflow', 'visible', 'important');
+                    el.style.setProperty('transform', 'none', 'important');
+                    el.style.setProperty('clip-path', 'none', 'important');
+                } else {
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('visibility', 'hidden', 'important');
+                    el.style.setProperty('opacity', '0', 'important');
+                    el.style.setProperty('width', '0', 'important');
+                    el.style.setProperty('min-width', '0', 'important');
+                    el.style.setProperty('min-height', '0', 'important');
+                    el.style.setProperty('position', 'absolute', 'important');
+                    el.style.setProperty('overflow', 'hidden', 'important');
+                }
+            };
+            mostrar(menu, vista === 'menu');
+            mostrar(baseDatos, vista === 'baseDatos');
+            mostrar(conciliaciones, vista === 'conciliaciones');
+            mostrar(busqueda, vista === 'reportes');
 
             // v6.5.1 — al abrir una vista, llevar suavemente al inicio de su contenido
             // (evita que el usuario tenga que hacer scroll manual). El CSS
@@ -1039,9 +1170,10 @@
             if (this._cargando) return;
             this._cargando = true;
             await this.loadData();
-            this.updateSummary();
-            this.renderTable();
-            this.updateFilterCounts();
+            const filtro = this._filtroPendiente || 'abiertas';
+            this._filtroPendiente = null;
+            this.currentFilter = filtro;
+            this.applyQuickFilter(filtro);
             this.initialized = true;
             this._cargando = false;
         }
@@ -1057,6 +1189,7 @@
                 this.allData = data.map(item => this.processItemData(item));
                 this.filteredData = [...this.allData];
                 console.log(`✅ [${this.cfg.nombre}] ${this.allData.length} registros cargados`);
+                this.updateFilterCounts();
             } catch (error) {
                 // REFACTOR: ya NO se muestran datos de ejemplo falsos.
                 // Se muestra el error real para no operar sobre datos inventados.
@@ -1075,6 +1208,12 @@
         processItemData(item) {
             let montoDepositado = 0;
             let cuotasPagadas = 0;
+
+            // v6.7.3-fix: Incluir inicial_bs en el total depositado para registros nuevos (v6.7.2+)
+            const inicialBs = parseNumberES(item.inicial_bs);
+            if (inicialBs > 0) {
+                montoDepositado += inicialBs;
+            }
 
             for (let i = 1; i <= TOTAL_CUOTAS; i++) {
                 const cuota = parseNumberES(item[`cuota_${i}`]);
@@ -1137,6 +1276,39 @@
                     if (this.currentFilter === 'aldia' && !(deuda <= 0)) return false;
                     if (this.currentFilter === 'abiertas' && !(deuda > 0)) return false;
                     if (this.currentFilter === 'canceladas' && !(deuda <= 0)) return false;
+                    if (this.currentFilter === 'morosos') {
+                        if (deuda <= 0) return false;
+                        let ultimaCuota = null;
+                        for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                            const monto = tmN(item['cuota_' + i]);
+                            if (monto > 0) {
+                                const f = tmParseFecha(item['fecha_cuota_' + i]);
+                                if (f) {
+                                    const key = f.anio * 12 + f.mes;
+                                    if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
+                                }
+                            }
+                        }
+                        const ref = ultimaCuota || tmParseFecha(item.fecha_factura);
+                        const hoy = new Date();
+                        const mesAct = hoy.getMonth() + 1, anioAct = hoy.getFullYear();
+                        const mesesSinPagar = ref ? Math.max(0, (anioAct - ref.anio) * 12 + (mesAct - ref.mes)) : 999;
+                        if (mesesSinPagar < 2) return false;
+                    }
+                    if (this.currentFilter === 'sin-cuota-mes') {
+                        if (deuda <= 0) return false;
+                        const hoy = new Date();
+                        const mesAct = hoy.getMonth() + 1, anioAct = hoy.getFullYear();
+                        let pagoEsteMes = false;
+                        for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                            const monto = tmN(item['cuota_' + i]);
+                            if (monto > 0) {
+                                const f = tmParseFecha(item['fecha_cuota_' + i]);
+                                if (f && f.anio === anioAct && f.mes === mesAct) { pagoEsteMes = true; break; }
+                            }
+                        }
+                        if (pagoEsteMes) return false;
+                    }
                 }
 
                 if (searchGeneral && !item.nombre_apellido?.toLowerCase().includes(searchGeneral)) return false;
@@ -1150,9 +1322,34 @@
                 return true;
             });
 
+            // Ordenar según filtro activo
+            if (this.currentFilter === 'morosos') {
+                this.filteredData.sort((a, b) => {
+                    const calcMeses = (item) => {
+                        let ultima = null;
+                        for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                            const monto = tmN(item['cuota_' + i]);
+                            if (monto > 0) {
+                                const f = tmParseFecha(item['fecha_cuota_' + i]);
+                                if (f) {
+                                    const key = f.anio * 12 + f.mes;
+                                    if (!ultima || key > ultima.key) ultima = { key, anio: f.anio, mes: f.mes };
+                                }
+                            }
+                        }
+                        const ref = ultima || tmParseFecha(item.fecha_factura);
+                        const hoy = new Date();
+                        const mesAct = hoy.getMonth() + 1, anioAct = hoy.getFullYear();
+                        return ref ? Math.max(0, (anioAct - ref.anio) * 12 + (mesAct - ref.mes)) : 999;
+                    };
+                    return calcMeses(b) - calcMeses(a) || (b.deuda || 0) - (a.deuda || 0);
+                });
+            }
+
             this.currentPage = 1;
             this.updateSummary();
             this.renderTable();
+            this.updateFilterCounts();
         }
 
         clearFilters() {
@@ -1163,11 +1360,11 @@
                     if (el) el.value = '';
                 });
 
-            this.currentFilter = 'all';
+            this.currentFilter = 'abiertas';
             const root = this.el(this.cfg.contentId);
             if (root) {
                 root.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-                const allBtn = root.querySelector('[data-filter="all"]');
+                const allBtn = root.querySelector('[data-filter="abiertas"]');
                 if (allBtn) allBtn.classList.add('active');
             }
 
@@ -1265,13 +1462,13 @@
                     </tr>
                 `;
             } else {
-                tbody.innerHTML = pageData.map(item => this.createRowHTML(item)).join('');
+                tbody.innerHTML = pageData.map((item, index) => this.createRowHTML(item, start + index + 1)).join('');
             }
 
             this.updatePagination();
         }
 
-        createRowHTML(item) {
+        createRowHTML(item, rowIndex) {
             const estado = this.getEstado(item);
             const cuotasPagadas = item.cuotas_pagadas || 0;
             const totalCuotas = item.total_cuotas || TOTAL_CUOTAS;
@@ -1294,7 +1491,7 @@
 
             return `
                 <tr class="fade-in">
-                    <td>${item.numero || ''}</td>
+                    <td>${rowIndex}</td>
                     <td><strong>${item.nro_factura || ''}</strong></td>
                     <td>${item.nombre_apellido || ''}</td>
                     <td class="monto">${formatCurrency(item.monto_factura)}</td>
@@ -1393,9 +1590,138 @@
             downloadFile(csv, `tienda_${this.cfg.key}.csv`, 'text/csv');
         }
 
+               // ====================================================
+        // BASE DE DATOS - EXPORTACIÓN A PDF (Estilo Reportes)
+        // ====================================================
         exportToPDF() {
-            alert('Exportación a PDF en desarrollo.\nUse Imprimir → Guardar como PDF.');
-            window.print();
+            // Usamos filteredData porque es lo que el usuario está viendo en la tabla (filtros aplicados)
+            const datosParaExportar = this.filteredData;
+
+            if (datosParaExportar.length === 0) {
+                notificar('No hay datos para exportar', 'error');
+                return;
+            }
+
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                notificar('Librería PDF no disponible', 'error');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 14;
+            const contentWidth = pageWidth - (margin * 2);
+            const keyTienda = this.cfg.key;
+            const nombreTienda = this.cfg.nombre;
+
+            const generarPDF = async () => {
+                // Verificar que autoTable esté disponible
+                if (typeof doc.autoTable !== 'function') {
+                    notificar('Error: El plugin autoTable de jsPDF no está cargado.', 'error');
+                    return;
+                }
+
+                // --- ENCABEZADO ---
+                let currentY = 12;
+
+                doc.setFontSize(20);
+                doc.setTextColor(26, 54, 93);
+                doc.setFont('helvetica', 'bold');
+                const titulo = 'Gestion de Creditos Inversora IPSFA C.A';
+                const tituloWidth = doc.getTextWidth(titulo);
+                doc.text(titulo, (pageWidth - tituloWidth) / 2, currentY + 16);
+
+                doc.setFontSize(11);
+                doc.setTextColor(100, 100, 100);
+                doc.setFont('helvetica', 'normal');
+                const subtitulo = 'Listado de Clientes - Tienda ' + nombreTienda + ' (Filtro: ' + this.currentFilter + ')';
+                const subtituloWidth = doc.getTextWidth(subtitulo);
+                doc.text(subtitulo, (pageWidth - subtituloWidth) / 2, currentY + 24);
+
+                doc.setFontSize(10);
+                doc.setTextColor(80, 80, 80);
+                const fechaTexto = 'Fecha: ' + new Date().toLocaleDateString('es-VE') + '  |  Hora: ' + new Date().toLocaleTimeString('es-VE') + '  |  Total Registros: ' + datosParaExportar.length;
+                const fechaWidth = doc.getTextWidth(fechaTexto);
+                doc.text(fechaTexto, (pageWidth - fechaWidth) / 2, currentY + 32);
+
+                currentY += 48;
+
+                doc.setDrawColor(26, 54, 93);
+                doc.setLineWidth(0.5);
+                doc.line(margin, currentY, pageWidth - margin, currentY);
+
+                currentY += 8;
+
+                // --- TABLA DE DATOS ---
+                const headers = [['N°', 'Factura', 'Nombres y Apellidos', 'Cédula']];
+                
+                const rows = datosParaExportar.map((row, i) => {
+                    return [
+                        i + 1,
+                        row.nro_factura || '-',
+                        row.nombre_apellido || '-',
+                        row.cedula || '-'
+                    ];
+                });
+
+                // Ajuste de columnas
+                const colNro = 15, colFactura = 30, colCliente = 80, colCedula = 30;
+                const totalColWidth = colNro + colFactura + colCliente + colCedula;
+                const scaleFactor = contentWidth / totalColWidth;
+
+                doc.autoTable({
+                    head: headers,
+                    body: rows,
+                    startY: currentY,
+                    theme: 'striped',
+                    headStyles: {
+                        fillColor: [26, 54, 93],
+                        textColor: [255, 255, 255],
+                        fontSize: 11,
+                        fontStyle: 'bold',
+                        halign: 'center',
+                        valign: 'middle'
+                    },
+                    bodyStyles: {
+                        fontSize: 10,
+                        textColor: [50, 50, 50],
+                        valign: 'middle'
+                    },
+                    alternateRowStyles: { fillColor: [240, 248, 255] },
+                    margin: { top: 20, left: margin, right: margin },
+                    styles: {
+                        overflow: 'linebreak',
+                        cellWidth: 'wrap',
+                        lineColor: [200, 200, 200],
+                        lineWidth: 0.1
+                    },
+                    columnStyles: {
+                        0: { cellWidth: colNro * scaleFactor, halign: 'center' },
+                        1: { cellWidth: colFactura * scaleFactor, halign: 'center' },
+                        2: { cellWidth: colCliente * scaleFactor, halign: 'left' },
+                        3: { cellWidth: colCedula * scaleFactor, halign: 'center' }
+                    },
+                    didDrawPage: function (data) {
+                        doc.setFontSize(8);
+                        doc.setTextColor(150, 150, 150);
+                        doc.text('Inversora IPSFA - Sistema de Creditos', margin, pageHeight - 10);
+                        doc.text('Pagina ' + data.pageNumber, pageWidth - margin - 20, pageHeight - 10);
+                    }
+                });
+
+                // --- SIN TOTALES AL FINAL ---
+                // Simplemente guardamos el archivo terminada la tabla
+                doc.save('listado_' + keyTienda + '_' + new Date().toISOString().split('T')[0] + '.pdf');
+                notificar('PDF exportado correctamente', 'success');
+            };
+
+            generarPDF().catch(err => {
+                console.error('Error generando PDF:', err);
+                notificar('Error al generar PDF: ' + err.message, 'error');
+            });
         }
 
         printTable() {
@@ -1410,379 +1736,160 @@
         get modalId() { return 'modal-editar-cliente' + this.cfg.sfx; }
 
         verDetalle(id) {
-            const item = this.allData.find(d => d.id === id);
-            if (!item) return;
-
-            this.currentEditId = id;
-            this.currentEditItem = item;
-
-            // Eliminar modal anterior si existe
-            const modalAnterior = this.el(this.modalId);
-            if (modalAnterior) modalAnterior.remove();
-
-            const modal = this.createModalElement();
-            document.body.appendChild(modal);
-
-            this.fillFormData(item);
-            modal.style.display = 'flex';
+            this.__mostrarSpinner('Cargando cliente...');
+            this._apiFetch(`${this.cfg.api}/${id}`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })
+                .then(r => r.json())
+                .then(data => {
+                    this.__ocultarSpinner();
+                    this.currentEditId = id;
+                    this.currentEditItem = data;
+                    const modal = this.createModalElement();
+                    modal.dataset.clienteId = id;
+                    this.fillFormData(data);
+                })
+                .catch(err => {
+                    this.__ocultarSpinner();
+                    console.error('Error abriendo modal:', err);
+                    alert('Error cargando datos del cliente: ' + err.message);
+                });
         }
 
         createModalElement() {
-            const k = this.cfg.key;
+            const modalId = this.cfg.key + '-modal-v672';
+            const overlayId = this.cfg.key + '-modal-overlay-v672';
+
+            let existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+            let existingOverlay = document.getElementById(overlayId);
+            if (existingOverlay) existingOverlay.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = overlayId;
+            overlay.className = 'modal-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;';
+            overlay.onclick = () => this.closeModal();
+            document.body.appendChild(overlay);
+
             const modal = document.createElement('div');
-            modal.id = this.modalId;
-            modal.className = 'modal ec-modal';
-            modal.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,32,51,0.55); z-index:1000; align-items:center; justify-content:center;';
+            modal.id = modalId;
+            modal.className = 'modal-container';
+            modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;width:96%;max-width:1100px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);z-index:1001;overflow-y:auto;';
 
-            const admin = isAdminUser();
-            const modalTitle = admin ? 'Editar Cliente' : 'Ver Cliente';
-            const cuotasTitle = admin ? 'Cuotas del Crédito' : 'Cuotas del Crédito (Solo Lectura)';
-            const saveButton = admin ? `
-                <button type="submit" class="ec-btn ec-btn-primary">
-                    <i class="fas fa-save"></i> Guardar Cambios
-                </button>
-            ` : '';
+            modal.innerHTML =
+                '<div class="modal-header">' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<h3>Editar Cliente <span class="tienda-badge" style="background:' + this.color + ';color:#fff;">' + this.nombre.toUpperCase() + '</span></h3>' +
+                    '</div>' +
+                    '<button class="modal-close-btn" onclick="window.Tiendas.get(\'' + this.cfg.key + '\').closeModal()">×</button>' +
+                '</div>' +
+                '<div class="modal-body" id="' + this.cfg.key + '-modal-body-v672"></div>' +
+                '<div class="modal-footer">' +
+                    '<span class="nota">Los cambios se aplican al presionar Guardar Cambios</span>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button class="btn-cerrar-footer" onclick="window.Tiendas.get(\'' + this.cfg.key + '\').closeModal()">Cerrar</button>' +
+                        '<button class="btn-guardar" id="' + this.cfg.key + '-btn-guardar-modal" onclick="window.Tiendas.get(\'' + this.cfg.key + '\').guardarCambios()" disabled style="opacity:0.5;cursor:not-allowed;">Guardar Cambios</button>' +
+                    '</div>' +
+                '</div>';
 
-            modal.innerHTML = `
-                <div class="ec-card">
-                    <div class="ec-header">
-                        <div class="ec-header-info">
-                            <div class="ec-ico"><i class="fas fa-user-edit"></i></div>
-                            <div class="ec-header-txt">
-                                <h3 class="ec-titulo">${modalTitle} <span class="ec-chip">${this.cfg.nombre}</span></h3>
-                                <p class="ec-sub" id="edit-${k}-sub">&nbsp;</p>
-                            </div>
-                        </div>
-                        <button type="button" data-modal-action="close" class="ec-cerrar" title="Cerrar">&times;</button>
-                    </div>
-
-                    <form id="form-editar-cliente-${k}" class="ec-form">
-                        <div class="ec-body">
-                            <div class="ec-izq">
-                                <div class="ec-sec">
-                                    <h4 class="ec-sec-titulo"><i class="fas fa-id-card"></i> Información Principal</h4>
-                                    <div class="ec-fila2">
-                                        <div class="ec-campo">
-                                            <label>N° Factura</label>
-                                            <input type="text" id="edit-${k}-nro-factura" class="ec-in ec-in-ro" readonly>
-                                        </div>
-                                        <div class="ec-campo">
-                                            <label>Fecha Factura</label>
-                                            <input type="text" id="edit-${k}-fecha-factura" class="ec-in ec-in-ro" readonly>
-                                        </div>
-                                    </div>
-                                    <div class="ec-campo">
-                                        <label>Nombre y Apellido</label>
-                                        <input type="text" id="edit-${k}-nombre" class="ec-in ec-in-ro" readonly>
-                                    </div>
-                                    <div class="ec-fila2">
-                                        <div class="ec-campo">
-                                            <label>Cédula</label>
-                                            <input type="text" id="edit-${k}-cedula" class="ec-in ec-in-ro" readonly>
-                                        </div>
-                                        <div class="ec-campo">
-                                            <label><i class="fas fa-phone"></i> Teléfono</label>
-                                            <input type="text" id="edit-${k}-telefono" class="ec-in" placeholder="N° de teléfono">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="ec-sec">
-                                    <h4 class="ec-sec-titulo"><i class="fas fa-university"></i> Datos Bancarios</h4>
-                                    <div class="ec-campo">
-                                        <label>Número de Cuenta (20 dígitos)</label>
-                                        <input type="text" id="edit-${k}-numero-cuenta" maxlength="20" inputmode="numeric" placeholder="Ej: 01770000000000000000" class="ec-in ec-in-cuenta">
-                                    </div>
-                                    <div class="ec-campo">
-                                        <label><i class="fas fa-building-columns"></i> Banco <span class="ec-auto">automático</span></label>
-                                        <input type="text" id="edit-${k}-banco" readonly placeholder="Se detecta automáticamente" class="ec-in ec-in-banco">
-                                    </div>
-                                </div>
-
-                                <div class="ec-sec">
-                                    <h4 class="ec-sec-titulo"><i class="fas fa-money-bill-wave"></i> Resumen de Montos</h4>
-                                    <div class="ec-stats">
-                                        <div class="ec-stat">
-                                            <span class="ec-stat-label">Monto Factura</span>
-                                            <input type="text" id="edit-${k}-monto-factura" class="ec-stat-val" readonly>
-                                        </div>
-                                        <div class="ec-stat ec-stat-ok">
-                                            <span class="ec-stat-label">Depositado</span>
-                                            <input type="text" id="edit-${k}-monto-depositado" class="ec-stat-val" readonly>
-                                        </div>
-                                        <div class="ec-stat ec-stat-deuda">
-                                            <span class="ec-stat-label">Deuda Pendiente</span>
-                                            <input type="text" id="edit-${k}-deuda" class="ec-stat-val" readonly>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="ec-der">
-                                <div class="ec-der-cab">
-                                    <h4 class="ec-sec-titulo"><i class="fas fa-list-ol"></i> ${cuotasTitle}</h4>
-                                    <span class="ec-der-nota" id="edit-${k}-cuotas-nota"></span>
-                                </div>
-                                <div class="ec-tabla-wrap">
-                                    <table class="ec-tabla">
-                                        <thead>
-                                            <tr>
-                                                <th class="ec-th-num">#</th>
-                                                <th>Monto Bs.</th>
-                                                <th>Referencia</th>
-                                                <th>Fecha</th>
-                                                <th class="ec-th-tasa">Tasa BCV</th>
-                                                <th class="ec-th-dolar">Monto $</th>
-                                                ${admin ? '<th class="ec-th-elim" title="Marcar para eliminar"><i class="fas fa-trash-alt"></i></th>' : ''}
-                                            </tr>
-                                        </thead>
-                                        <tbody id="edit-cuotas-container-${k}"></tbody>
-                                        <tfoot>
-                                            <tr>
-                                                <td class="ec-pie-ico"><i class="fas fa-calculator"></i></td>
-                                                <td class="ec-pie-num" id="edit-${k}-pie-bs">&mdash;</td>
-                                                <td class="ec-pie-label" colspan="3">Total depositado en cuotas</td>
-                                                <td class="ec-pie-num ec-pie-dolar" id="edit-${k}-pie-dolar">&mdash;</td>
-                                                ${admin ? '<td class="ec-pie-elim"></td>' : ''}
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                                ${admin ? `
-                                <div id="eliminar-cuotas-section-${k}" class="ec-barra-del" style="display:none;">
-                                    <span class="ec-barra-del-txt">
-                                        <i class="fas fa-trash-alt"></i>
-                                        <strong id="eliminar-cuotas-list-${k}">0</strong>&nbsp;cuota(s) marcada(s) para eliminar
-                                    </span>
-                                    <button type="button" data-modal-action="eliminar-cuotas" class="ec-btn ec-btn-danger">
-                                        <i class="fas fa-trash-alt"></i> Borrar Seleccionadas
-                                    </button>
-                                </div>
-                                ` : ''}
-                            </div>
-                        </div>
-
-                        <div class="ec-footer">
-                            <span class="ec-footer-hint">
-                                <i class="fas fa-info-circle"></i>
-                                ${admin ? 'Los cambios se aplican al presionar Guardar Cambios' : 'Vista de solo lectura'}
-                            </span>
-                            <div class="ec-footer-btns">
-                                <button type="button" data-modal-action="close" class="ec-btn ec-btn-ghost">
-                                    <i class="fas fa-times"></i> Cerrar
-                                </button>
-                                ${saveButton}
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            `;
-
-            // Eventos del modal (submit + botones con data-modal-action)
-            const form = modal.querySelector(`#form-editar-cliente-${k}`);
-            form.addEventListener('submit', (ev) => {
-                ev.preventDefault();
-                if (isAdminUser()) this.guardarCambios();
-                else this.closeModal();
-            });
-
-            // v6.3: autodetección de banco mientras se escribe la cuenta
-            const inputCuenta = modal.querySelector(`#edit-${k}-numero-cuenta`);
-            if (inputCuenta) {
-                inputCuenta.addEventListener('input', () => {
-                    // Solo dígitos permitidos en el campo
-                    const limpio = inputCuenta.value.replace(/\D/g, '');
-                    if (inputCuenta.value !== limpio) inputCuenta.value = limpio;
-
-                    const bancoInput = modal.querySelector(`#edit-${k}-banco`);
-                    if (bancoInput) {
-                        const detectado = detectarBanco(limpio);
-                        bancoInput.value = detectado;
-                        bancoInput.placeholder = (limpio.length >= 4 && !detectado)
-                            ? 'No identificado'
-                            : 'Se detecta automáticamente';
-                    }
-                });
-            }
-
-            // v6.6: barra de eliminación en vivo (cuenta marcadas + resalta filas)
-            if (admin) {
-                modal.addEventListener('change', (ev) => {
-                    const cb = ev.target;
-                    if (!cb || cb.name !== `eliminar-cuota-${k}`) return;
-                    const fila = cb.closest('tr');
-                    if (fila) fila.classList.toggle('ec-marcada', cb.checked);
-                    const marcadas = modal.querySelectorAll(`input[name="eliminar-cuota-${k}"]:checked`).length;
-                    const countEl = modal.querySelector(`#eliminar-cuotas-list-${k}`);
-                    if (countEl) countEl.textContent = marcadas;
-                    const barra = modal.querySelector(`#eliminar-cuotas-section-${k}`);
-                    if (barra) barra.style.display = marcadas > 0 ? 'flex' : 'none';
-                });
-            }
-
-            modal.addEventListener('click', (ev) => {
-                const btn = ev.target.closest('[data-modal-action]');
-                if (!btn) return;
-                const action = btn.dataset.modalAction;
-                if (action === 'close') this.closeModal();
-                else if (action === 'eliminar-cuotas') this.confirmarEliminarCuotas();
-            });
-
+            document.body.appendChild(modal);
             return modal;
         }
 
         fillFormData(item) {
-            const modal = this.el(this.modalId);
-            if (!modal) return;
-            const k = this.cfg.key;
+            const self = this;
+            self.currentEditItem = item;
+            const esAdmin = isAdminUser();
+            const esNuevo = self.esRegistroNuevoV672(item);
+            self._modalDirty = false;
 
-            const setVal = (id, val) => {
-                const el = modal.querySelector('#' + id);
-                if (el) el.value = val || '';
-            };
+            const modal = document.getElementById(self.cfg.key + '-modal-v672') || self.createModalElement();
+            const body = document.getElementById(self.cfg.key + '-modal-body-v672');
+            if (!body) return;
 
-            setVal(`edit-${k}-nro-factura`, item.nro_factura);
-            setVal(`edit-${k}-nombre`, item.nombre_apellido);
-            setVal(`edit-${k}-cedula`, item.cedula);
-            setVal(`edit-${k}-telefono`, item.telefono);
-
-            // v6.3: datos bancarios (si hay cuenta sin banco, se detecta al abrir)
-            setVal(`edit-${k}-numero-cuenta`, item.numero_cuenta);
-            setVal(`edit-${k}-banco`, item.banco || detectarBanco(item.numero_cuenta));
-
-            // Fecha de factura formateada (DD/MM/YYYY)
-            let fechaFacturaFormateada = '';
-            if (item.fecha_factura) {
-                const fechaObj = new Date(item.fecha_factura);
-                fechaFacturaFormateada = !isNaN(fechaObj)
-                    ? fechaObj.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                    : item.fecha_factura;
+            const headerTitle = modal.querySelector('.modal-header h3');
+            if (headerTitle) {
+                headerTitle.innerHTML = 'Editar Cliente <span class="tienda-badge" style="background:' + self.color + ';color:#fff;">' + self.nombre.toUpperCase() + '</span>' +
+                    '<span style="font-size:11px;font-weight:400;opacity:0.9;margin-left:8px;">' + item.nombre_apellido + ' • Factura ' + item.nro_factura + '</span>';
             }
-            setVal(`edit-${k}-fecha-factura`, fechaFacturaFormateada);
 
-            setVal(`edit-${k}-monto-factura`, formatNumber(item.monto_factura));
-            setVal(`edit-${k}-monto-depositado`, formatNumber(item.monto_depositados));
-            setVal(`edit-${k}-deuda`, formatNumber(item.deuda));
+            const panelResumen = self.renderizarPanelResumen(item, esNuevo);
+            const panelCuotas = self.renderizarPanelCuotas(item, esNuevo, esAdmin);
 
-            const admin = isAdminUser();
+            body.innerHTML = panelResumen + panelCuotas +
+                '<input type="hidden" name="monto_factura" value="' + (item.monto_factura || '') + '">' +
+                '<input type="hidden" name="monto_facturado_usd" value="' + (item.monto_facturado_divisa || '') + '">' +
+                '<input type="hidden" name="monto_cuota_usd" value="' + (item.monto_cuota_usd || '') + '">' +
+                '<input type="hidden" name="inicial_bs" value="' + (item.inicial_bs || '') + '">' +
+                '<input type="hidden" name="inicial_usd" value="' + (item.inicial_usd || '') + '">';
 
-            // Generar campos de cuotas - SOLO las que tienen datos en la BD
-            const container = modal.querySelector(`#edit-cuotas-container-${k}`);
-            if (container) {
-                let html = '';
-                let cuotasMostradas = 0;
-                let totalBs = 0;
-                let totalDolar = 0;
+            const btnGuardar = document.getElementById(self.cfg.key + '-btn-guardar-modal');
+            if (btnGuardar) {
+                btnGuardar.style.display = esAdmin ? 'inline-block' : 'none';
+                btnGuardar.disabled = true;
+                btnGuardar.style.opacity = '0.5';
+                btnGuardar.style.cursor = 'not-allowed';
+            }
 
-                for (let i = 1; i <= TOTAL_CUOTAS; i++) {
-                    const cuota = item[`cuota_${i}`];
-                    const ref = item[`ref_cuota_${i}`];
-                    const fecha = item[`fecha_cuota_${i}`];
-                    const tasa = item[`tasa_cuota_${i}`];
-                    const dolar = item[`dolar_depositado_cuota_${i}`];
+            if (esAdmin) {
+                // Limpieza de listeners previos: clonamos y reemplazamos cada input
+                // para garantizar que no haya listeners duplicados ni contexto perdido
+                const inputs = body.querySelectorAll('input[name^="cuota_"], input[name^="ref_cuota_"], input[name^="tasa_cuota_"]');
+                inputs.forEach(inp => {
+                    const nuevo = inp.cloneNode(true);
+                    inp.parentNode.replaceChild(nuevo, inp);
+                    nuevo.addEventListener('input', function() { self.__marcarDirty(); });
+                    nuevo.addEventListener('change', function() { self.__marcarDirty(); });
+                });
 
-                    if (parseNumberES(cuota) > 0) {
-                        cuotasMostradas++;
-                        totalBs += parseNumberES(cuota);
+                const checkboxes = body.querySelectorAll('input[name^="eliminar-cuota-"]');
+                checkboxes.forEach(chk => {
+                    const nuevo = chk.cloneNode(true);
+                    chk.parentNode.replaceChild(nuevo, chk);
+                    nuevo.addEventListener('change', function() { self.__actualizarBarraEliminar(); });
+                });
 
-                        // Fecha para input type="date" (YYYY-MM-DD)
-                        let fechaFormateada = '';
-                        if (fecha) {
-                            if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                                fechaFormateada = fecha;
-                            } else {
-                                const fechaObj = new Date(fecha);
-                                if (!isNaN(fechaObj)) fechaFormateada = fechaObj.toISOString().split('T')[0];
-                            }
-                        }
-
-                        let dolarFormateado = '';
-                        if (dolar && parseNumberES(dolar) > 0) {
-                            totalDolar += parseNumberES(dolar);
-                            dolarFormateado = parseNumberES(dolar).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
-                        }
-
-                        if (!admin) {
-                            // Operador: fila de solo lectura (texto plano)
-                            html += `
-                                <tr>
-                                    <td class="ec-td-num">${i}</td>
-                                    <td class="ec-td-monto">${parseNumberES(cuota).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    <td>${ref || '&mdash;'}</td>
-                                    <td>${fechaFormateada || '&mdash;'}</td>
-                                    <td class="ec-td-tasa">${tasa || '&mdash;'}</td>
-                                    <td class="ec-td-dolar">${dolarFormateado || '&mdash;'}</td>
-                                </tr>
-                            `;
-                        } else {
-                            // Admin: fila editable + checkbox de eliminación en la fila
-                            html += `
-                                <tr data-cuota-fila="${i}">
-                                    <td class="ec-td-num">${i}</td>
-                                    <td><input type="number" step="0.01" id="edit-${k}-cuota-${i}" value="${cuota || ''}" class="ec-celda ec-celda-monto"></td>
-                                    <td><input type="text" id="edit-${k}-ref-${i}" value="${ref || ''}" class="ec-celda" placeholder="&mdash;"></td>
-                                    <td><input type="date" id="edit-${k}-fecha-${i}" value="${fechaFormateada}" class="ec-celda"></td>
-                                    <td><input type="number" step="0.0001" id="edit-${k}-tasa-${i}" value="${tasa || ''}" class="ec-celda ec-celda-tasa"></td>
-                                    <td class="ec-td-dolar">${dolarFormateado || '&mdash;'}</td>
-                                    <td class="ec-td-elim"><input type="checkbox" name="eliminar-cuota-${k}" value="${i}" class="ec-check" title="Marcar para eliminar"></td>
-                                </tr>
-                            `;
-                        }
-                    }
-                }
-
-                if (cuotasMostradas === 0) {
-                    html = `<tr><td colspan="${admin ? 7 : 6}" class="ec-vacio">No hay cuotas registradas</td></tr>`;
-                }
-
-                container.innerHTML = html;
-
-                // v6.6: pie con totales + nota de conteo + subtítulo del encabezado
-                const setTxt = (id, txt) => {
-                    const el = modal.querySelector('#' + id);
-                    if (el) el.textContent = txt;
-                };
-                setTxt(`edit-${k}-pie-bs`, cuotasMostradas
-                    ? totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : '—');
-                setTxt(`edit-${k}-pie-dolar`, cuotasMostradas
-                    ? totalDolar.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'
-                    : '—');
-                setTxt(`edit-${k}-cuotas-nota`, cuotasMostradas ? `${cuotasMostradas} cuota(s) registrada(s)` : 'Sin cuotas');
-                setTxt(`edit-${k}-sub`, `${item.nombre_apellido || '—'} • Factura ${item.nro_factura || '—'}`);
-
-                // v6.6: la barra de eliminación inicia oculta (aparece al marcar checkboxes)
-                if (admin) {
-                    const eliminarSection = modal.querySelector(`#eliminar-cuotas-section-${k}`);
-                    const eliminarCount = modal.querySelector(`#eliminar-cuotas-list-${k}`);
-                    if (eliminarSection) eliminarSection.style.display = 'none';
-                    if (eliminarCount) eliminarCount.textContent = '0';
+                const chkAll = body.querySelector('input[id^="chk-all-cuotas-"]');
+                if (chkAll) {
+                    const nuevo = chkAll.cloneNode(true);
+                    chkAll.parentNode.replaceChild(nuevo, chkAll);
+                    nuevo.addEventListener('change', function(e) { self.__toggleAllCuotas(e.target); });
                 }
             }
+
+            modal.style.display = 'flex';
+            const overlay = document.getElementById(self.cfg.key + '-modal-overlay-v672');
+            if (overlay) overlay.style.display = 'block';
         }
 
         closeModal() {
-            const modal = this.el(this.modalId);
-            if (modal) {
-                modal.style.display = 'none';
-                modal.remove(); // destruir del DOM (evita conflictos entre tiendas)
-            }
-            this.currentEditId = null;
-            this.currentEditItem = null;
+            const modal = document.getElementById(this.cfg.key + '-modal-v672');
+            const overlay = document.getElementById(this.cfg.key + '-modal-overlay-v672');
+            if (modal) modal.style.display = 'none';
+            if (overlay) overlay.style.display = 'none';
+            const oldModal = document.getElementById(this.cfg.key + '-modal');
+            const oldOverlay = document.getElementById(this.cfg.key + '-modal-overlay');
+            if (oldModal) oldModal.style.display = 'none';
+            if (oldOverlay) oldOverlay.style.display = 'none';
         }
 
         async guardarCambios() {
             if (!this.currentEditId || !this.currentEditItem) return;
-            const k = this.cfg.key;
-            const modal = this.el(this.modalId);
+            if (!this._modalDirty) {
+                mostrarModalCorporativo('Sin cambios', 'No ha realizado ninguna modificacion en los datos del cliente.', 'info');
+                return;
+            }
+            const btnGuardar = document.getElementById(this.cfg.key + '-btn-guardar-modal');
+            if (btnGuardar) {
+                btnGuardar.disabled = true;
+                btnGuardar.textContent = 'Guardando...';
+            }
 
-            const getVal = (id) => {
-                const el = modal ? modal.querySelector('#' + id) : null;
-                return el ? el.value : '';
-            };
+            const modal = document.getElementById(this.cfg.key + '-modal-v672');
+            if (!modal) {
+                mostrarModalCorporativo('Error', 'No se encontró el modal de edición', 'error');
+                return;
+            }
 
-            // monto_factura SIEMPRE del item original (el input está
-            // formateado con separador de miles: leerlo corrompe el valor)
             const item = this.currentEditItem;
             const data = {
                 id: item.id,
@@ -1790,14 +1897,20 @@
                 nro_factura: item.nro_factura,
                 nombre_apellido: item.nombre_apellido,
                 cedula: item.cedula,
-                telefono: getVal(`edit-${k}-telefono`).trim(),
-                // v6.3: datos bancarios
-                numero_cuenta: getVal(`edit-${k}-numero-cuenta`).replace(/\D/g, '').trim(),
-                banco: getVal(`edit-${k}-banco`).trim(),
+                telefono: item.telefono || '',
+                numero_cuenta: item.numero_cuenta || '',
+                banco: item.banco || '',
                 fecha_factura: item.fecha_factura || null,
                 monto_factura: typeof item.monto_factura === 'number'
                     ? item.monto_factura
-                    : parseNumberES(item.monto_factura)
+                    : parseNumberES(item.monto_factura),
+                inicial_bs: item.inicial_bs,
+                inicial_usd: item.inicial_usd,
+                ref_inicial: item.ref_inicial,
+                fecha_inicial: item.fecha_inicial,
+                tasa_inicial: item.tasa_inicial,
+                tasa_bcv_factura: item.tasa_bcv_factura,
+                monto_cuota_usd: item.monto_cuota_usd
             };
 
             let cuotasEditadas = false;
@@ -1806,30 +1919,37 @@
             for (let i = 1; i <= TOTAL_CUOTAS; i++) {
                 const cuotaOriginal = parseNumberES(item[`cuota_${i}`]);
 
-                if (cuotaOriginal > 0) {
-                    const cuotaInput = parseNumberES(getVal(`edit-${k}-cuota-${i}`));
-                    const refInput = getVal(`edit-${k}-ref-${i}`).trim();
-                    const fechaInput = getVal(`edit-${k}-fecha-${i}`);
-                    const tasaInput = parseNumberES(getVal(`edit-${k}-tasa-${i}`));
+                const cuotaInputEl = modal.querySelector(`[name="cuota_${i}"]`);
+                if (!cuotaInputEl) continue;
 
-                    const refOriginal = item[`ref_cuota_${i}`] || '';
-                    const fechaOriginal = item[`fecha_cuota_${i}`] || '';
-                    const tasaOriginal = parseNumberES(item[`tasa_cuota_${i}`]);
+                const cuotaInput = parseNumberES(cuotaInputEl.value);
+                const refInput   = modal.querySelector(`[name="ref_cuota_${i}"]`)?.value.trim() || '';
+                const fechaInput = this._parseFechaInputToISO(modal.querySelector(`[name="fecha_cuota_${i}"]`)?.value || '');
+                const tasaInput  = parseNumberES(modal.querySelector(`[name="tasa_cuota_${i}"]`)?.value);
 
-                    if (cuotaInput !== cuotaOriginal ||
-                        refInput !== refOriginal ||
-                        fechaInput !== fechaOriginal ||
-                        tasaInput !== tasaOriginal) {
-                        cuotasEditadas = true;
-                    }
+                const refOriginal   = item[`ref_cuota_${i}`] || '';
+                const fechaOriginal = item[`fecha_cuota_${i}`] || '';
+                const tasaOriginal  = parseNumberES(item[`tasa_cuota_${i}`]);
 
-                    data[`cuota_${i}`] = cuotaInput;
-                    data[`ref_cuota_${i}`] = refInput;
-                    data[`fecha_cuota_${i}`] = fechaInput;
-                    data[`tasa_cuota_${i}`] = tasaInput;
-
-                    if (cuotaInput > 0) montoDepositado += cuotaInput;
+                if (cuotaInput !== cuotaOriginal ||
+                    refInput !== refOriginal ||
+                    fechaInput !== fechaOriginal ||
+                    tasaInput !== tasaOriginal) {
+                    cuotasEditadas = true;
                 }
+
+                data[`cuota_${i}`] = cuotaInput;
+                data[`ref_cuota_${i}`] = refInput;
+                data[`fecha_cuota_${i}`] = fechaInput;
+                data[`tasa_cuota_${i}`] = tasaInput;
+
+                // Recalcular dólar automáticamente
+                const dolarVal = (cuotaInput > 0 && tasaInput > 0)
+                    ? redondearDecimales(cuotaInput / tasaInput)
+                    : 0;
+                data[`dolar_depositado_cuota_${i}`] = dolarVal;
+
+                if (cuotaInput > 0) montoDepositado += cuotaInput;
             }
 
             if (!cuotasEditadas) {
@@ -1838,14 +1958,11 @@
             } else {
                 data.monto_depositados = montoDepositado;
                 data.deuda = data.monto_factura - montoDepositado;
-                if (Math.abs(data.monto_factura - montoDepositado) < 0.01) {
-                    data.deuda = 0;
-                }
+                if (Math.abs(data.deuda) < 0.01) data.deuda = 0;
             }
 
             try {
                 showLoading(true);
-
                 const response = await this._apiFetch(`${this.cfg.api}/${this.currentEditId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -1865,13 +1982,17 @@
                 this.updateFilterCounts();
                 this.closeModal();
 
-                alert('✅ Cambios guardados exitosamente');
+                mostrarModalCorporativo('Éxito', 'Cambios guardados exitosamente', 'exito');
 
             } catch (error) {
                 console.error('Error al guardar:', error);
-                alert('❌ Error al guardar: ' + error.message);
+                mostrarModalCorporativo('Error', 'Error al guardar: ' + error.message, 'error');
             } finally {
                 showLoading(false);
+                if (btnGuardar) {
+                    btnGuardar.disabled = false;
+                    btnGuardar.textContent = 'Guardar Cambios';
+                }
             }
         }
 
@@ -1942,7 +2063,7 @@
         // ====================================================
         confirmarEliminarCuotas() {
             const k = this.cfg.key;
-            const modal = this.el(this.modalId);
+            const modal = document.getElementById(this.cfg.key + '-modal-v672');
             if (!modal || !this.currentEditItem) return;
 
             const checkboxes = modal.querySelectorAll(`input[name="eliminar-cuota-${k}"]:checked`);
@@ -2098,24 +2219,28 @@
             this.limpiarFormularioConciliacion();
             this.limpiarFormularioNuevaConciliacion();
             const c = (n) => this.el(this.concId(n));
-            const resE = c('resultado-encontrada'), resN = c('resultado-nueva'),
-                  msg = c('mensaje-inicial'), buscar = c('factura-buscar'), noEnc = c('no-encontrada');
+            const resE = c('resultado-encontrada'), resN = c('nuevo-registro'),
+                  msg = c('mensaje-inicial'), buscar = c('factura-buscar'), noEnc = c('no-encontrada'),
+                  busqueda = c('busqueda');
             if (resE) resE.style.display = 'none';
             if (resN) resN.style.display = 'none';
             if (noEnc) noEnc.style.display = 'none';
             if (msg) msg.style.display = 'block';
+            if (busqueda) busqueda.style.display = 'block';
             if (buscar) { buscar.value = ''; buscar.focus(); }
             this.concCliente = null;
         }
 
         volverABuscarFactura() {
             const c = (n) => this.el(this.concId(n));
-            const resE = c('resultado-encontrada'), resN = c('resultado-nueva'),
-                  msg = c('mensaje-inicial'), buscar = c('factura-buscar'), noEnc = c('no-encontrada');
+            const resE = c('resultado-encontrada'), resN = c('nuevo-registro'),
+                  msg = c('mensaje-inicial'), buscar = c('factura-buscar'), noEnc = c('no-encontrada'),
+                  busqueda = c('busqueda');
             if (resE) resE.style.display = 'none';
             if (resN) resN.style.display = 'none';
             if (noEnc) noEnc.style.display = 'none';
             if (msg) msg.style.display = 'block';
+            if (busqueda) busqueda.style.display = 'block';
             if (buscar) { buscar.value = ''; buscar.focus(); }
             this.concCliente = null;
         }
@@ -2253,30 +2378,7 @@
 
             if (noEnc) noEnc.style.display = 'none';
             this.mostrarNuevoRegistro(nroFactura);
-        }
-
-        mostrarNuevoRegistro(nroFactura) {
-            const c = (n) => this.el(this.concId(n));
-            const resE = c('resultado-encontrada'), resN = c('resultado-nueva');
-            if (resE) resE.style.display = 'none';
-            if (resN) resN.style.display = 'block';
-
-            const setVal = (n, v) => { const el = c(n); if (el) el.value = v; };
-            const hoy = new Date().toISOString().split('T')[0];
-            setVal('nueva-factura', nroFactura);
-            setVal('nueva-fecha-factura', hoy);
-            setVal('nueva-cuota-fecha', hoy);
-            setVal('nueva-nombre', '');
-            setVal('nueva-cedula', '');
-            setVal('nueva-monto', '');
-            setVal('nueva-cuota-monto', '');
-            setVal('nueva-cuota-ref', '');
-            setVal('nueva-cuota-tasa', '');
-            setVal('nueva-cuota-dolar', '');
-            const msg = c('nueva-tasa-mensaje');
-            if (msg) msg.textContent = '';
-
-            this.obtenerTasaNueva();
+            this.cambiarTabNuevoRegistro('factura');
         }
 
         // ---------- Tasa BCV ----------
@@ -2326,12 +2428,33 @@
                 }
 
                 if (data && data.exito && data.tasa && data.tasa.current) {
-                    tasaInput.value = data.tasa.current.usd.toFixed(4);
-                    this.concTasa = data.tasa.current.usd;
-                    mensaje.textContent = '✅ Tasa actual: ' + data.tasa.current.usd.toFixed(4) + ' Bs (fecha: ' + data.tasa.current.date + ')';
-                    mensaje.style.color = '#28a745';
-                    onTasa.call(this);
-                    return;
+                    let tasaUsd = null;
+                    if (typeof data.tasa.current.usd === 'number') {
+                        tasaUsd = data.tasa.current.usd;
+                    } else if (typeof data.tasa.current === 'number') {
+                        tasaUsd = data.tasa.current;
+                    } else if (data.tasa.usd && typeof data.tasa.usd === 'number') {
+                        tasaUsd = data.tasa.usd;
+                    }
+                    
+                    if (tasaUsd && tasaUsd > 0) {
+                        tasaInput.value = tasaUsd.toFixed(4);
+                        this.concTasa = tasaUsd;
+                        
+                        // --- AQUÍ ESTÁ LA CORRECCIÓN ---
+                        // Extraemos la fecha de forma segura. Si no existe 'date' en current o en data.tasa, ponemos 'hoy'.
+                        let fechaTasaStr = 'hoy';
+                        if (data.tasa.current && typeof data.tasa.current.date === 'string') {
+                            fechaTasaStr = data.tasa.current.date;
+                        } else if (data.tasa.date && typeof data.tasa.date === 'string') {
+                            fechaTasaStr = data.tasa.date;
+                        }
+
+                        mensaje.textContent = '✅ Tasa actual: ' + tasaUsd.toFixed(4) + ' Bs (fecha: ' + fechaTasaStr + ')';
+                        mensaje.style.color = '#28a745';
+                        onTasa.call(this);
+                        return;
+                    }
                 }
             }
 
@@ -2370,7 +2493,14 @@
             const monto = parseFloat(montoEl.value) || 0;
             const tasa = parseFloat(tasaEl.value) || 0;
 
-            dolarEl.value = (monto > 0 && tasa > 0) ? (monto / tasa).toFixed(2) : '';
+            if (monto > 0 && tasa > 0) {
+                dolarEl.value = (monto / tasa).toFixed(2);
+            } else if (monto > 0 && tasa <= 0) {
+                dolarEl.value = '';
+                // No mostrar alerta aquí para no ser intrusivo
+            } else {
+                dolarEl.value = '';
+            }
         }
 
         calcularDolarNueva() {
@@ -2382,7 +2512,11 @@
             const monto = parseFloat(montoEl.value) || 0;
             const tasa = parseFloat(tasaEl.value) || 0;
 
-            dolarEl.value = (monto > 0 && tasa > 0) ? (monto / tasa).toFixed(2) : '';
+            if (monto > 0 && tasa > 0) {
+                dolarEl.value = (monto / tasa).toFixed(2);
+            } else {
+                dolarEl.value = '';
+            }
         }
 
         cargarHistorialCuotas(cliente) {
@@ -2545,83 +2679,104 @@
             }
         }
 
-        async guardarNuevaConciliacion() {
-            const c = (n) => this.el(this.concId(n));
-            const nroFactura = c('nueva-factura')?.value.trim();
-            const nombre = c('nueva-nombre')?.value.trim();
-            const cedula = c('nueva-cedula')?.value.trim();
-            const montoFactura = parseFloat(c('nueva-monto')?.value);
-            const fechaFactura = c('nueva-fecha-factura')?.value;
-
-            const cuotaMonto = parseFloat(c('nueva-cuota-monto')?.value);
-            const cuotaRef = c('nueva-cuota-ref')?.value.trim();
-            const cuotaFecha = c('nueva-cuota-fecha')?.value;
-            const cuotaTasa = parseFloat(c('nueva-cuota-tasa')?.value);
-            const cuotaDolar = parseFloat(c('nueva-cuota-dolar')?.value);
-
-            if (!nroFactura) { this._validacionModal('N° de factura es obligatorio'); return; }
-            if (!nombre) { this._validacionModal('Nombre y apellido es obligatorio', 'nueva-nombre'); return; }
-            if (!montoFactura || montoFactura <= 0) { this._validacionModal('Monto de factura es obligatorio', 'nueva-monto'); return; }
-            if (!fechaFactura) { this._validacionModal('Fecha de factura es obligatoria'); return; }
-            if (!cuotaMonto || cuotaMonto <= 0) { this._validacionModal('Ingrese el monto del depósito', 'nueva-cuota-monto'); return; }
-            if (!cuotaRef) { this._validacionModal('Ingrese la referencia del depósito', 'nueva-cuota-ref'); return; }
-            if (!cuotaFecha) { this._validacionModal('Seleccione la fecha del depósito'); return; }
-            if (!cuotaTasa || cuotaTasa <= 0) { this._validacionModal('La tasa BCV es obligatoria'); return; }
-
-            const dolarCalculado = cuotaDolar || (cuotaMonto / cuotaTasa);
-            const deuda = montoFactura - cuotaMonto;
-
-            const data = {
-                numero: nroFactura,
-                nro_factura: nroFactura,
-                nombre_apellido: nombre,
-                cedula: cedula,
-                monto_factura: montoFactura,
-                fecha_factura: fechaFactura,
-                monto_depositados: cuotaMonto,
-                deuda: deuda > 0 ? deuda : 0,
-                cuota_1: cuotaMonto,
-                ref_cuota_1: cuotaRef,
-                fecha_cuota_1: cuotaFecha,
-                tasa_cuota_1: cuotaTasa,
-                dolar_depositado_cuota_1: dolarCalculado
-            };
-
-            showLoading(true);
-
+        async _ejecutarGuardarNuevaConciliacion(payload) {
             try {
                 const response = await this._apiFetch(this.cfg.api, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
                 });
-
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.error || `Error HTTP: ${response.status}`);
+                if (response.status === 413) {
+                    mostrarModalCorporativo('Error', 'Los datos enviados son demasiado grandes. Contacte al administrador.', 'error'); return;
                 }
-
-                await response.json();
-
-                mostrarModalCorporativo(
-                    '¡Registro Creado!',
-                    `Registro creado exitosamente.\n\nFactura: ${nroFactura}\nCliente: ${nombre}\nDeuda: ${formatCurrency(deuda > 0 ? deuda : 0)}`,
-                    'exito',
-                    [{
-                        texto: 'Aceptar',
-                        estilo: BTN.aceptar,
-                        accion: () => this.volverABuscarFactura()
-                    }]
-                );
-
-                await this.loadData();
-
-            } catch (error) {
-                console.error('Error creando registro:', error);
-                mostrarModalCorporativo('Error', 'Error al crear registro: ' + error.message, 'error');
-            } finally {
-                showLoading(false);
+                if (response.status === 429) {
+                    mostrarModalCorporativo('Error', 'Demasiadas peticiones. Espere un minuto e intente nuevamente.', 'error'); return;
+                }
+                const data = await response.json();
+                if (!response.ok) {
+                    mostrarModalCorporativo('Error', data.error || 'Error al guardar el registro', 'error'); return;
+                }
+                if (data.advertencia) {
+                    mostrarModalCorporativo('Advertencia', data.advertencia.mensaje + '\nFacturas: ' + data.advertencia.facturas.join(', '), 'warning');
+                }
+                mostrarModalCorporativo('Éxito', 'Registro creado exitosamente', 'exito');
+                this.limpiarFormularioNuevaConciliacion();
+                this.volverABuscar();
+                this.loadData();
+            } catch (err) {
+                mostrarModalCorporativo('Error de Conexión', 'No se pudo conectar con el servidor', 'error');
             }
+        }
+
+        async guardarNuevaConciliacion() {
+            const c = this.cfg.concPfx;
+            const self = this;
+            // Helper: parsea número seguro, devuelve null si está vacío/NaN/inválido
+            const num = (id) => {
+                const el = document.getElementById(c + '-' + id);
+                if (!el) return null;
+                const v = el.value.trim().replace(',', '.');
+                if (v === '') return null;
+                const n = parseFloat(v);
+                return isNaN(n) ? null : n;
+            };
+            const payload = {
+                nro_factura: document.getElementById(c + '-nueva-factura').value,
+                fecha_factura: document.getElementById(c + '-nueva-fecha-factura').value,
+                nombre_apellido: document.getElementById(c + '-nueva-nombre').value,
+                cedula: document.getElementById(c + '-nueva-cedula').value,
+                telefono: document.getElementById(c + '-nueva-telefono')?.value || '',
+                monto_factura: num('nueva-monto'),
+                monto_facturado_divisa: num('nueva-monto-usd'),
+                cuotas: parseInt(document.getElementById(c + '-nueva-total-cuotas').value) || 4,
+                inicial_bs: num('nueva-inicial-bs'),
+                inicial_usd: num('nueva-inicial-usd'),
+                ref_inicial: document.getElementById(c + '-nueva-ref-inicial').value,
+                fecha_inicial: document.getElementById(c + '-nueva-fecha-inicial').value,
+                tasa_inicial: num('nueva-tasa-inicial'),
+                tasa_bcv_factura: num('nueva-tasa-factura'),
+                monto_cuota_usd: num('nueva-monto-cuota'),
+                numero_cuenta: '', banco: ''
+            };
+
+            if (!payload.nro_factura || !payload.nombre_apellido || !payload.fecha_factura) {
+                mostrarModalCorporativo('Validación', 'Complete los campos obligatorios', 'warning'); return;
+            }
+            if (!payload.monto_factura || payload.monto_factura <= 0) {
+                mostrarModalCorporativo('Validación', 'El monto de factura debe ser mayor a cero', 'warning'); return;
+            }
+            if (!payload.inicial_bs || payload.inicial_bs <= 0) {
+                mostrarModalCorporativo('Validación', 'El inicial debe ser mayor a cero', 'warning'); return;
+            }
+            if (payload.inicial_bs > payload.monto_factura) {
+                mostrarModalCorporativo('Validación', 'El inicial no puede superar el monto total', 'warning'); return;
+            }
+
+            // Validación de cédula duplicada
+            if (payload.cedula && payload.cedula.trim() !== '') {
+                const cedulaLimpia = payload.cedula.trim();
+                const duplicado = self.allData.find(item => {
+                    const cedulaExistente = (item.cedula || '').trim();
+                    return cedulaExistente && cedulaExistente === cedulaLimpia;
+                });
+                if (duplicado) {
+                    mostrarModalCorporativo(
+                        '⚠️ Cédula ya registrada',
+                        'La cédula <strong>' + cedulaLimpia + '</strong> ya existe en la base de datos.\n\n' +
+                        'Cliente: ' + (duplicado.nombre_apellido || 'N/A') + '\n' +
+                        'Factura: ' + (duplicado.nro_factura || 'N/A') + '\n\n' +
+                        '¿Desea continuar y crear el registro de todas formas?',
+                        'warning',
+                        [
+                            { texto: 'Cancelar', estilo: BTN.neutro },
+                            { texto: 'Sí, continuar', estilo: BTN.warning, accion: () => self._ejecutarGuardarNuevaConciliacion(payload) }
+                        ]
+                    );
+                    return;
+                }
+            }
+
+            await self._ejecutarGuardarNuevaConciliacion(payload);
         }
 
         limpiarFormularioConciliacion() {
@@ -2633,6 +2788,518 @@
             setVal('cuota-dolar', '');
             const msg = c('tasa-mensaje');
             if (msg) msg.textContent = '';
+        }
+
+        
+        // ============================================================
+        // v6.7.2-rev9: Nuevo Registro con calculos en tiempo real
+        // ============================================================
+
+
+        // ---------- Navegación de pestañas en Nuevo Registro ----------
+        cambiarTabNuevoRegistro(tabName) {
+            const c = this.cfg.concPfx;
+            const root = document.getElementById(c + '-nuevo-registro');
+            if (!root) return;
+
+            // Ocultar todos los paneles
+            root.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+            // Desactivar todos los botones
+            root.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.borderBottom = '3px solid transparent';
+                b.style.color = '#718096';
+            });
+
+            // Mostrar panel activo
+            const panel = document.getElementById(c + '-tab-' + tabName);
+            if (panel) panel.style.display = 'block';
+
+            // Activar botón
+            const btn = root.querySelector('.tab-btn[data-tab="' + tabName + '"]');
+            if (btn) {
+                btn.classList.add('active');
+                btn.style.borderBottom = '3px solid ' + this.color;
+                btn.style.color = this.color;
+            }
+        }
+
+        siguienteTabNuevoRegistro(tabName) {
+            this.cambiarTabNuevoRegistro(tabName);
+        }
+
+        mostrarNuevoRegistro(nroFactura) {
+            const c = this.cfg.concPfx;
+            document.getElementById(c + '-busqueda').style.display = 'none';
+            document.getElementById(c + '-resultado-encontrada').style.display = 'none';
+            document.getElementById(c + '-nuevo-registro').style.display = 'block';
+            this.cambiarTabNuevoRegistro('factura');
+
+            const hoy = new Date().toISOString().split('T')[0];
+            const ff = document.getElementById(c + '-nueva-fecha-factura');
+            const fi = document.getElementById(c + '-nueva-fecha-inicial');
+            const fFact = document.getElementById(c + '-nueva-factura');
+            if (ff && !ff.value) ff.value = hoy;
+            if (fi && !fi.value) fi.value = hoy;
+            if (fFact && nroFactura) fFact.value = nroFactura;
+
+            this.inicializarCalculosNuevoRegistro();
+        }
+
+        volverABuscar() {
+            const c = this.cfg.concPfx;
+            document.getElementById(c + '-busqueda').style.display = 'block';
+            document.getElementById(c + '-resultado-encontrada').style.display = 'none';
+            document.getElementById(c + '-nuevo-registro').style.display = 'none';
+            document.getElementById(c + '-factura-buscar').value = '';
+        }
+
+        inicializarCalculosNuevoRegistro() {
+            const c = this.cfg.concPfx;
+            const self = this;
+            const el = (id) => document.getElementById(c + '-' + id);
+
+            // Evitar inicializar múltiples veces (listeners duplicados)
+            const formContainer = el('nuevo-registro');
+            if (formContainer && formContainer.dataset.listenersInit === '1') return;
+            if (formContainer) formContainer.dataset.listenersInit = '1';
+
+            const extraerTasa = (data) => {
+                if (!data || !data.tasa) return null;
+                // Formato directo de la API: { tasa: { usd: 76.85, eur: ..., date: ... } }
+                if (typeof data.tasa.usd === 'number') return data.tasa.usd;
+                // Formato fallback: { tasa: { current: { usd: 76.85, eur: ..., date: ... } } }
+                if (data.tasa.current && typeof data.tasa.current.usd === 'number') return data.tasa.current.usd;
+                if (typeof data.tasa === 'number') return data.tasa;
+                if (typeof data.tasa === 'string') {
+                    const parsed = parseFloat(data.tasa.replace(',', '.'));
+                    return isNaN(parsed) ? null : parsed;
+                }
+                return null;
+            };
+
+            const calcularMontoUSD = async () => {
+                const montoBs = parseFloat(el('nueva-monto').value) || 0;
+                const fecha = el('nueva-fecha-factura').value;
+                if (montoBs <= 0 || !fecha) { el('nueva-monto-usd').value = ''; return; }
+                let tasa = parseFloat(el('nueva-tasa-factura').value);
+                if (!tasa || tasa <= 0.0001) {
+                    try {
+                        const res = await fetch('/api/bcv/fecha/' + fecha, {headers: {'Authorization': 'Bearer ' + localStorage.getItem('token')}});
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const data = await res.json();
+                        const tasaVal = extraerTasa(data);
+                        if (tasaVal) { tasa = tasaVal; el('nueva-tasa-factura').value = tasa.toFixed(4); }
+                    } catch(e) {
+                        console.warn('Error consultando tasa factura:', e.message);
+                    }
+                }
+                if (tasa > 0) {
+                    el('nueva-monto-usd').value = redondearDecimales(montoBs / tasa).toFixed(2);
+                } else {
+                    el('nueva-monto-usd').value = '';
+                }
+                self.calcularDeudaYCuota();
+            };
+
+            const calcularInicialUSD = async () => {
+                const inicialBs = parseFloat(el('nueva-inicial-bs').value) || 0;
+                const fecha = el('nueva-fecha-inicial').value;
+                if (inicialBs <= 0 || !fecha) { el('nueva-inicial-usd').value = ''; return; }
+                let tasa = parseFloat(el('nueva-tasa-inicial').value);
+                if (!tasa || tasa <= 0.0001) {
+                    try {
+                        const res = await fetch('/api/bcv/fecha/' + fecha, {headers: {'Authorization': 'Bearer ' + localStorage.getItem('token')}});
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const data = await res.json();
+                        const tasaVal = extraerTasa(data);
+                        if (tasaVal) { tasa = tasaVal; el('nueva-tasa-inicial').value = tasa.toFixed(4); }
+                    } catch(e) {
+                        console.warn('Error consultando tasa inicial:', e.message);
+                    }
+                }
+                if (tasa > 0) {
+                    el('nueva-inicial-usd').value = redondearDecimales(inicialBs / tasa).toFixed(2);
+                } else {
+                    el('nueva-inicial-usd').value = '';
+                }
+                self.calcularDeudaYCuota();
+            };
+
+            el('nueva-monto').addEventListener('input', calcularMontoUSD);
+            el('nueva-fecha-factura').addEventListener('change', calcularMontoUSD);
+            el('nueva-tasa-factura').addEventListener('input', calcularMontoUSD);
+            el('nueva-inicial-bs').addEventListener('input', calcularInicialUSD);
+            el('nueva-fecha-inicial').addEventListener('change', calcularInicialUSD);
+            el('nueva-tasa-inicial').addEventListener('input', calcularInicialUSD);
+            el('nueva-total-cuotas').addEventListener('change', () => self.calcularDeudaYCuota());
+        }
+
+        calcularDeudaYCuota() {
+            const c = this.cfg.concPfx;
+            const montoUsd = parseFloat(document.getElementById(c + '-nueva-monto-usd').value) || 0;
+            const inicialUsd = parseFloat(document.getElementById(c + '-nueva-inicial-usd').value) || 0;
+            const cuotas = parseInt(document.getElementById(c + '-nueva-total-cuotas').value) || 4;
+            const deuda = redondearDecimales(montoUsd - inicialUsd);
+            const cuota = cuotas > 0 ? redondearDecimales(deuda / cuotas) : 0;
+            document.getElementById(c + '-nueva-deuda-usd').value = deuda.toFixed(2);
+            document.getElementById(c + '-nueva-monto-cuota').value = cuota.toFixed(2);
+        }
+
+        // ============================================================
+        // v6.7.2-rev9: Modal Editar Cliente con campos nuevos
+        // ============================================================
+
+        esRegistroNuevoV672(cliente) {
+            return cliente.inicial_bs !== null && cliente.inicial_bs !== undefined
+                && cliente.inicial_bs !== '' && parseFloat(cliente.inicial_bs) > 0;
+        }
+
+        calcularResumenMontos(cliente) {
+            const esNuevo = this.esRegistroNuevoV672(cliente);
+            const montoFacturadoUSD = parseFloat(cliente.monto_facturado_divisa)
+                || parseFloat(cliente.monto_factura) / parseFloat(cliente.tasa_bcv_factura || 1);
+            // FIX: registros antiguos NO usan cuota_1 como inicial; eso causaba doble conteo
+            const inicialBs = esNuevo ? (parseFloat(cliente.inicial_bs) || 0) : 0;
+            const inicialUSD = esNuevo ? (parseFloat(cliente.inicial_usd) || 0) : 0;
+            const deudaUSD = montoFacturadoUSD - inicialUSD;
+            const deudaBs = parseFloat(cliente.monto_factura) - inicialBs;
+            const totalCuotas = parseInt(cliente.cuotas) || 4;
+            const montoCuotaUSD = esNuevo ? (parseFloat(cliente.monto_cuota_usd) || 0) : redondearDecimales(deudaUSD / totalCuotas);
+
+            let totalDepositadoBs = inicialBs;
+            let totalDepositadoUSD = inicialUSD;
+            let cuotasPagadas = 0;
+            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                const cuotaBs = parseFloat(cliente['cuota_' + i] || 0);
+                const cuotaUSD = parseFloat(cliente['dolar_depositado_cuota_' + i] || 0);
+                if (cuotaBs > 0) { totalDepositadoBs += cuotaBs; totalDepositadoUSD += cuotaUSD; cuotasPagadas++; }
+            }
+
+            const deudaPendienteBs = parseFloat(cliente.monto_factura) - totalDepositadoBs;
+            const deudaPendienteUSD = montoFacturadoUSD - totalDepositadoUSD;
+            const proximaCuota = Math.min(montoCuotaUSD, deudaPendienteUSD);
+
+            return { montoFacturadoUSD, inicialBs, inicialUSD, deudaUSD, deudaBs, totalCuotas, montoCuotaUSD, totalDepositadoBs, totalDepositadoUSD, deudaPendienteBs, deudaPendienteUSD, cuotasPagadas, proximaCuota };
+        }
+
+        __toggleAllCuotas(masterCheckbox) {
+            const self = this;
+            const modal = document.getElementById(self.cfg.key + '-modal-v672');
+            if (!modal) return;
+            const checks = modal.querySelectorAll('input[name^="eliminar-cuota-"]');
+            checks.forEach(chk => { chk.checked = masterCheckbox.checked; });
+            self.__actualizarBarraEliminar();
+        }
+
+        __onCuotaCheckboxChange() {
+            this.__actualizarBarraEliminar();
+        }
+
+        __limpiarSeleccionCuotas() {
+            const self = this;
+            const modal = document.getElementById(self.cfg.key + '-modal-v672');
+            if (!modal) return;
+            const checks = modal.querySelectorAll('input[name^="eliminar-cuota-"]');
+            checks.forEach(chk => { chk.checked = false; });
+            const master = modal.querySelector('input[id^="chk-all-cuotas-"]');
+            if (master) master.checked = false;
+            self.__actualizarBarraEliminar();
+        }
+
+        formatearFechaInput(fechaStr) {
+            if (!fechaStr) return '';
+            const f = tmParseFecha(fechaStr);
+            if (!f) return '';
+            return String(f.dia).padStart(2, '0') + '-' + String(f.mes).padStart(2, '0') + '-' + f.anio;
+        }
+
+        _parseFechaInputToISO(fechaStr) {
+            if (!fechaStr) return '';
+            const m = fechaStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+            if (m) return m[3] + '-' + m[2] + '-' + m[1];
+            return fechaStr;
+        }
+
+        // Calcular discrepancias en tiempo real (si no vienen de la BD)
+        calcularDiscrepanciasFrontend(cliente) {
+            const montoCuotaUSD = parseFloat(cliente.monto_cuota_usd) || 0;
+            const totalCuotas = parseInt(cliente.cuotas) || 4;
+            const montoFacturadoDivisa = parseFloat(cliente.monto_facturado_divisa)
+                || (parseFloat(cliente.monto_factura) / parseFloat(cliente.tasa_bcv_factura || 1));
+            const inicialUSD = parseFloat(cliente.inicial_usd) || 0;
+            const deudaTotal = montoFacturadoDivisa - inicialUSD;
+
+            let cuotasPagadas = 0;
+            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                const cuotaBs = parseFloat(cliente['cuota_' + i]) || 0;
+                if (cuotaBs > 0) cuotasPagadas++;
+            }
+
+            const discrepancias = {};
+            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                const dolarRecibido = parseFloat(cliente['dolar_depositado_cuota_' + i]) || 0;
+                const cuotaBs = parseFloat(cliente['cuota_' + i]) || 0;
+                if (dolarRecibido > 0 || cuotaBs > 0) {
+                    const esUltimaPagada = i === cuotasPagadas && i === totalCuotas;
+                    let esperado = montoCuotaUSD;
+                    if (esUltimaPagada && montoCuotaUSD > 0) {
+                        const acumuladoAnterior = redondearDecimales(montoCuotaUSD * (totalCuotas - 1));
+                        esperado = redondearDecimales(deudaTotal - acumuladoAnterior);
+                    }
+                    const diferencia = redondearDecimales(esperado - dolarRecibido);
+                    if (Math.abs(diferencia) > 0.01) {
+                        discrepancias[i] = {
+                            esperado: redondearDecimales(esperado),
+                            recibido: dolarRecibido,
+                            diferencia: diferencia
+                        };
+                    }
+                }
+            }
+            return discrepancias;
+        }
+
+        renderizarPanelResumen(cliente, esNuevo) {
+            const resumen = this.calcularResumenMontos(cliente);
+            const montoFacturadoUSD = esNuevo ? resumen.montoFacturadoUSD.toFixed(2) + ' $' : '—';
+            const inicialBs = esNuevo ? resumen.inicialBs.toFixed(2) : '—';
+            const inicialUSD = esNuevo ? resumen.inicialUSD.toFixed(2) + ' $' : '—';
+            const deudaUSD = esNuevo ? resumen.deudaUSD.toFixed(2) + ' $' : '—';
+            const cuotasInfo = esNuevo ? resumen.totalCuotas + ' cuotas de ' + resumen.montoCuotaUSD.toFixed(2) + ' $' : '—';
+            const deudaPendienteUSD = esNuevo ? resumen.deudaPendienteUSD.toFixed(2) + ' $' : '—';
+            const proximaCuota = esNuevo && resumen.proximaCuota > 0 ? resumen.proximaCuota.toFixed(2) + ' $' : '0.00 $';
+
+            let alertaDiscrepancias = '';
+            // Usar discrepancias de BD si existen, si no calcular en tiempo real
+            let disc = cliente.discrepancias_cuotas;
+            if (!disc || Object.keys(disc).length === 0) {
+                disc = this.calcularDiscrepanciasFrontend(cliente);
+            }
+            if (disc && Object.keys(disc).length > 0) {
+                if (typeof disc === 'string') disc = JSON.parse(disc);
+                let discHtml = '<div style="background:#fff5f5;border:1px solid #feb2b2;border-radius:8px;padding:12px;margin-top:12px;color:#c53030;">';
+                discHtml += '<strong style="display:block;margin-bottom:8px;font-size:13px;">⚠️ Discrepancias Detectadas</strong>';
+                for (let num in disc) {
+                    if (disc.hasOwnProperty(num)) {
+                        const d = disc[num];
+                        const diff = parseFloat(d.diferencia) || 0;
+                        const esFaltante = diff > 0;
+                        const signo = esFaltante ? 'Faltan' : 'Sobran';
+                        const color = esFaltante ? '#c53030' : '#dd6b20';
+                        discHtml += '<div style="font-size:12px;margin-bottom:4px;padding:4px 0;border-bottom:1px dashed #feb2b2;">';
+                        discHtml += '<strong>Cuota ' + num + ':</strong> ';
+                        discHtml += 'Esperado <strong>' + (parseFloat(d.esperado) || 0).toFixed(2) + '$</strong> / ';
+                        discHtml += 'Recibido <strong>' + (parseFloat(d.recibido) || 0).toFixed(2) + '$</strong> ';
+                        discHtml += '<span style="color:' + color + ';font-weight:700">→ ' + signo + ' ' + Math.abs(diff).toFixed(2) + '$</span>';
+                        discHtml += '</div>';
+                    }
+                }
+                discHtml += '</div>';
+                alertaDiscrepancias = discHtml;
+            }
+
+            return '<div class="panel-resumen" style="background:#fff;border-radius:10px;padding:16px;border:1px solid #e2e8f0;">' +
+                '<h4 style="margin:0 0 14px 0;font-size:14px;color:#1a365d;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">Resumen de Montos</h4>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span style="color:#4a5568;font-weight:500;">Monto Factura (Bs)</span><span style="color:#1a365d;font-weight:700;font-family:monospace;font-size:14px;">' + (parseFloat(cliente.monto_factura) || 0).toFixed(2) + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Monto Facturado ($)</span><span style="color:#2c5282;font-weight:700;font-family:monospace;font-size:14px;">' + montoFacturadoUSD + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Inicial (Bs)</span><span style="color:#2c5282;font-weight:700;font-family:monospace;font-size:14px;">' + inicialBs + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Inicial ($)</span><span style="color:#2c5282;font-weight:700;font-family:monospace;font-size:14px;">' + inicialUSD + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Deuda ($)</span><span style="color:#2c5282;font-weight:700;font-family:monospace;font-size:14px;">' + deudaUSD + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Cuotas</span><span style="color:#2c5282;font-weight:700;font-size:14px;">' + cuotasInfo + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span style="color:#4a5568;font-weight:500;">Depositado (Bs)</span><span style="color:#38a169;font-weight:700;font-family:monospace;font-size:14px;">' + resumen.totalDepositadoBs.toFixed(2) + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span style="color:#4a5568;font-weight:500;">Deuda Pendiente (Bs)</span><span style="color:#e53e3e;font-weight:700;font-family:monospace;font-size:14px;">' + resumen.deudaPendienteBs.toFixed(2) + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Deuda Pendiente ($)</span><span style="color:#e53e3e;font-weight:700;font-family:monospace;font-size:14px;">' + deudaPendienteUSD + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Próxima Cuota</span><span style="color:#3182ce;font-weight:700;font-family:monospace;font-size:14px;">' + proximaCuota + '</span></div>' +
+                alertaDiscrepancias +
+                '</div>';
+        }
+
+        renderizarPanelCuotas(cliente, esNuevo, esAdmin) {
+            const resumen = this.calcularResumenMontos(cliente);
+            const discrepancias = cliente.discrepancias_cuotas ? (typeof cliente.discrepancias_cuotas === 'string' ? JSON.parse(cliente.discrepancias_cuotas) : cliente.discrepancias_cuotas) : {};
+            const montoCuotaUSD = resumen.montoCuotaUSD;
+            const totalCuotas = resumen.totalCuotas;
+
+            // Helper: determina si un campo de cuota tiene datos reales
+            // ignora "0", "0.00", "0.0000", "", null, undefined
+            const _tieneValorReal = (v) => {
+                if (v === null || v === undefined || v === '') return false;
+                const str = String(v).trim();
+                if (str === '' || str === '0' || str === '0.0' || str === '0.00' || str === '0.000' || str === '0.0000') return false;
+                const num = parseFloat(str.replace(',', '.'));
+                return !isNaN(num) && num > 0;
+            };
+
+            let html = '<div class="panel-cuotas">';
+            html += '<h4>Cuotas del Credito <span class="cuotas-registradas">' + resumen.cuotasPagadas + ' cuota(s) registrada(s)</span></h4>';
+            html += '<table class="tabla-cuotas-modal">';
+            html += '<thead><tr>' + (esAdmin ? '<th style="width:30px"><input type="checkbox" id="chk-all-cuotas-' + this.cfg.key + '" title="Seleccionar todas"></th>' : '') + '<th>#</th><th>Monto Bs.</th><th>Referencia</th><th>Fecha</th><th>Tasa BCV</th><th>Monto $</th><th>Estado</th></tr></thead><tbody>';
+
+            if (esNuevo) {
+                html += '<tr class="fila-inicial">';
+                html += (esAdmin ? '<td></td>' : '');
+                html += '<td><span class="badge-inicial">0</span></td>';
+                html += '<td><input type="number" value="' + (cliente.inicial_bs || '') + '" readonly step="0.01" class="solo-lectura"></td>';
+                html += '<td><input type="text" value="' + (cliente.ref_inicial || '') + '" readonly class="solo-lectura"></td>';
+                html += '<td><input type="text" value="' + this.formatearFechaInput(cliente.fecha_inicial) + '" disabled class="solo-lectura" placeholder="dd-mm-aaaa" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
+                html += '<td><input type="number" value="' + (cliente.tasa_inicial || '') + '" readonly step="0.0001" class="solo-lectura"></td>';
+                html += '<td><input type="number" value="' + (cliente.inicial_usd || '') + '" readonly step="0.01" class="calculado"></td>';
+                html += '<td><span style="color:#38a169;font-weight:700">✓</span></td>';
+                html += '</tr>';
+            }
+
+            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                const cuotaBs = cliente['cuota_' + i];
+                const refCuota = cliente['ref_cuota_' + i];
+                const fechaCuota = cliente['fecha_cuota_' + i];
+                const tasaCuota = cliente['tasa_cuota_' + i];
+                const dolarCuota = cliente['dolar_depositado_cuota_' + i];
+                
+                const tieneDatos = _tieneValorReal(cuotaBs) || _tieneValorReal(refCuota) || _tieneValorReal(fechaCuota) || _tieneValorReal(tasaCuota) || _tieneValorReal(dolarCuota);
+                if (!tieneDatos) continue;
+                const tieneValor = parseFloat(cuotaBs) > 0;
+                const readonlyAttr = esAdmin ? '' : 'readonly';
+                const disabledAttr = esAdmin ? '' : 'disabled';
+
+                let estadoHTML = '<span style="color:#718096;font-size:9px">Pendiente</span>';
+                if (tieneValor) {
+                    const recibido = parseFloat(dolarCuota) || 0;
+                    const esUltimaPagada = i === resumen.cuotasPagadas && i === totalCuotas;
+                    let esperado = montoCuotaUSD;
+                    if (esUltimaPagada && montoCuotaUSD > 0) {
+                        const acumulado = redondearDecimales(montoCuotaUSD * (totalCuotas - 1));
+                        const deudaTotal = resumen.montoFacturadoUSD - resumen.inicialUSD;
+                        esperado = redondearDecimales(deudaTotal - acumulado);
+                    }
+                    const diferencia = redondearDecimales(esperado - recibido);
+                    const diffAbs = Math.abs(diferencia);
+
+                    if (diffAbs > 0.01) {
+                        // HAY DISCREPANCIA → ROJO
+                        const esFaltante = diferencia > 0;
+                        const signo = esFaltante ? '-' : '+';
+                        const colorBadge = esFaltante ? '#c53030' : '#dd6b20'; // rojo si falta, naranja si sobra
+                        estadoHTML = '<div style="color:#c53030;font-size:11px;font-weight:600;background:#fff5f5;padding:4px 8px;border-radius:4px;border:1px solid #feb2b2;display:inline-block;">' +
+                            '<span style="color:#c53030;font-weight:700">⚠️ Discrepancia</span><br>' +
+                            'Esperado: <strong>' + esperado.toFixed(2) + '$</strong> / ' +
+                            'Recibido: <strong>' + recibido.toFixed(2) + '$</strong> ' +
+                            '<span style="color:' + colorBadge + ';font-weight:700">(' + signo + diffAbs.toFixed(2) + '$)</span>' +
+                            '</div>';
+                    } else if (recibido > 0) {
+                        // SIN DISCREPANCIA → VERDE
+                        estadoHTML = '<span style="color:#38a169;font-weight:700;font-size:14px">✓</span>' +
+                            '<span style="color:#718096;font-size:9px;margin-left:4px">Esp: ' + esperado.toFixed(2) + '$ / Rec: ' + recibido.toFixed(2) + '$</span>';
+                    } else {
+                        estadoHTML = '<span style="color:#ed8936;font-size:9px">Esp: ' + esperado.toFixed(2) + '$ (sin dólar registrado)</span>';
+                    }
+                }
+
+                html += '<tr class="' + (tieneValor ? 'cuota-pagada' : 'cuota-pendiente') + '">';
+                if (esAdmin) {
+                    html += '<td style="text-align:center"><input type="checkbox" name="eliminar-cuota-' + this.cfg.key + '" value="' + i + '" title="Seleccionar para eliminar"></td>';
+                }
+                html += '<td>' + i + '</td>';
+                html += '<td><input type="number" name="cuota_' + i + '" value="' + cuotaBs + '" ' + readonlyAttr + ' step="0.01" onchange="window.Tiendas.get(\'' + this.cfg.key + '\').__recalcularCuotaModal(this, ' + i + ')"></td>';
+                html += '<td><input type="text" name="ref_cuota_' + i + '" value="' + refCuota + '" ' + readonlyAttr + '></td>';
+                html += '<td><input type="text" name="fecha_cuota_' + i + '" value="' + this.formatearFechaInput(fechaCuota) + '" ' + disabledAttr + ' class="solo-lectura" placeholder="dd-mm-aaaa" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
+                html += '<td><input type="number" name="tasa_cuota_' + i + '" value="' + tasaCuota + '" ' + readonlyAttr + ' step="0.0001" onchange="window.Tiendas.get(\'' + this.cfg.key + '\').__recalcularCuotaModal(this, ' + i + ')"></td>';
+                html += '<td><input type="number" name="dolar_cuota_' + i + '" value="' + dolarCuota + '" readonly step="0.01" class="calculado"></td>';
+                html += '<td>' + estadoHTML + '</td>';
+                html += '</tr>';
+            }
+
+            html += '</tbody></table>';
+            if (esAdmin) {
+                html += '<div class="barra-eliminar-cuotas" style="display:none;align-items:center;gap:12px;margin:10px 0;padding:10px 14px;background:#fff5f5;border:1px solid #feb2b2;border-radius:8px;">';
+                html += '<span style="color:#c53030;font-size:12px;font-weight:600;">⚠️ <span class="conteo-eliminar">0</span> seleccionada(s)</span>';
+                html += '<button type="button" onclick="window.Tiendas.get(\'' + this.cfg.key + '\').confirmarEliminarCuotas()" style="margin-left:auto;background:#e53e3e;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">🗑 Borrar Seleccionadas</button>';
+                html += '<button type="button" onclick="window.Tiendas.get(\'' + this.cfg.key + '\').__limpiarSeleccionCuotas()" style="background:#e2e8f0;color:#4a5568;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;">Cancelar</button>';
+                html += '</div>';
+            }
+            html += '<div class="totales-cuotas-modal"><span class="total-bs">' + resumen.totalDepositadoBs.toFixed(2) + ' Bs</span><span class="total-label">Total Depositado en Cuotas</span><span class="total-usd">' + resumen.totalDepositadoUSD.toFixed(2) + ' $</span></div>';
+            html += '</div>';
+            return html;
+        }
+
+        __recalcularCuotaModal(input, numCuota) {
+            const fila = input.closest('tr');
+            if (!fila) return;
+            const montoBs = parseFloat(fila.querySelector('[name="cuota_' + numCuota + '"]').value) || 0;
+            const tasa = parseFloat(fila.querySelector('[name="tasa_cuota_' + numCuota + '"]').value) || 0;
+            const dolarInput = fila.querySelector('[name="dolar_cuota_' + numCuota + '"]');
+            if (montoBs > 0 && tasa > 0) {
+                const usd = redondearDecimales(montoBs / tasa);
+                if (dolarInput) dolarInput.value = usd.toFixed(2);
+            } else {
+                if (dolarInput) dolarInput.value = '';
+            }
+            this.__actualizarTotalesModal();
+        }
+
+        __actualizarTotalesModal() {
+            const modal = document.getElementById(this.cfg.key + '-modal-v672');
+            if (!modal) return;
+            let totalBs = 0, totalUSD = 0;
+            const inputInicialBs = modal.querySelector('[name="inicial_bs"]');
+            const inputInicialUSD = modal.querySelector('[name="inicial_usd"]');
+            if (inputInicialBs) totalBs += parseFloat(inputInicialBs.value) || 0;
+            if (inputInicialUSD) totalUSD += parseFloat(inputInicialUSD.value) || 0;
+            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                const cuotaBs = modal.querySelector('[name="cuota_' + i + '"]');
+                const cuotaUSD = modal.querySelector('[name="dolar_cuota_' + i + '"]');
+                if (cuotaBs) totalBs += parseFloat(cuotaBs.value) || 0;
+                if (cuotaUSD) totalUSD += parseFloat(cuotaUSD.value) || 0;
+            }
+            const totalBsEl = modal.querySelector('.total-bs');
+            const totalUsdEl = modal.querySelector('.total-usd');
+            if (totalBsEl) totalBsEl.textContent = totalBs.toFixed(2) + ' Bs';
+            if (totalUsdEl) totalUsdEl.textContent = totalUSD.toFixed(2) + ' $';
+        }
+
+        __mostrarSpinner(mensaje) {
+            mensaje = mensaje || 'Cargando...';
+            let overlay = document.getElementById('spinner-overlay-v672');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'spinner-overlay-v672';
+                overlay.className = 'spinner-overlay hidden';
+                overlay.innerHTML = '<div class="spinner-circle"></div><span id="spinner-text-v672"></span>';
+                document.body.appendChild(overlay);
+            }
+            const txt = document.getElementById('spinner-text-v672');
+            if (txt) txt.textContent = mensaje;
+            overlay.classList.remove('hidden');
+        }
+
+        __ocultarSpinner() {
+            const overlay = document.getElementById('spinner-overlay-v672');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        __marcarDirty() {
+            const self = this;
+            self._modalDirty = true;
+            const btnGuardar = document.getElementById(self.cfg.key + '-btn-guardar-modal');
+            if (btnGuardar) {
+                btnGuardar.disabled = false;
+                btnGuardar.style.opacity = '1';
+                btnGuardar.style.cursor = 'pointer';
+            }
+        }
+
+        __actualizarBarraEliminar() {
+            const self = this;
+            const modal = document.getElementById(self.cfg.key + '-modal-v672');
+            if (!modal) return;
+            const checks = modal.querySelectorAll('input[name^="eliminar-cuota-"]');
+            const seleccionados = Array.from(checks).filter(chk => chk.checked).length;
+            const barra = modal.querySelector('.barra-eliminar-cuotas');
+            const conteo = modal.querySelector('.conteo-eliminar');
+            if (barra) {
+                barra.style.display = seleccionados > 0 ? 'flex' : 'none';
+                if (conteo) conteo.textContent = seleccionados;
+            }
         }
 
         limpiarFormularioNuevaConciliacion() {
@@ -2655,6 +3322,20 @@
         // para Caracas y Maracaibo; Maracay no existía)
         // ====================================================
         initReportes() {
+            // v6.7.3-fix: Limpiar datos de reportes anteriores al cambiar de tienda
+            this.repDatos = [];
+            this.repResumen = {};
+            this.repPagina = 1;
+
+            const b = (n) => this.el(this.busqId(n));
+            const resumen = b('resumen'), tabla = b('tabla-container'),
+                  graficos = b('graficos'), exportar = b('exportar'), paginacion = b('paginacion');
+            if (resumen) resumen.style.display = 'none';
+            if (tabla) tabla.style.display = 'none';
+            if (graficos) graficos.style.display = 'none';
+            if (exportar) exportar.style.display = 'none';
+            if (paginacion) paginacion.innerHTML = '';
+
             // Fechas por defecto: primer día del mes -> hoy
             const hoy = new Date();
             const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -2668,8 +3349,17 @@
             const deuda = parseFloat(row.deuda) || 0;
             const depositado = parseFloat(row.monto_depositados) || 0;
             const total = parseFloat(row.monto_factura) || 0;
-            const fecha = new Date(row.fecha_factura);
-            const dias = (new Date() - fecha) / (1000 * 60 * 60 * 24);
+
+            // v6.7.3-fix: Usar tmParseFecha() para soportar dd-mm-aaaa, yyyy-mm-dd, etc.
+            const f = tmParseFecha(row.fecha_factura);
+            let dias = 0;
+            if (f) {
+                const fechaObj = new Date(f.anio, f.mes - 1, f.dia);
+                dias = (new Date() - fechaObj) / (1000 * 60 * 60 * 24);
+            } else {
+                // Fecha inválida: forzar mora para no perder registros
+                dias = 99999;
+            }
 
             if (deuda <= 0 || depositado >= total) {
                 return { texto: 'Pagado', style: 'background:#d1fae5;color:#059669;' };
@@ -2694,13 +3384,10 @@
                     nombre_cliente: b('nombre')?.value || null
                 };
 
-                const token = localStorage.getItem('token');
-                const response = await fetch(this.cfg.reportesApi, {
+                // v6.7.3-fix: Usar this._apiFetch() para consistencia (ya adjunta token)
+                const response = await this._apiFetch(this.cfg.reportesApi, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(filtros)
                 });
 
@@ -3029,6 +3716,13 @@
             }
 
             const generarPDF = async () => {
+                // v6.7.3-fix: Verificar que autoTable esté disponible
+                if (typeof doc.autoTable !== 'function') {
+                    notificar('Error: El plugin autoTable de jsPDF no está cargado. Recargue la página o contacte al administrador.', 'error');
+                    console.error('jsPDF autoTable no está disponible. Asegúrese de cargar jspdf-autotable.');
+                    return;
+                }
+
                 let logoBase64 = null;
                 try {
                     logoBase64 = await cargarLogoComoBase64('assets/logo.png');
@@ -3210,10 +3904,16 @@
         //  por tipo de evento en el contenedor del módulo)
         // ====================================================
         attachEvents(container) {
+            // v6.7.3-fix: Logging para diagnosticar clics
+            console.log(`[Tiendas] attachEvents montado en tienda ${this.cfg.key}, container #${this.cfg.contentId}`);
+
             // --- CLICK ---
             container.addEventListener('click', (ev) => {
                 const target = ev.target.closest('[data-action]');
-                if (!target) return;
+                if (!target) {
+                    // Si no hay data-action, verificar si el clic fue en una tarjeta con onclick
+                    return;
+                }
 
                 const action = target.dataset.action;
                 const id = target.dataset.id ? parseInt(target.dataset.id) : null;
@@ -3223,6 +3923,14 @@
                     case 'show-base-datos': this.showView('baseDatos'); break;
                     case 'show-conciliaciones': this.showView('conciliaciones'); break;
                     case 'show-reportes': this.showView('reportes'); break;
+                    case 'ver-morosos':
+                        this._filtroPendiente = 'morosos';
+                        this.showView('baseDatos');
+                        break;
+                    case 'ver-sin-cuota-mes':
+                        this._filtroPendiente = 'sin-cuota-mes';
+                        this.showView('baseDatos');
+                        break;
                     case 'qa-nuevo-cliente': // v6.5 — acceso rápido del menú
                         this.showView('conciliaciones');
                         this.mostrarFormularioNuevoRegistro();
@@ -3349,6 +4057,7 @@
     // EXPOSICIONES GLOBALES
     // ========================================================
     window.Tiendas = Tiendas;
+window.TiendaApp = TiendaApp;
 
     // Utilidades que panel.js usa y antes venían de tienda-caracas-spa.js.
     // Se definen SOLO si no existen (respetar implementaciones previas).

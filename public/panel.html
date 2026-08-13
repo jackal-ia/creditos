@@ -5,10 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel - Sistema de Creditos</title>
 <link rel="stylesheet" href="css/panel.css">
+<link rel="stylesheet" href="css/tienda-conciliaciones-v672.css">
 <!-- ApexCharts CDN -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
 <style>
-/* ====== ESTILOS MOVIL ====== */
+/* ====== ESTILOS RESPONSIVE UNIFICADOS ====== */
+.mobile-menu-btn {
+    display: none;
+}
+.mobile-overlay {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .sidebar {
         position: fixed !important;
@@ -18,34 +26,52 @@
         z-index: 1000;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
-        width: 250px !important;
+        width: 260px !important;
     }
-
     .sidebar.open {
         transform: translateX(0);
     }
-
+    .sidebar .brand-text, .sidebar .nav-title, .sidebar .nav-item span,
+    .sidebar .user-details, .sidebar .btn-logout span {
+        display: block !important;
+    }
+    .sidebar .nav-item {
+        justify-content: flex-start !important;
+        padding: 12px 24px !important;
+    }
     .main-content {
         margin-left: 0 !important;
         width: 100% !important;
     }
-
-    .sidebar-toggle {
+    .top-header {
+        padding: 12px 15px 12px 60px !important;
+    }
+    .header-left h2 {
+        font-size: 16px !important;
+    }
+    .mobile-menu-btn {
         display: flex !important;
         position: fixed;
-        top: 15px;
-        left: 15px;
+        top: 10px;
+        left: 10px;
         z-index: 1001;
-        background: rgba(26, 54, 93, 0.9);
+        background: rgba(26, 54, 93, 0.95);
         border: none;
         border-radius: 8px;
         padding: 10px;
         color: white;
         cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        width: 40px;
+        height: 40px;
     }
-
-    /* Overlay cuando sidebar está abierto */
-    .sidebar-overlay {
+    .mobile-menu-btn svg {
+        width: 22px;
+        height: 22px;
+    }
+    .mobile-overlay {
         display: none;
         position: fixed;
         top: 0;
@@ -55,49 +81,82 @@
         background: rgba(0, 0, 0, 0.5);
         z-index: 999;
     }
-
-    .sidebar-overlay.active {
+    .mobile-overlay.active {
         display: block;
     }
-
-    /* Ajustar cards en móvil */
     .card {
         margin-bottom: 15px;
     }
-
-    .dashboard-cards {
+    .dashboard-grid {
         grid-template-columns: 1fr !important;
     }
-
-    /* Tablas responsive */
     .table-responsive {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        width: 100%;
     }
-
-    /* Formularios en móvil */
     .form-row {
         flex-direction: column !important;
     }
-
     .form-row .form-group {
         width: 100% !important;
         margin-right: 0 !important;
     }
+    .content-area {
+        padding: 15px !important;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .clock-time {
+        font-size: 18px !important;
+    }
+    .reloj-big {
+        font-size: 32px !important;
+    }
 }
 
-/* Ocultar toggle en desktop */
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .top-header {
+        flex-direction: column;
+        gap: 8px;
+        padding-left: 60px !important;
+    }
+    .header-left h2 {
+        font-size: 14px !important;
+    }
+    .clock-widget {
+        text-align: left;
+    }
+    .clock-time {
+        font-size: 16px !important;
+    }
+}
+
 @media (min-width: 769px) {
-    .sidebar-toggle {
+    .mobile-menu-btn {
         display: none !important;
     }
-    .sidebar-overlay {
+    .mobile-overlay {
         display: none !important;
     }
 }
 </style>
 </head>
 <body>
+<!-- Botón menú móvil -->
+<button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Abrir menú" onclick="toggleMobileSidebar()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+</button>
+<!-- Overlay móvil -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
 <div class="app-container">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -481,7 +540,7 @@
                     <h3>Historial de Tasas</h3>
                     <p>Ultimas 30 tasas publicadas por el BCV</p>
                 </div>
-                <div class="table-container">
+                <div class="table-container table-responsive">
                     <table class="data-table" id="tablaHistorial">
                         <thead><tr><th>Fecha</th><th>USD/VES</th><th>EUR/VES</th><th>Variacion USD</th></tr></thead>
                         <tbody></tbody>
@@ -1086,6 +1145,39 @@
     </div>
 </div>
 
+<script>
+// ====== CONTROL SIDEBAR MÓVIL ======
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobileOverlay');
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    }
+}
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobileOverlay');
+    if (sidebar && overlay) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    }
+}
+// Cerrar sidebar al hacer click en un nav-item en móvil
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function() {
+        if (window.innerWidth <= 768) {
+            closeMobileSidebar();
+        }
+    });
+});
+// Cerrar sidebar al redimensionar a desktop
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        closeMobileSidebar();
+    }
+});
+</script>
 </body>
 </html>
                 

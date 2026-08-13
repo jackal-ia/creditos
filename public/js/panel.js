@@ -233,7 +233,7 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
     const contentIdMap = { 'creditos': 'contentMaracay' };
     const contentId = contentIdMap[seccion] || ('content' + seccion.charAt(0).toUpperCase() + seccion.slice(1));
     const content = document.getElementById(contentId);
-    if (content) content.classList.remove('hidden');
+    if (content) { content.classList.remove('hidden'); content.style.removeProperty('display'); }
 
     // v6.5.1 — al cambiar de sección, volver al inicio del contenido
     // (scroll-margin-top en CSS compensa el header fijo)
@@ -339,17 +339,58 @@ async function cargarTasaActual() {
         const data = await response.json();
 
         if (data.exito && data.tasa) {
-            const tasa = data.tasa;
-            document.getElementById('tasaActual').textContent = tasa.current.usd.toFixed(4) + ' Bs';
-            document.getElementById('tasaFecha').textContent = 'Fecha: ' + tasa.current.date;
-            document.getElementById('tasaAnterior').textContent = tasa.previous.usd.toFixed(4) + ' Bs';
+            // ── Compatibilidad: formato NUEVO (bcv.js v6.7.2) y ANTIGUO ──
+            let usd = null, fecha = null, eur = null;
+            let previousUsd = null, changePct = null;
 
-            const variacion = tasa.changePercentage.usd;
+            // Formato NUEVO: data.tasa = { usd, date }
+            if (data.tasa.usd !== undefined) {
+                usd = parseFloat(data.tasa.usd);
+                fecha = data.tasa.date || data.fecha;
+                eur = data.tasa.eur !== undefined ? parseFloat(data.tasa.eur) : null;
+            }
+            // Formato ANTIGUO: data.tasa.current.usd
+            else if (data.tasa.current && data.tasa.current.usd !== undefined) {
+                usd = parseFloat(data.tasa.current.usd);
+                fecha = data.tasa.current.date;
+                eur = data.tasa.current.eur !== undefined ? parseFloat(data.tasa.current.eur) : null;
+                previousUsd = data.tasa.previous ? parseFloat(data.tasa.previous.usd) : null;
+                changePct = data.tasa.changePercentage ? parseFloat(data.tasa.changePercentage.usd) : null;
+            }
+
+            if (usd === null || isNaN(usd)) {
+                document.getElementById('tasaActual').textContent = 'Error';
+                return;
+            }
+
+            document.getElementById('tasaActual').textContent = usd.toFixed(4) + ' Bs';
+            document.getElementById('tasaFecha').textContent = 'Fecha: ' + (fecha || '---');
+
+            // Anterior / variación (solo si existen en formato antiguo o vienen explícitas)
+            const tasaAnteriorEl = document.getElementById('tasaAnterior');
             const variacionEl = document.getElementById('tasaVariacion');
-            variacionEl.textContent = (variacion >= 0 ? '+' : '') + variacion.toFixed(2) + '%';
-            variacionEl.style.color = variacion >= 0 ? '#48bb78' : '#e53e3e';
 
-            document.getElementById('tasaEUR').textContent = tasa.current.eur.toFixed(4) + ' Bs';
+            if (previousUsd !== null && !isNaN(previousUsd)) {
+                tasaAnteriorEl.textContent = previousUsd.toFixed(4) + ' Bs';
+            } else {
+                tasaAnteriorEl.textContent = '—';
+            }
+
+            if (changePct !== null && !isNaN(changePct)) {
+                variacionEl.textContent = (changePct >= 0 ? '+' : '') + changePct.toFixed(2) + '%';
+                variacionEl.style.color = changePct >= 0 ? '#48bb78' : '#e53e3e';
+            } else {
+                variacionEl.textContent = '—';
+                variacionEl.style.color = '#718096';
+            }
+
+            // EUR
+            const tasaEurEl = document.getElementById('tasaEUR');
+            if (eur !== null && !isNaN(eur)) {
+                tasaEurEl.textContent = eur.toFixed(4) + ' Bs';
+            } else {
+                tasaEurEl.textContent = '—';
+            }
         }
     } catch (err) {
         console.error('Error cargando tasa:', err);
@@ -378,7 +419,16 @@ async function buscarTasaModal() {
         const data = await response.json();
         const resultado = document.getElementById('modalResultado');
         if (data.exito) {
-            resultado.innerHTML = '<div style="text-align:center;padding:16px;"><div style="font-size:24px;font-weight:700;color:#48bb78;margin-bottom:8px;">' + data.tasa.usd.toFixed(4) + ' Bs/USD</div><div style="font-size:18px;color:#667eea;margin-bottom:8px;">' + data.tasa.eur.toFixed(4) + ' Bs/EUR</div><div style="font-size:13px;color:#718096;">Fecha: ' + data.tasa.date + '</div></div>';
+            const usd = data.tasa && data.tasa.usd !== undefined ? parseFloat(data.tasa.usd) : null;
+            const eur = data.tasa && data.tasa.eur !== undefined ? parseFloat(data.tasa.eur) : null;
+            const fechaTasa = data.tasa && data.tasa.date ? data.tasa.date : (data.fecha || fecha);
+            let html = '<div style="text-align:center;padding:16px;">';
+            html += '<div style="font-size:24px;font-weight:700;color:#48bb78;margin-bottom:8px;">' + (usd !== null ? usd.toFixed(4) : '—') + ' Bs/USD</div>';
+            if (eur !== null) {
+                html += '<div style="font-size:18px;color:#667eea;margin-bottom:8px;">' + eur.toFixed(4) + ' Bs/EUR</div>';
+            }
+            html += '<div style="font-size:13px;color:#718096;">Fecha: ' + fechaTasa + '</div></div>';
+            resultado.innerHTML = html;
         } else {
             resultado.innerHTML = '<div style="text-align:center;color:#e53e3e;padding:16px;">' + (data.error || 'No se encontro tasa para esa fecha') + '</div>';
         }
@@ -400,11 +450,12 @@ async function cargarHistorial() {
             tbody.innerHTML = data.historial.slice(0, 30).map((item, index, arr) => {
                 const prev = arr[index + 1];
                 let variacion = '-';
-                if (prev) {
+                if (prev && prev.usd) {
                     const diff = ((item.usd - prev.usd) / prev.usd * 100).toFixed(2);
                     variacion = (diff >= 0 ? '+' : '') + diff + '%';
                 }
-                return '<tr><td>' + item.date + '</td><td style="font-weight:600;">' + item.usd.toFixed(4) + '</td><td>' + item.eur.toFixed(4) + '</td><td style="color:' + (variacion.includes('+') ? '#48bb78' : '#e53e3e') + '">' + variacion + '</td></tr>';
+                const eurStr = item.eur !== undefined ? parseFloat(item.eur).toFixed(4) : '—';
+                return '<tr><td>' + item.date + '</td><td style="font-weight:600;">' + parseFloat(item.usd).toFixed(4) + '</td><td>' + eurStr + '</td><td style="color:' + (variacion.includes('+') ? '#48bb78' : '#e53e3e') + '">' + variacion + '</td></tr>';
             }).join('');
         }
     } catch (err) {
@@ -426,9 +477,12 @@ async function buscarTasaPorFecha(fecha) {
         const data = await response.json();
         const resultado = document.getElementById('resultadoTasa');
         if (data.exito) {
-            document.getElementById('resultadoFecha').textContent = data.tasa.date;
-            document.getElementById('resultadoUSD').textContent = data.tasa.usd.toFixed(4) + ' Bs';
-            document.getElementById('resultadoEUR').textContent = data.tasa.eur.toFixed(4) + ' Bs';
+            const usd = data.tasa && data.tasa.usd !== undefined ? parseFloat(data.tasa.usd) : null;
+            const eur = data.tasa && data.tasa.eur !== undefined ? parseFloat(data.tasa.eur) : null;
+            const fechaTasa = data.tasa && data.tasa.date ? data.tasa.date : (data.fecha || fecha);
+            document.getElementById('resultadoFecha').textContent = fechaTasa;
+            document.getElementById('resultadoUSD').textContent = (usd !== null ? usd.toFixed(4) : '—') + ' Bs';
+            document.getElementById('resultadoEUR').textContent = (eur !== null ? eur.toFixed(4) : '—') + ' Bs';
             resultado.style.display = 'block';
         } else {
             alert(data.error || 'No se encontro tasa para esa fecha');
@@ -451,13 +505,16 @@ async function cargarEstadisticasUsuarios() {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await response.json();
-        if (data.exito) {
-            document.getElementById('statTotal').textContent = data.estadisticas.total;
-            document.getElementById('statActivos').textContent = data.estadisticas.activos;
-            document.getElementById('statInactivos').textContent = data.estadisticas.inactivos;
-            document.getElementById('statAdmins').textContent = data.estadisticas.administradores;
-            if (data.estadisticas.operadores_sin_ip > 0) {
-                mostrarAlerta(data.estadisticas.operadores_sin_ip + ' operador(es) sin IP asignada.', 'warning');
+        // FIX: la API devuelve campos directos, no {exito, estadisticas}
+        const stats = data.estadisticas || data;
+        if (stats && typeof stats.total !== 'undefined') {
+            document.getElementById('statTotal').textContent = stats.total;
+            document.getElementById('statActivos').textContent = stats.activos;
+            document.getElementById('statInactivos').textContent = stats.inactivos;
+            document.getElementById('statAdmins').textContent = stats.administradores || stats.admins || 0;
+            const operadoresSinIp = stats.operadores_sin_ip || stats.sin_ip || 0;
+            if (operadoresSinIp > 0) {
+                mostrarAlerta(operadoresSinIp + ' operador(es) sin IP asignada.', 'warning');
             }
         }
     } catch (err) {
@@ -476,7 +533,11 @@ async function cargarUsuarios() {
         if (estado !== '') url += 'activo=' + encodeURIComponent(estado) + '&';
         const response = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
         const data = await response.json();
-        if (data.exito) {
+        // FIX: la API devuelve array directo, no {exito, usuarios}
+        if (Array.isArray(data)) {
+            usuariosData = data;
+            renderizarUsuarios();
+        } else if (data.exito && Array.isArray(data.usuarios)) {
             usuariosData = data.usuarios;
             renderizarUsuarios();
         } else {
@@ -516,7 +577,7 @@ function renderizarUsuarios() {
             '<td data-label="Email">' + u.email + '</td>' +
             '<td data-label="Rol"><span class="badge ' + badgeRol + '">' + u.rol + '</span></td>' +
             '<td data-label="Estado"><span class="badge ' + badgeEstado + '">' + estadoTexto + '</span></td>' +
-            '<td data-label="Creado">' + u.fecha_creacion + '</td>' +
+            '<td data-label="Creado">' + (u.created_at ? new Date(u.created_at).toLocaleDateString('es-VE') : '-') + '</td>' +
             '<td data-label="Acciones">' +
                 '<button class="btn-icon btn-edit" onclick="editarUsuario(' + u.id + ')" title="Editar">&#9998;</button>' +
                 '<button class="btn-icon btn-audit" onclick="verAuditoria(' + u.id + ')" title="Auditoria">&#128196;</button>' +
@@ -596,17 +657,19 @@ async function editarUsuario(id) {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await response.json();
-        if (data.exito) {
+        // FIX: manejar respuesta directa o envuelta
+        const usuario = data.usuario || data;
+        if (usuario && usuario.id) {
             usuarioEditando = id;
             document.getElementById('modalUsuarioTitulo').textContent = 'Editar Usuario';
-            document.getElementById('usuarioId').value = data.usuario.id;
-            document.getElementById('usuarioNombre').value = data.usuario.nombre;
-            document.getElementById('usuarioEmail').value = data.usuario.email;
-            document.getElementById('usuarioRol').value = data.usuario.rol;
-            document.getElementById('usuarioActivo').value = data.usuario.activo ? 'true' : 'false';
-            document.getElementById('usuarioIp').value = data.usuario.ip_asignada || '';
-            document.getElementById('usuarioTienda').value = data.usuario.tienda || '';
-            const rol = data.usuario.rol;
+            document.getElementById('usuarioId').value = usuario.id;
+            document.getElementById('usuarioNombre').value = usuario.nombre;
+            document.getElementById('usuarioEmail').value = usuario.email;
+            document.getElementById('usuarioRol').value = usuario.rol;
+            document.getElementById('usuarioActivo').value = usuario.activo ? 'true' : 'false';
+            document.getElementById('usuarioIp').value = usuario.ip_asignada || '';
+            document.getElementById('usuarioTienda').value = usuario.tienda || '';
+            const rol = usuario.rol;
             const ipInput = document.getElementById('usuarioIp');
             const ipLabel = document.getElementById('ipLabel');
             const ipHelp = document.getElementById('ipHelp');
@@ -688,8 +751,9 @@ async function guardarUsuario(event) {
             body: JSON.stringify(datos)
         });
         const data = await response.json();
-        if (data.exito) {
-            mostrarAlerta(data.mensaje, 'success');
+        // FIX: manejar respuesta directa o envuelta
+        if (response.ok || data.exito || data.id || data.message) {
+            mostrarAlerta(data.message || data.mensaje || (id ? 'Usuario actualizado' : 'Usuario creado'), 'success');
             cerrarModalUsuario();
             setTimeout(() => { cargarUsuarios(); cargarEstadisticasUsuarios(); }, 500);
         } else {
@@ -741,8 +805,9 @@ async function ejecutarAccionPendiente() {
         }
         const response = await fetch(url, { method: method, headers: { 'Authorization': 'Bearer ' + token } });
         const data = await response.json();
-        if (data.exito) {
-            mostrarAlerta(data.mensaje, 'success');
+        // FIX: manejar respuesta directa o envuelta
+        if (response.ok || data.exito || data.message || data.id) {
+            mostrarAlerta(data.message || data.mensaje || 'Operación exitosa', 'success');
             cerrarModalConfirmar();
             cargarUsuarios();
             cargarEstadisticasUsuarios();
@@ -761,13 +826,17 @@ async function verAuditoria(usuarioId) {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await response.json();
-        if (data.exito) {
+        // FIX: manejar respuesta directa o envuelta
+        const auditoria = data.auditoria || (Array.isArray(data) ? data : []);
+        const total = data.total || auditoria.length;
+        if (auditoria || Array.isArray(data)) {
             const tbody = document.querySelector('#tablaAuditoria tbody');
-            if (data.auditoria.length === 0) {
+            const lista = Array.isArray(data) ? data : auditoria;
+            if (lista.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">Sin registros de auditoria</td></tr>';
             } else {
-                tbody.innerHTML = data.auditoria.map(a => {
-                    return '<tr><td>' + new Date(a.created_at).toLocaleString('es-VE') + '</td><td>' + a.accion + '</td><td>' + (a.usuario_accion_nombre || 'Sistema') + '</td><td style="font-size:12px;color:#718096;">' + (a.datos_nuevos ? JSON.stringify(a.datos_nuevos).substring(0, 100) + '...' : '-') + '</td></tr>';
+                tbody.innerHTML = lista.map(a => {
+                    return '<tr><td>' + new Date(a.created_at).toLocaleString('es-VE') + '</td><td>' + a.accion + '</td><td>' + (a.usuario_nombre || 'Sistema') + '</td><td style="font-size:12px;color:#718096;">' + (a.datos_nuevos ? JSON.stringify(a.datos_nuevos).substring(0, 100) + '...' : '-') + '</td></tr>';
                 }).join('');
             }
             document.getElementById('modalAuditoria').classList.add('active');
@@ -777,7 +846,7 @@ async function verAuditoria(usuarioId) {
         mostrarAlerta('Error al cargar auditoria', 'error');
     }
 }
-
+        
 function cerrarModalAuditoria() {
     document.getElementById('modalAuditoria').classList.remove('active');
 }
@@ -791,8 +860,9 @@ async function cargarPerfil() {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await response.json();
-        if (data.exito) {
-            const p = data.perfil;
+        // FIX: manejar respuesta directa o envuelta
+        const p = data.perfil || data;
+        if (p && p.id) {
             document.getElementById('perfilInicial').textContent = p.nombre.charAt(0).toUpperCase();
             document.getElementById('perfilNombre').textContent = p.nombre;
             document.getElementById('perfilRol').textContent = p.rol.charAt(0).toUpperCase() + p.rol.slice(1);

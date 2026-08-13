@@ -1,0 +1,195 @@
+/* ============================================================
+   ESTILOS CONCILIACIONES v6.7.2-rev9
+   Agregar al final de panel.css o cargar como archivo separado
+   ============================================================ */
+
+/* ---------- Spinner de carga ---------- */
+.spinner-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(26,58,92,0.7); z-index: 9999;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  color: white; font-size: 14px; gap: 15px;
+}
+.spinner-overlay.hidden { display: none !important; }
+.spinner-circle {
+  width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Formulario Nuevo Registro (3 bloques) ---------- */
+.nuevo-registro-form { display: flex; flex-direction: column; gap: 20px; }
+.form-bloque {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.form-bloque h4 {
+  margin: 0 0 14px 0; font-size: 12px; font-weight: 700;
+  color: #1a3a5c; text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 2px solid #3182ce; padding-bottom: 6px;
+}
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+@media (max-width: 768px) {
+  .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
+}
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label {
+  font-size: 10px; font-weight: 600; color: #4a5568;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.form-group input, .form-group select {
+  padding: 8px 10px; border: 1px solid #cbd5e0; border-radius: 6px;
+  font-size: 12px; background: #fff; transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49,130,206,0.1);
+}
+.form-group input[readonly], .form-group input.calculado {
+  background: #f7fafc; color: #2d3748; font-weight: 600;
+}
+.form-group input.error { border-color: #e53e3e !important; }
+.form-error {
+  font-size: 10px; color: #e53e3e; margin-top: 2px; min-height: 14px;
+}
+
+/* ---------- Modal Editar Cliente v6.7.2 ---------- */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000; }
+.modal-container {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #fff; border-radius: 12px; width: 96%; max-width: 1100px;
+  max-height: 92vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25); z-index: 1001;
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px; border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #1a3a5c, #2c5282); color: #fff;
+  border-radius: 12px 12px 0 0;
+}
+.modal-header h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.modal-header .tienda-badge {
+  background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px;
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-left: 10px;
+}
+.modal-close-btn {
+  background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; transition: background 0.15s;
+}
+.modal-close-btn:hover { background: rgba(255,255,255,0.15); }
+
+.modal-body { display: flex; gap: 0; overflow: hidden; flex: 1; min-height: 0; }
+@media (max-width: 900px) {
+  .modal-body { flex-direction: column; overflow-y: auto; }
+}
+
+/* Panel izquierdo: Resumen */
+.panel-resumen {
+  width: 280px; min-width: 260px; background: #f8fafc;
+  border-right: 1px solid #e2e8f0; padding: 16px;
+  overflow-y: auto;
+}
+@media (max-width: 900px) {
+  .panel-resumen { width: 100%; border-right: none; border-bottom: 1px solid #e2e8f0; }
+}
+.panel-resumen h4 {
+  margin: 0 0 12px 0; font-size: 11px; font-weight: 700;
+  color: #1a3a5c; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.resumen-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid #edf2f7; font-size: 11px;
+}
+.resumen-item .label { color: #718096; font-weight: 500; }
+.resumen-item .valor { font-weight: 700; color: #2d3748; font-family: 'Consolas', monospace; }
+.resumen-item .valor.success { color: #38a169; }
+.resumen-item .valor.danger { color: #e53e3e; }
+.resumen-item .valor.accent { color: #3182ce; }
+.resumen-item.nuevo-campo { background: #ebf8ff; margin: 0 -16px; padding: 7px 16px; }
+.resumen-item.nuevo-campo .label { color: #2c5282; font-weight: 600; }
+
+/* Panel derecho: Cuotas */
+.panel-cuotas {
+  flex: 1; padding: 16px; overflow-y: auto; min-width: 0;
+}
+.panel-cuotas h4 {
+  margin: 0 0 10px 0; font-size: 11px; font-weight: 700;
+  color: #1a3a5c; text-transform: uppercase; letter-spacing: 0.5px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.cuotas-registradas { font-size: 10px; color: #718096; font-weight: 500; }
+
+/* Tabla de cuotas en modal */
+.tabla-cuotas-modal {
+  width: 100%; border-collapse: collapse; font-size: 10px;
+}
+.tabla-cuotas-modal th {
+  background: #1a3a5c; color: #fff; padding: 6px 4px;
+  font-weight: 600; text-align: left; position: sticky; top: 0;
+}
+.tabla-cuotas-modal td { padding: 4px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+.tabla-cuotas-modal tr:nth-child(even) { background: #f8fafc; }
+.tabla-cuotas-modal tr.fila-inicial { background: #f0fff4 !important; }
+.tabla-cuotas-modal tr.fila-inicial td { border-bottom: 2px solid #38a169; }
+.tabla-cuotas-modal tr.cuota-pagada { background: #f0fff4; }
+.tabla-cuotas-modal tr.cuota-pendiente { background: #fff; }
+.tabla-cuotas-modal input {
+  width: 100%; padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 4px;
+  font-size: 10px; font-family: 'Consolas', monospace;
+}
+.tabla-cuotas-modal input[readonly], .tabla-cuotas-modal input.solo-lectura {
+  background: #f7fafc; border-color: #e2e8f0; color: #4a5568;
+}
+.tabla-cuotas-modal input.calculado { background: #ebf8ff; font-weight: 600; }
+.badge-inicial {
+  background: #38a169; color: #fff; font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+}
+
+/* Discrepancias */
+.discrepancia-box {
+  background: #fff5f5; border: 1px solid #feb2b2; border-radius: 4px;
+  padding: 3px 6px; font-size: 9px; color: #c53030; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.discrepancia-box .badge-faltante {
+  background: #e53e3e; color: #fff; padding: 1px 5px; border-radius: 8px;
+  font-size: 8px; font-weight: 700;
+}
+
+/* Totales del modal */
+.totales-cuotas-modal {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px; padding: 10px 14px; background: #edf2f7;
+  border-radius: 6px; font-size: 11px; font-weight: 600;
+}
+.totales-cuotas-modal .total-bs { color: #2d3748; font-family: 'Consolas', monospace; }
+.totales-cuotas-modal .total-label { color: #718096; text-transform: uppercase; letter-spacing: 0.5px; }
+.totales-cuotas-modal .total-usd { color: #2c5282; font-family: 'Consolas', monospace; }
+
+/* Footer del modal */
+.modal-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc;
+  border-radius: 0 0 12px 12px;
+}
+.modal-footer .nota { font-size: 10px; color: #718096; }
+.modal-footer .btn-cerrar-footer {
+  padding: 7px 16px; border: 1px solid #cbd5e0; background: #fff;
+  border-radius: 6px; font-size: 11px; cursor: pointer; color: #4a5568;
+}
+.modal-footer .btn-cerrar-footer:hover { background: #edf2f7; }
+.modal-footer .btn-guardar {
+  padding: 7px 18px; border: none; background: #3182ce; color: #fff;
+  border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.modal-footer .btn-guardar:hover { background: #2c5282; }
+
+/* Alerta de discrepancias en resumen */
+.alerta-discrepancias {
+  background: #fff5f5; border: 1px solid #feb2b2; border-radius: 6px;
+  padding: 8px 10px; margin-top: 8px; font-size: 9px; color: #c53030;
+}
+.alerta-discrepancias strong { display: block; margin-bottom: 4px; font-size: 10px; }

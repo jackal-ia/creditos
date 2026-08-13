@@ -363,3 +363,106 @@ body {
     }
     .login-title { font-size: 19px; }
 }
+
+/* ====== RESPONSIVE TABLET (768px) ====== */
+@media (max-width: 768px) {
+    .login-box {
+        max-width: 85%;
+        padding: 35px 28px;
+    }
+    .login-title {
+        font-size: 20px;
+    }
+    .main-corporate-logo {
+        max-height: 70px;
+    }
+    .circle:nth-child(1) {
+        width: 90px;
+        height: 90px;
+    }
+    .circle:nth-child(2) {
+        width: 50px;
+        height: 50px;
+    }
+    .circle:nth-child(3) {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+/* ====== RESPONSIVE MÓVIL PEQUEÑO (480px) ====== */
+@media (max-width: 480px) {
+    .login-box {
+        max-width: 92%;
+        padding: 28px 18px;
+        border-radius: 16px;
+    }
+    .login-title {
+        font-size: 18px;
+    }
+    .login-subtitle {
+        font-size: 12px;
+    }
+    .input-group input {
+        padding: 12px 12px 12px 36px;
+        font-size: 16px; /* evita zoom en iOS */
+    }
+    .btn-login {
+        padding: 12px;
+        font-size: 14px;
+    }
+    .main-corporate-logo {
+        max-height: 60px;
+    }
+    .circle:nth-child(1) {
+        width: 70px;
+        height: 70px;
+        top: 8%;
+        right: 10%;
+    }
+    .circle:nth-child(2) {
+        width: 40px;
+        height: 40px;
+        bottom: 20%;
+        left: 10%;
+    }
+    .circle:nth-child(3) {
+        width: 25px;
+        height: 25px;
+        bottom: 8%;
+        right: 15%;
+    }
+    .login-footer-bottom p {
+        font-size: 10px;
+    }
+}
+
+/* ====== MÓVIL MUY PEQUEÑO / LANDSCAPE ====== */
+@media (max-height: 600px) {
+    .login-container {
+        align-items: flex-start;
+        padding-top: 20px;
+        padding-bottom: 20px;
+        overflow-y: auto;
+    }
+    .login-box {
+        margin: 10px auto;
+    }
+}
+
+/* ====== ORIENTACIÓN LANDSCAPE EN MÓVIL ====== */
+@media (max-width: 768px) and (orientation: landscape) {
+    .login-box {
+        max-width: 70%;
+        padding: 24px 20px;
+    }
+    .main-corporate-logo {
+        max-height: 50px;
+    }
+    .input-group {
+        margin-bottom: 12px;
+    }
+    .input-group input {
+        padding: 10px 10px 10px 34px;
+    }
+}
