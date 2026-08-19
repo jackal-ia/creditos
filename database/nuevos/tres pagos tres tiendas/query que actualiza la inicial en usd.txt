@@ -1,0 +1,20 @@
+-- Tienda Caracas
+UPDATE tienda_caracas 
+SET inicial_usd = ROUND(inicial_bs / NULLIF(tasa_inicial, 0), 2)
+WHERE tasa_inicial IS NOT NULL 
+  AND tasa_inicial > 0 
+  AND inicial_bs IS NOT NULL;
+
+-- Tienda Maracay
+UPDATE tienda_maracay 
+SET inicial_usd = ROUND(inicial_bs / NULLIF(tasa_inicial, 0), 2)
+WHERE tasa_inicial IS NOT NULL 
+  AND tasa_inicial > 0 
+  AND inicial_bs IS NOT NULL;
+
+-- Tienda Maracaibo
+UPDATE tienda_maracaibo 
+SET inicial_usd = ROUND(inicial_bs / NULLIF(tasa_inicial, 0), 2)
+WHERE tasa_inicial IS NOT NULL 
+  AND tasa_inicial > 0 
+  AND inicial_bs IS NOT NULL;

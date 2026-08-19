@@ -1035,7 +1035,6 @@ function initEstadisticas(tiendaPredefinida) {
 async function cargarMesesDisponibles(tienda) {
     try {
         const tiendaSeleccionada = tienda || document.getElementById('filtro-tienda')?.value || 'caracas';
-        // Endpoint genérico (refactor): el servidor valida la tienda
         const tiendaValida = ['caracas', 'maracay', 'maracaibo'].includes(tiendaSeleccionada) ? tiendaSeleccionada : 'caracas';
         const apiEndpoint = '/api/tiendas/' + tiendaValida;
 
@@ -1046,6 +1045,17 @@ async function cargarMesesDisponibles(tienda) {
         const mesesConDatos = new Set();
 
         clientes.forEach(c => {
+            // v6.9: Leer pagos_extra (tabla de pagos) primero
+            const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+            pagosExtra.forEach(pago => {
+                if (pago.fecha) {
+                    const fecha = new Date(pago.fecha);
+                    if (!isNaN(fecha.getTime())) {
+                        mesesConDatos.add(fecha.getMonth() + 1);
+                    }
+                }
+            });
+            // Fallback legacy: columnas planas
             for (let i = 1; i <= 11; i++) {
                 const fechaCuota = c['fecha_cuota_' + i];
                 if (fechaCuota) {
@@ -1209,6 +1219,31 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
         evolucionMensual[m] = { canceladas: 0, incompletas: 0 };
     }
 
+    // Helper: contar cuotas pagadas desde pagos_extra + legacy
+    const contarCuotasPagadas = (c) => {
+        let count = 0;
+        const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+        for (const pago of pagosExtra) {
+            if (parseFloat(pago.monto_bs) > 0) count++;
+        }
+        for (let i = 1; i <= 11; i++) {
+            if (parseFloat(c['cuota_' + i]) > 0) count++;
+        }
+        return count;
+    };
+
+    const calcularDepositado = (c) => {
+        let depositado = 0;
+        const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+        for (const pago of pagosExtra) {
+            depositado += parseFloat(pago.monto_bs) || 0;
+        }
+        for (let i = 1; i <= 11; i++) {
+            depositado += parseFloat(c['cuota_' + i]) || 0;
+        }
+        return depositado;
+    };
+
     // Filtrar clientes según mes, año y tipo
     const clientesFiltrados = clientes.filter(c => {
         const fechaFactura = c.fecha_factura ? new Date(c.fecha_factura) : null;
@@ -1219,27 +1254,17 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             if (mesFactura !== mesFiltro) return false;
         }
 
-        // Contar cuotas pagadas
-        let cuotasPagadas = 0;
-        for (let i = 1; i <= 11; i++) {
-            if (parseFloat(c['cuota_' + i]) > 0) cuotasPagadas++;
-        }
+        const cuotasPagadas = contarCuotasPagadas(c);
 
         // Filtro por tipo
         if (tipoFiltro === 'contado') {
             const montoFactura = parseFloat(c.monto_factura) || 0;
-            let montoDepositado = 0;
-            for (let i = 1; i <= 11; i++) {
-                montoDepositado += parseFloat(c['cuota_' + i]) || 0;
-            }
+            const montoDepositado = calcularDepositado(c);
             const deuda = montoFactura - montoDepositado;
             if (deuda > 0) return false;
         } else if (tipoFiltro === 'credito') {
             const montoFactura = parseFloat(c.monto_factura) || 0;
-            let montoDepositado = 0;
-            for (let i = 1; i <= 11; i++) {
-                montoDepositado += parseFloat(c['cuota_' + i]) || 0;
-            }
+            const montoDepositado = calcularDepositado(c);
             const deuda = montoFactura - montoDepositado;
             if (deuda <= 0 && cuotasPagadas <= 1) return false;
         }
@@ -1249,16 +1274,25 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
 
     clientesFiltrados.forEach(c => {
         const montoFactura = parseFloat(c.monto_factura) || 0;
-        let montoDepositado = 0;
-        let cuotasPagadas = 0;
+        const montoDepositado = calcularDepositado(c);
+        let cuotasPagadas = contarCuotasPagadas(c);
         const totalCuotas = 11;
 
+        // v6.9: Evolución mensual desde pagos_extra primero, luego legacy
+        const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+        for (const pago of pagosExtra) {
+            const monto = parseFloat(pago.monto_bs) || 0;
+            if (monto > 0 && pago.fecha) {
+                const fecha = new Date(pago.fecha);
+                if (fecha.getFullYear() === anioFiltro) {
+                    const mes = fecha.getMonth() + 1;
+                    evolucionMensual[mes].canceladas++;
+                }
+            }
+        }
         for (let i = 1; i <= totalCuotas; i++) {
             const cuota = parseFloat(c['cuota_' + i]) || 0;
             if (cuota > 0) {
-                montoDepositado += cuota;
-                cuotasPagadas++;
-
                 const fechaCuota = c['fecha_cuota_' + i];
                 if (fechaCuota) {
                     const fecha = new Date(fechaCuota);
@@ -3446,9 +3480,25 @@ function dgCalcular(datasets, fechaRef) {
 
             if (deuda > 0) r.kpis.deudores++;
 
-            // Recorrer las 11 cuotas
+            // v6.9: Recorrer pagos_extra primero, luego columnas planas legacy
             let cobroEsteMes = false;
-            let ultimaCuota = null; // {anio, mes} del pago más reciente (v6.4.2)
+            let ultimaCuota = null;
+            const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+
+            for (const pago of pagosExtra) {
+                const montoCuota = dgNum(pago.monto_bs);
+                if (montoCuota > 0) r.kpis.cuotasCobradas++;
+                const f = dgParsearFecha(pago.fecha);
+                if (f) {
+                    if (f.anio === anioActual) t.evolucion[f.mes - 1] += montoCuota;
+                    if (f.anio === anioActual && f.mes === mesActual && montoCuota > 0) cobroEsteMes = true;
+                    if (montoCuota > 0 && (!ultimaCuota || (f.anio * 12 + f.mes) > (ultimaCuota.anio * 12 + ultimaCuota.mes))) {
+                        ultimaCuota = f;
+                    }
+                }
+            }
+
+            // Fallback legacy: columnas planas cuota_1..cuota_11
             for (let i = 1; i <= 11; i++) {
                 const montoCuota = dgNum(c['cuota_' + i]);
                 if (montoCuota > 0) r.kpis.cuotasCobradas++;
@@ -3456,7 +3506,6 @@ function dgCalcular(datasets, fechaRef) {
                 if (f) {
                     if (f.anio === anioActual) t.evolucion[f.mes - 1] += montoCuota;
                     if (f.anio === anioActual && f.mes === mesActual && montoCuota > 0) cobroEsteMes = true;
-                    // v6.4.2: solo cuenta como pago si tiene monto registrado
                     if (montoCuota > 0 && (!ultimaCuota || (f.anio * 12 + f.mes) > (ultimaCuota.anio * 12 + ultimaCuota.mes))) {
                         ultimaCuota = f;
                     }
@@ -3465,8 +3514,6 @@ function dgCalcular(datasets, fechaRef) {
             if (cobroEsteMes) { t.conCobroMes++; t.vigentes++; }
             else if (deuda > 0) { t.vigentes++; }
 
-            // v6.4.2: meses sin pagar — desde la última cuota pagada;
-            // si nunca pagó, desde la fecha de la factura
             c.__ultimaCuota = ultimaCuota;
         });
 

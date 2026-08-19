@@ -1,0 +1,44 @@
+-- VERIFICAR CARACAS
+SELECT 
+    'CARACAS' AS tienda,
+    id,
+    nro_factura,
+    nombre_apellido,
+    total_depositado_usd AS "Depositado USD",
+    deuda_usd AS "Deuda USD",
+    monto_depositados AS "Depositado Bs",
+    deuda AS "Deuda Bs",
+    cuotas_pagadas AS "Cuotas Pagadas",
+    (SELECT COUNT(*) FROM pagos_caracas p WHERE p.factura_id = t.id) AS "Pagos"
+FROM tienda_caracas t
+ORDER BY id;
+
+-- VERIFICAR MARACAY
+SELECT 
+    'MARACAY' AS tienda,
+    id,
+    nro_factura,
+    nombre_apellido,
+    total_depositado_usd AS "Depositado USD",
+    deuda_usd AS "Deuda USD",
+    monto_depositados AS "Depositado Bs",
+    deuda AS "Deuda Bs",
+    cuotas_pagadas AS "Cuotas Pagadas",
+    (SELECT COUNT(*) FROM pagos_maracay p WHERE p.factura_id = t.id) AS "Pagos"
+FROM tienda_maracay t
+ORDER BY id;
+
+-- VERIFICAR MARACAIBO
+SELECT 
+    'MARACAIBO' AS tienda,
+    id,
+    nro_factura,
+    nombre_apellido,
+    total_depositado_usd AS "Depositado USD",
+    deuda_usd AS "Deuda USD",
+    monto_depositados AS "Depositado Bs",
+    deuda AS "Deuda Bs",
+    cuotas_pagadas AS "Cuotas Pagadas",
+    (SELECT COUNT(*) FROM pagos_maracaibo p WHERE p.factura_id = t.id) AS "Pagos"
+FROM tienda_maracaibo t
+ORDER BY id;

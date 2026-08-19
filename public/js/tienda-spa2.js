@@ -1,26 +1,78 @@
 // ============================================================
 // MÓDULO GENÉRICO DE TIENDAS - Sistema de Créditos IPSFA
 // ============================================================
-// VERSIÓN: v6.11 (2026-08-18) — Corrección de bugs críticos
-// REFACTOR v6: Un solo módulo reemplaza a las tiendas individuales.
-// Cada tienda es una INSTANCIA de TiendaApp con su propia config.
+// VERSIÓN: v6.6 (2026-07-19) — Modal Editar/Ver Cliente
+//          corporativo en 2 columnas (ver LEEME-v6.6.md)
+// Incluye: v6.5 (menú dashboard tienda) + v6.5.1 (scroll suave)
+// REFACTOR v6: Un solo módulo reemplaza a:
+//   - tienda-caracas-spa.js   (~2.100 líneas)
+//   - tienda-maracay-spa.js   (~2.100 líneas)
+//   - tienda-maracaibo-spa.js (~2.150 líneas)
+//   - bloques duplicados de reportes de tiendas en panel.js
+//   - funciones inline duplicadas en panel.html
 //
-// REGLAS DE NEGOCIO:
+// Cada tienda es una INSTANCIA de TiendaApp con su propia config.
+// El HTML se genera dinámicamente con los mismos IDs/clases que
+// antes (prefijos tc-/tm-/tmb-, conc-, busq-, etc.) para que el
+// CSS existente siga aplicando sin cambios visuales.
+//
+// REGLAS DE NEGOCIO (idénticas a la versión original):
 // - Cuotas: muestra cuotas pagadas reales
 // - Deuda = monto_factura - monto_depositado (suma de cuotas)
 // - Deudores: deuda > 0 | Al día: deuda <= 0
 // - Facturas abiertas: deuda > 0 | Canceladas: deuda <= 0
 // - Moneda: Bs (Bolívares) | Total de cuotas por factura: 30
+//
+// PARA AGREGAR UNA TIENDA NUEVA:
+//   1. Crear la tabla en PostgreSQL (misma estructura)
+//   2. Añadirla en TIENDAS de routes/tiendas.js
+//   3. Añadir su entrada en TIENDAS_CONFIG (abajo)
+//   4. Añadir nav-item + content-area vacío en panel.html
 // ============================================================
 (function () {
     'use strict';
 
     // ========================================================
-// DETECCIÓN AUTOMÁTICA DE BANCO
+    // v6.3: DETECCIÓN AUTOMÁTICA DE BANCO
     // Las cuentas bancarias venezolanas tienen 20 dígitos y los
     // primeros 4 identifican al banco (tabla oficial de códigos).
     // ========================================================
-    
+    const BANCOS_VENEZUELA = {
+        '0102': 'Banco de Venezuela',
+        '0104': 'Venezolano de Crédito',
+        '0105': 'Banco Mercantil',
+        '0108': 'BBVA Provincial',
+        '0114': 'Bancaribe',
+        '0115': 'Banco Exterior',
+        '0128': 'Banco Caroní',
+        '0134': 'Banesco',
+        '0137': 'Banco Sofitasa',
+        '0138': 'Banco Plaza',
+        '0146': 'Bangente',
+        '0151': 'BFC Banco Fondo Común',
+        '0156': '100% Banco',
+        '0157': 'DelSur Banco Universal',
+        '0163': 'Banco del Tesoro',
+        '0166': 'B.A.C. Banco Agrícola de Carabobo',
+        '0168': 'Bancrecer',
+        '0169': 'Mi Banco',
+        '0171': 'Banco Activo',
+        '0172': 'Bancamiga',
+        '0173': 'Banco Internacional de Desarrollo',
+        '0174': 'Banplus',
+        '0175': 'Banco Bicentenario',
+        '0176': 'N59 Banco Digital',
+        '0177': 'BANFANB',
+        '0178': 'N53 Banco de los Trabajadores',
+        '0191': 'BNC Banco Nacional de Crédito',
+        '0601': 'IMCP'
+    };
+
+    function detectarBanco(numeroCuenta) {
+        const limpio = String(numeroCuenta || '').replace(/\D/g, '');
+        if (limpio.length < 4) return '';
+        return BANCOS_VENEZUELA[limpio.substring(0, 4)] || '';
+    }
 
     // ========================================================
     // CONFIGURACIÓN DE TIENDAS
@@ -75,11 +127,12 @@
         }
     };
 
-        const TOTAL_CUOTAS = 30;
+    const API_BASE_URL = window.location.origin + '/api';
+    const TOTAL_CUOTAS = 30;
     const ITEMS_PER_PAGE_DEFAULT = 25;
 
     // ========================================================
-// — MENÚ PRINCIPAL REDISEÑADO (dashboard operativo)
+    // v6.5 — MENÚ PRINCIPAL REDISEÑADO (dashboard operativo)
     // ========================================================
     const TM_COLORES = {
         caracas:   { acento: '#27ae60', suave: '#e3f2e9' },
@@ -300,8 +353,10 @@
     class TiendaApp {
         constructor(cfg) {
             this.cfg = cfg;
-            this.key    = cfg.key;
+            this.key = cfg.key;
             this.nombre = cfg.nombre;
+            this.color = TM_COLORES[cfg.key]?.acento || '#3182ce';
+            this.key    = cfg.key;
             this.color  = TM_COLORES[cfg.key]?.acento || '#3182ce';
 
             // Estado - Base de datos
@@ -381,7 +436,7 @@
         // HTML - MENÚ PRINCIPAL
         // ====================================================
         renderMenuPrincipal() {
-// — Menú rediseñado: tarjetas interactivas + resumen operativo.
+            // v6.5 — Menú rediseñado: tarjetas interactivas + resumen operativo.
             // IMPORTANTE: conserva id="...-menu-principal" (showView lo alterna)
             // y los data-action existentes (delegación de attachEvents).
             const id = (n) => this.id('tm2-' + n);
@@ -486,7 +541,7 @@
         }
 
         // ====================================================
-// — DASHBOARD DEL MENÚ (cálculo + render)
+        // v6.5 — DASHBOARD DEL MENÚ (cálculo + render)
         // ====================================================
         async initMenuDashboard() {
             const ahora = Date.now();
@@ -523,54 +578,22 @@
                 if (deudaC > 0) { deuda += deudaC; deudores++; }
 
                 let ultimaCuota = null, cuotasPagadas = 0, pagoEsteMes = false;
-                let tienePagosExtra = false;
-
-                // 1) Intentar leer desde pagos_extra (tabla de pagos)
-                const pagosExtra = c.pagos_extra || [];
-                if (Array.isArray(pagosExtra) && pagosExtra.length > 0) {
-                    tienePagosExtra = true;
-                    pagosExtra.forEach(p => {
-                        const nro = parseInt(p.nro_cuota) || 0;
-                        if (nro < 1) return;
-                        const monto = tmN(p.monto_bs);
-                        if (monto > 0) {
-                            cuotasPagadas++;
-                            const f = tmParseFecha(p.fecha);
-                            if (f) {
-                                const key = f.anio * 12 + f.mes;
-                                if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
-                                if (f.anio === anioAct && f.mes === mesAct) {
-                                    pagoEsteMes = true;
-                                    cobradoMes += monto;
-                                    pagosMes++;
-                                    if (f.dia === diaAct) { cobradoHoy += monto; pagosHoy++; }
-                                }
-                                evoMap[key] = (evoMap[key] || 0) + monto;
-                                ultimos.push({ nombre: c.nombre_apellido || 'Sin nombre', f, monto });
+                for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                    const monto = tmN(c['cuota_' + i]);
+                    if (monto > 0) {
+                        cuotasPagadas++;
+                        const f = tmParseFecha(c['fecha_cuota_' + i]);
+                        if (f) {
+                            const key = f.anio * 12 + f.mes;
+                            if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
+                            if (f.anio === anioAct && f.mes === mesAct) {
+                                pagoEsteMes = true;
+                                cobradoMes += monto;
+                                pagosMes++;
+                                if (f.dia === diaAct) { cobradoHoy += monto; pagosHoy++; }
                             }
-                        }
-                    });
-                }
-
-                // 2) Fallback a columnas planas (legacy) solo si no hay pagos_extra
-                if (!tienePagosExtra) {
-                    for (let i = 1; i <= TOTAL_CUOTAS; i++) {
-                        const monto = tmN(c['cuota_' + i]);
-                        if (monto > 0) {
-                            cuotasPagadas++;
-                            const f = tmParseFecha(c['fecha_cuota_' + i]);
-                            if (f) {
-                                const key = f.anio * 12 + f.mes;
-                                if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
-                                if (f.anio === anioAct && f.mes === mesAct) {
-                                    pagoEsteMes = true;
-                                    cobradoMes += monto;
-                                    pagosMes++;
-                                    if (f.dia === diaAct) { cobradoHoy += monto; pagosHoy++; }
-                                }
-                                evoMap[key] = (evoMap[key] || 0) + monto;
-                                ultimos.push({ nombre: c.nombre_apellido || 'Sin nombre', f, monto });
-                            }
+                            evoMap[key] = (evoMap[key] || 0) + monto;
+                            ultimos.push({ nombre: c.nombre_apellido || 'Sin nombre', f, monto });
                         }
                     }
                 }
@@ -1028,7 +1051,8 @@
             const baseDatos = this.el(this.id('base-datos'));
             const conciliaciones = this.el(this.id('conciliaciones'));
             const busqueda = this.el(this.id('busqueda'));
-// usar setProperty con !important para anular cualquier CSS externo
+
+            // v6.7.5-fix-nuclear: usar setProperty con !important para anular cualquier CSS externo
             const mostrar = (el, activo) => {
                 if (!el) return;
                 if (activo) {
@@ -1060,7 +1084,8 @@
             mostrar(baseDatos, vista === 'baseDatos');
             mostrar(conciliaciones, vista === 'conciliaciones');
             mostrar(busqueda, vista === 'reportes');
-// — al abrir una vista, llevar suavemente al inicio de su contenido
+
+            // v6.5.1 — al abrir una vista, llevar suavemente al inicio de su contenido
             // (evita que el usuario tenga que hacer scroll manual). El CSS
             // scroll-margin-top compensa el header fijo del panel.
             const destino = vista === 'menu' ? menu
@@ -1073,7 +1098,7 @@
             }
 
             if (vista === 'menu') {
-// — cargar/refrescar el resumen operativo del menú
+                // v6.5 — cargar/refrescar el resumen operativo del menú
                 this.initMenuDashboard();
             } else if (vista === 'baseDatos') {
                 // Siempre recargar datos al entrar (comportamiento original)
@@ -1130,7 +1155,8 @@
         processItemData(item) {
             let montoDepositado = 0;
             let cuotasPagadas = 0;
-// Sumar pagos desde la tabla de pagos (pagos_caracas, pagos_maracay, pagos_maracaibo)
+
+            // v6.8: Sumar pagos desde la tabla de pagos (pagos_caracas, pagos_maracay, pagos_maracaibo)
             const pagosExtra = item.pagos_extra || [];
             const totalCuotasProc = parseInt(item.cuotas) || TOTAL_CUOTAS;
             if (Array.isArray(pagosExtra) && pagosExtra.length > 0) {
@@ -1155,7 +1181,8 @@
                     }
                 }
             }
-// Incluir inicial_bs en el total depositado para registros nuevos (v6.7.2+)
+
+            // v6.7.3-fix: Incluir inicial_bs en el total depositado para registros nuevos (v6.7.2+)
             const inicialBs = parseNumberES(item.inicial_bs);
             if (inicialBs > 0) {
                 montoDepositado += inicialBs;
@@ -1217,30 +1244,13 @@
                     if (this.currentFilter === 'morosos') {
                         if (deuda <= 0) return false;
                         let ultimaCuota = null;
-                        let tienePagosExtra = false;
-                        const pagosExtra = item.pagos_extra || [];
-                        if (Array.isArray(pagosExtra) && pagosExtra.length > 0) {
-                            tienePagosExtra = true;
-                            pagosExtra.forEach(p => {
-                                const monto = tmN(p.monto_bs);
-                                if (monto > 0) {
-                                    const f = tmParseFecha(p.fecha);
-                                    if (f) {
-                                        const key = f.anio * 12 + f.mes;
-                                        if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
-                                    }
-                                }
-                            });
-                        }
-                        if (!tienePagosExtra) {
-                            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
-                                const monto = tmN(item['cuota_' + i]);
-                                if (monto > 0) {
-                                    const f = tmParseFecha(item['fecha_cuota_' + i]);
-                                    if (f) {
-                                        const key = f.anio * 12 + f.mes;
-                                        if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
-                                    }
+                        for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                            const monto = tmN(item['cuota_' + i]);
+                            if (monto > 0) {
+                                const f = tmParseFecha(item['fecha_cuota_' + i]);
+                                if (f) {
+                                    const key = f.anio * 12 + f.mes;
+                                    if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
                                 }
                             }
                         }
@@ -1255,25 +1265,11 @@
                         const hoy = new Date();
                         const mesAct = hoy.getMonth() + 1, anioAct = hoy.getFullYear();
                         let pagoEsteMes = false;
-                        let tienePagosExtra = false;
-                        const pagosExtra = item.pagos_extra || [];
-                        if (Array.isArray(pagosExtra) && pagosExtra.length > 0) {
-                            tienePagosExtra = true;
-                            for (const p of pagosExtra) {
-                                const monto = tmN(p.monto_bs);
-                                if (monto > 0) {
-                                    const f = tmParseFecha(p.fecha);
-                                    if (f && f.anio === anioAct && f.mes === mesAct) { pagoEsteMes = true; break; }
-                                }
-                            }
-                        }
-                        if (!tienePagosExtra) {
-                            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
-                                const monto = tmN(item['cuota_' + i]);
-                                if (monto > 0) {
-                                    const f = tmParseFecha(item['fecha_cuota_' + i]);
-                                    if (f && f.anio === anioAct && f.mes === mesAct) { pagoEsteMes = true; break; }
-                                }
+                        for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                            const monto = tmN(item['cuota_' + i]);
+                            if (monto > 0) {
+                                const f = tmParseFecha(item['fecha_cuota_' + i]);
+                                if (f && f.anio === anioAct && f.mes === mesAct) { pagoEsteMes = true; break; }
                             }
                         }
                         if (pagoEsteMes) return false;
@@ -1296,30 +1292,13 @@
                 this.filteredData.sort((a, b) => {
                     const calcMeses = (item) => {
                         let ultima = null;
-                        let tienePagosExtra = false;
-                        const pagosExtra = item.pagos_extra || [];
-                        if (Array.isArray(pagosExtra) && pagosExtra.length > 0) {
-                            tienePagosExtra = true;
-                            pagosExtra.forEach(p => {
-                                const monto = tmN(p.monto_bs);
-                                if (monto > 0) {
-                                    const f = tmParseFecha(p.fecha);
-                                    if (f) {
-                                        const key = f.anio * 12 + f.mes;
-                                        if (!ultima || key > ultima.key) ultima = { key, anio: f.anio, mes: f.mes };
-                                    }
-                                }
-                            });
-                        }
-                        if (!tienePagosExtra) {
-                            for (let i = 1; i <= TOTAL_CUOTAS; i++) {
-                                const monto = tmN(item['cuota_' + i]);
-                                if (monto > 0) {
-                                    const f = tmParseFecha(item['fecha_cuota_' + i]);
-                                    if (f) {
-                                        const key = f.anio * 12 + f.mes;
-                                        if (!ultima || key > ultima.key) ultima = { key, anio: f.anio, mes: f.mes };
-                                    }
+                        for (let i = 1; i <= TOTAL_CUOTAS; i++) {
+                            const monto = tmN(item['cuota_' + i]);
+                            if (monto > 0) {
+                                const f = tmParseFecha(item['fecha_cuota_' + i]);
+                                if (f) {
+                                    const key = f.anio * 12 + f.mes;
+                                    if (!ultima || key > ultima.key) ultima = { key, anio: f.anio, mes: f.mes };
                                 }
                             }
                         }
@@ -1368,15 +1347,13 @@
             const totalCuotas = item.total_cuotas || TOTAL_CUOTAS;
             const montoFactura = item.monto_factura || 0;
             const montoDepositado = item.monto_depositados || 0;
-            const inicialBs = parseNumberES(item.inicial_bs);
 
             if (Math.abs(montoFactura - montoDepositado) < 0.01 || deuda === 0) {
                 return 'cancelada';
             }
 
             if (deuda > 0) {
-                // Si pagó inicial pero no cuotas, es incompleto (no abierta)
-                if (cuotasPagadas === 0 && inicialBs <= 0) return 'abierta';
+                if (cuotasPagadas === 0) return 'abierta';
                 if (cuotasPagadas < totalCuotas) return 'incompleto';
                 return 'deudor';
             }
@@ -1569,7 +1546,7 @@
         exportToExcel() {
             const headers = ['N°', 'Factura', 'Nombre', 'Monto Factura (Bs)', 'Fecha Factura', 'Cédula', 'Cuotas Pagadas', 'Monto Depositado (Bs)', 'Deuda (Bs)', 'Estado'];
             const rows = this.filteredData.map(item => [
-                index + 1, item.nro_factura, item.nombre_apellido,
+                item.numero, item.nro_factura, item.nombre_apellido,
                 item.monto_factura, item.fecha_factura, item.cedula,
                 item.cuotas_pagadas, item.monto_depositados, item.deuda,
                 this.getEstado(item)
@@ -1722,7 +1699,8 @@
         //  igual que la versión original)
         // ====================================================
         get modalId() { return 'modal-editar-cliente' + this.cfg.sfx; }
-// Calcula tasa BCV y monto facturado USD si están vacíos
+
+        // v6.7.5: Calcula tasa BCV y monto facturado USD si están vacíos
         async _calcularCamposFaltantes(cliente) {
             const montoFactura = parseFloat(cliente.monto_factura) || 0;
             let tasa = parseFloat(cliente.tasa_bcv_factura) || 0;
@@ -1761,17 +1739,12 @@
             return calculado;
         }
 
-        async verDetalle(id) {
-            // Si ya hay un modal abierto, cerrarlo primero y esperar un ciclo
-            if (document.getElementById(this.cfg.key + '-modal-v672')) {
-                this.closeModal();
-                await new Promise(resolve => setTimeout(resolve, 50));
-            }
+        verDetalle(id) {
             this.__mostrarSpinner('Cargando cliente...');
             this._apiFetch(`${this.cfg.api}/${id}`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })
                 .then(r => r.json())
                 .then(async data => {
-// calcular campos faltantes antes de mostrar
+                    // v6.7.5: calcular campos faltantes antes de mostrar
                     const calculado = await this._calcularCamposFaltantes(data);
                     this.__ocultarSpinner();
                     this.currentEditId = id;
@@ -1855,11 +1828,12 @@
                 '<input type="hidden" name="monto_cuota_usd" value="' + (item.monto_cuota_usd || '') + '">' +
                 '<input type="hidden" name="inicial_bs" value="' + (item.inicial_bs || '') + '">' +
                 '<input type="hidden" name="inicial_usd" value="' + (item.inicial_usd || '') + '">';
-// Inicializar cuotas, monto_cuota_usd y pagos_extra
+
+            // v6.8: Inicializar cuotas, monto_cuota_usd y pagos_extra
             if (!self.currentEditItem.cuotas) {
                 self.currentEditItem.cuotas = TOTAL_CUOTAS;
             }
-// Asegurar que pagos_extra existe
+            // v6.8: Asegurar que pagos_extra existe
             if (!self.currentEditItem.pagos_extra) {
                 self.currentEditItem.pagos_extra = [];
             }
@@ -1885,7 +1859,7 @@
             }
 
             if (esAdmin) {
-// Las cuotas se muestran solo lectura desde pagos_extra
+                // v6.9: Las cuotas se muestran solo lectura desde pagos_extra
                 // No hay inputs editables de cuotas planas (columnas eliminadas de BD)
                 const checkboxes = body.querySelectorAll('input[name^="eliminar-cuota-"]');
                 checkboxes.forEach(chk => {
@@ -1905,50 +1879,22 @@
             modal.style.display = 'flex';
             const overlay = document.getElementById(self.cfg.key + '-modal-overlay-v672');
             if (overlay) overlay.style.display = 'block';
-// si se calcularon campos faltantes, marcar dirty para permitir guardar
+
+            // v6.7.5: si se calcularon campos faltantes, marcar dirty para permitir guardar
             if (camposCalculados) {
                 self.__marcarDirty();
             }
-
-            // Listener para número de cuenta (detecta banco automáticamente)
-            const inputCuenta = body.querySelector('input[data-name="numero_cuenta"]');
-            if (inputCuenta) {
-                inputCuenta.addEventListener('input', (e) => {
-                    this.__onCuentaInput(e.target);
-                });
-            }
-
-            // Listeners para inputs de cuotas (admin puede editar)
-            body.querySelectorAll('input[data-nro-cuota]').forEach(input => {
-                const nro = parseInt(input.getAttribute('data-nro-cuota'));
-                const field = input.getAttribute('data-name');
-                if (!nro || !field) return;
-                if (field.startsWith('cuota_') || field.startsWith('tasa_cuota_')) {
-                    input.addEventListener('change', (e) => {
-                        this.__recalcularCuotaModal(e.target, nro);
-                    });
-                } else if (field.startsWith('ref_cuota_') || field.startsWith('fecha_cuota_')) {
-                    input.addEventListener('change', (e) => {
-                        this.__onCuotaFieldChange(e.target, nro);
-                    });
-                }
-            });
         }
 
         closeModal() {
             const modal = document.getElementById(this.cfg.key + '-modal-v672');
             const overlay = document.getElementById(this.cfg.key + '-modal-overlay-v672');
-            if (modal) modal.remove();
-            if (overlay) overlay.remove();
+            if (modal) modal.style.display = 'none';
+            if (overlay) overlay.style.display = 'none';
             const oldModal = document.getElementById(this.cfg.key + '-modal');
             const oldOverlay = document.getElementById(this.cfg.key + '-modal-overlay');
-            if (oldModal) oldModal.remove();
-            if (oldOverlay) oldOverlay.remove();
-            // Limpiar estado interno
-            this.currentEditId = null;
-            this.currentEditItem = null;
-            this.cuotasAEliminar = [];
-            this._modalDirty = false;
+            if (oldModal) oldModal.style.display = 'none';
+            if (oldOverlay) oldOverlay.style.display = 'none';
         }
 
         async guardarCambios() {
@@ -1970,7 +1916,8 @@
             }
 
             const item = this.currentEditItem;
-// Recalcular totales en frontend para enviar valores reales al backend
+
+            // v6.10-fix: Recalcular totales en frontend para enviar valores reales al backend
             // (el backend puede calcular diferente si solo usa columnas planas)
             const itemProcesado = this.processItemData(JSON.parse(JSON.stringify(item)));
 
@@ -1996,40 +1943,14 @@
                 monto_facturado_divisa: item.monto_facturado_divisa,
                 cuotas: item.cuotas || TOTAL_CUOTAS,
                 monto_cuota_usd: item.monto_cuota_usd || 0,
-// Enviar totales calculados para que el backend guarde los valores reales
+                // v6.10-fix: Enviar totales calculados para que el backend guarde los valores reales
                 deuda: itemProcesado.deuda,
                 monto_depositados: itemProcesado.monto_depositados
             };
-// Reconstruir pagos_extra desde los inputs del modal (incluye cambios del admin)
+
+            // v6.10-fix: Enviar TODAS las cuotas con monto > 0 (no solo > 11)
             const pagosExtra = [];
-            const modalBody = modal.querySelector('#' + this.cfg.key + '-modal-body-v672');
-            if (modalBody) {
-                modalBody.querySelectorAll('input[data-nro-cuota]').forEach(input => {
-                    const nro = parseInt(input.getAttribute('data-nro-cuota'));
-                    const field = input.getAttribute('data-name');
-                    if (!nro || !field) return;
-                    const fila = input.closest('tr');
-                    if (!fila) return;
-                    const montoBs = parseFloat(fila.querySelector('[data-name="cuota_' + nro + '"]').value) || 0;
-                    if (montoBs > 0) {
-                        const ref = fila.querySelector('[data-name="ref_cuota_' + nro + '"]').value || '';
-                        const fechaRaw = fila.querySelector('[data-name="fecha_cuota_' + nro + '"]').value || '';
-                        const fecha = this._parseFechaInputToISO(fechaRaw) || fechaRaw;
-                        const tasa = parseFloat(fila.querySelector('[data-name="tasa_cuota_' + nro + '"]').value) || 0;
-                        const montoUsd = parseFloat(fila.querySelector('[data-name="dolar_cuota_' + nro + '"]').value) || 0;
-                        pagosExtra.push({
-                            nro_cuota: nro,
-                            monto_bs: montoBs,
-                            referencia: ref,
-                            fecha: fecha,
-                            tasa_bcv: tasa,
-                            monto_usd: montoUsd
-                        });
-                    }
-                });
-            }
-            // Fallback: si no hay inputs, usar los datos del item (legacy)
-            if (pagosExtra.length === 0 && item.pagos_extra && item.pagos_extra.length > 0) {
+            if (item.pagos_extra && item.pagos_extra.length > 0) {
                 item.pagos_extra.forEach(p => {
                     if (parseInt(p.nro_cuota) >= 1 && parseFloat(p.monto_bs) > 0) {
                         pagosExtra.push({
@@ -2046,7 +1967,8 @@
             if (pagosExtra.length > 0) {
                 data.pagos_extra = pagosExtra;
             }
-// Recalcular monto_cuota_usd si aún es 0 antes de enviar
+
+            // v6.7.6-fix: Recalcular monto_cuota_usd si aún es 0 antes de enviar
             const _mcuGuardar = parseFloat(data.monto_cuota_usd);
             if ((!_mcuGuardar || _mcuGuardar === 0) && data.monto_facturado_divisa && data.cuotas > 0) {
                 const deudaUSDGuardar = redondearDecimales(parseFloat(data.monto_facturado_divisa) - parseFloat(data.inicial_usd || 0));
@@ -2054,7 +1976,8 @@
                     data.monto_cuota_usd = redondearDecimales(deudaUSDGuardar / data.cuotas);
                 }
             }
-// No se envían columnas planas de cuotas (eliminadas de BD)
+
+            // v6.9: No se envían columnas planas de cuotas (eliminadas de BD)
             // Las cuotas se muestran solo lectura desde pagos_extra
             // El backend recalcula totales desde la tabla de pagos
 
@@ -2231,8 +2154,8 @@
             showLoading(true);
 
             try {
-// Enviar array de cuotas a eliminar; el backend borra de la tabla de pagos
-// Recalcular totales después de eliminar y enviarlos al backend
+                // v6.9.1: Enviar array de cuotas a eliminar; el backend borra de la tabla de pagos
+                // v6.10-fix: Recalcular totales después de eliminar y enviarlos al backend
                 const indexCliente = this.allData.findIndex(d => d.id === datosConfirmacion.id);
                 let itemProcesadoPostElim = null;
                 if (indexCliente !== -1) {
@@ -2362,7 +2285,7 @@
                 if (msg) msg.style.display = 'none';
 
                 if (clienteBasico) {
-// Obtener datos completos incluyendo pagos_extra
+                    // v6.8: Obtener datos completos incluyendo pagos_extra
                     const detalleResponse = await this._apiFetch(`${this.cfg.api}/${clienteBasico.id}`);
                     let clienteCompleto = clienteBasico;
                     if (detalleResponse.ok) {
@@ -2389,7 +2312,8 @@
             if (resE) resE.style.display = 'block';
             if (resN) resN.style.display = 'none';
             if (noEnc) noEnc.style.display = 'none';
-// Calcular cuotas pagadas desde pagos_extra
+
+            // v6.8: Calcular cuotas pagadas desde pagos_extra
             const pagos = cliente.pagos_extra || [];
             const cuotasPagadasReal = pagos.filter(p => parseFloat(p.monto_bs) > 0).length;
 
@@ -2438,7 +2362,7 @@
         }
 
         mostrarFormularioCuota(cliente) {
-// Calcular siguiente cuota desde pagos_extra
+            // v6.8: Calcular siguiente cuota desde pagos_extra
             const pagos = cliente.pagos_extra || [];
             const cuotasPagadasReal = pagos.filter(p => parseFloat(p.monto_bs) > 0).length;
             const siguienteCuota = cuotasPagadasReal + 1;
@@ -2527,10 +2451,13 @@
             };
 
             let data = null;
+            const token = localStorage.getItem('token');
 
             // 1) Intentar tasa por fecha
             try {
-                const response = await this._apiFetch('/api/bcv/fecha/' + fecha);
+                const response = await fetch('/api/bcv/fecha/' + fecha, {
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                });
                 if (response.ok) {
                     data = await response.json();
                 } else {
@@ -2631,7 +2558,8 @@
             let html = '';
             let tieneCuotas = false;
             const totalCuotasHist = parseInt(cliente.cuotas) || TOTAL_CUOTAS;
-// Leer cuotas desde pagos_extra (tabla de pagos)
+
+            // v6.8: Leer cuotas desde pagos_extra (tabla de pagos)
             const pagosMap = new Map();
             (cliente.pagos_extra || []).forEach(p => {
                 const nro = parseInt(p.nro_cuota) || 0;
@@ -2701,7 +2629,30 @@
             }]);
         }
 
-        async guardarCuota() {
+        
+        // Helper: convierte cualquier fecha a string ISO yyyy-mm-dd
+        _fechaToISO(fecha) {
+            if (!fecha) return '';
+            if (typeof fecha === 'string') {
+                // Si ya es yyyy-mm-dd, devolver tal cual
+                if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fecha;
+                // Si es dd-mm-aaaa, convertir
+                const m = fecha.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+                if (m) return m[3] + '-' + m[2] + '-' + m[1];
+                // Intentar parsear como Date
+                const d = new Date(fecha);
+                if (!isNaN(d.getTime())) {
+                    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                }
+                return fecha;
+            }
+            if (fecha instanceof Date) {
+                return fecha.getFullYear() + '-' + String(fecha.getMonth()+1).padStart(2,'0') + '-' + String(fecha.getDate()).padStart(2,'0');
+            }
+            return String(fecha);
+        }
+
+async guardarCuota() {
             if (!this.concCliente) {
                 mostrarModalCorporativo('Error', 'No hay cliente seleccionado', 'error');
                 return;
@@ -2737,7 +2688,8 @@
                 if (f instanceof Date) return f.toISOString().split('T')[0];
                 return String(f);
             };
-// Todas las cuotas van a la tabla de pagos (no más columnas planas)
+
+            // v6.9: Todas las cuotas van a la tabla de pagos (no más columnas planas)
             // Solo enviamos pagos_extra con la nueva cuota; el backend hace upsert
             data.pagos_extra = [{
                 nro_cuota: cuotaNum,
@@ -2757,7 +2709,8 @@
                 data.fecha_inicial = toISO(cliente.fecha_inicial);
                 data.tasa_inicial = parseNumberES(cliente.tasa_inicial) || 0;
             }
-// Recalcular totales con la nueva cuota incluida y enviarlos al backend
+
+            // v6.10-fix: Recalcular totales con la nueva cuota incluida y enviarlos al backend
             const clienteSimulado = JSON.parse(JSON.stringify(cliente));
             if (!clienteSimulado.pagos_extra) clienteSimulado.pagos_extra = [];
             clienteSimulado.pagos_extra.push({
@@ -2792,10 +2745,6 @@
                 if (refreshResponse.ok) {
                     const refreshed = await refreshResponse.json();
                     this.concCliente = this.processItemData(refreshed);
-                    // Actualizar también currentEditItem para que el modal de edición tenga datos frescos
-                    if (this.currentEditItem && this.currentEditItem.id === cliente.id) {
-                        this.currentEditItem = this.processItemData(JSON.parse(JSON.stringify(refreshed)));
-                    }
                 }
 
                 await this.loadData();
@@ -2959,7 +2908,7 @@
 
         
         // ============================================================
-// Nuevo Registro con calculos en tiempo real
+        // v6.7.2-rev9: Nuevo Registro con calculos en tiempo real
         // ============================================================
 
 
@@ -3027,9 +2976,9 @@
             const el = (id) => document.getElementById(c + '-' + id);
 
             // Evitar inicializar múltiples veces (listeners duplicados)
-            // Usamos flag en la instancia porque el DOM se recrea en cada mount()
-            if (this._calculosInit) return;
-            this._calculosInit = true;
+            const formContainer = el('nuevo-registro');
+            if (formContainer && formContainer.dataset.listenersInit === '1') return;
+            if (formContainer) formContainer.dataset.listenersInit = '1';
 
             const extraerTasa = (data) => {
                 if (!data || !data.tasa) return null;
@@ -3052,7 +3001,7 @@
                 let tasa = parseFloat(el('nueva-tasa-factura').value);
                 if (!tasa || tasa <= 0.0001) {
                     try {
-                        const res = await this._apiFetch('/api/bcv/fecha/' + fecha);
+                        const res = await fetch('/api/bcv/fecha/' + fecha, {headers: {'Authorization': 'Bearer ' + localStorage.getItem('token')}});
                         if (!res.ok) throw new Error('HTTP ' + res.status);
                         const data = await res.json();
                         const tasaVal = extraerTasa(data);
@@ -3076,7 +3025,7 @@
                 let tasa = parseFloat(el('nueva-tasa-inicial').value);
                 if (!tasa || tasa <= 0.0001) {
                     try {
-                        const res = await this._apiFetch('/api/bcv/fecha/' + fecha);
+                        const res = await fetch('/api/bcv/fecha/' + fecha, {headers: {'Authorization': 'Bearer ' + localStorage.getItem('token')}});
                         if (!res.ok) throw new Error('HTTP ' + res.status);
                         const data = await res.json();
                         const tasaVal = extraerTasa(data);
@@ -3114,7 +3063,7 @@
         }
 
         // ============================================================
-// Modal Editar Cliente con campos nuevos
+        // v6.7.2-rev9: Modal Editar Cliente con campos nuevos
         // ============================================================
 
         esRegistroNuevoV672(cliente) {
@@ -3132,7 +3081,8 @@
             const deudaUSD = montoFacturadoUSD - inicialUSD;
             const deudaBs = parseFloat(cliente.monto_factura) - inicialBs;
             let totalCuotas = parseInt(cliente.cuotas) || TOTAL_CUOTAS;
-// Si el backend devuelve un nro de cuotas inconsistente
+
+            // v6.10-fix-defensivo: Si el backend devuelve un nro de cuotas inconsistente
             // con la deuda y el monto_cuota_usd (p.ej. guardó 4 pero devuelve 30),
             // recalcular totalCuotas para que la UI sea coherente.
             const montoCuotaGuardado = parseFloat(cliente.monto_cuota_usd) || 0;
@@ -3149,7 +3099,7 @@
             }
 
             let montoCuotaUSD = esNuevo ? montoCuotaGuardado : redondearDecimales(deudaUSD / totalCuotas);
-// Si monto_cuota_usd es 0/null pero hay deuda, recalcular
+            // v6.7.6-fix: Si monto_cuota_usd es 0/null pero hay deuda, recalcular
             if (montoCuotaUSD === 0 && deudaUSD > 0 && totalCuotas > 0) {
                 montoCuotaUSD = redondearDecimales(deudaUSD / totalCuotas);
             }
@@ -3157,7 +3107,8 @@
             let totalDepositadoBs = inicialBs;
             let totalDepositadoUSD = inicialUSD;
             let cuotasPagadas = 0;
-// Sumar cuotas desde pagos_extra (tabla de pagos)
+
+            // v6.8: Sumar cuotas desde pagos_extra (tabla de pagos)
             const pagosExtra = cliente.pagos_extra || [];
             const totalCuotasRes = totalCuotas;
             pagosExtra.forEach(p => {
@@ -3210,19 +3161,6 @@
             const master = modal.querySelector('input[id^="chk-all-cuotas-"]');
             if (master) master.checked = false;
             self.__actualizarBarraEliminar();
-        }
-
-        __onCuentaInput(input) {
-            const self = this;
-            const cuenta = input.value.trim().replace(/\D/g, '');
-            const banco = self._detectarBanco(cuenta);
-            const badge = document.getElementById(self.cfg.key + '-banco-detectado');
-            if (badge) badge.textContent = banco || '—';
-            if (self.currentEditItem) {
-                self.currentEditItem.numero_cuenta = cuenta;
-                self.currentEditItem.banco = banco || '';
-                self.__marcarDirty();
-            }
         }
 
         formatearFechaInput(fechaStr) {
@@ -3280,7 +3218,7 @@
 
         renderizarPanelResumen(cliente, esNuevo) {
             const resumen = this.calcularResumenMontos(cliente);
-// mostrar valores calculados si existen, no solo para registros nuevos
+            // v6.7.5: mostrar valores calculados si existen, no solo para registros nuevos
             const montoFacturadoUSD = resumen.montoFacturadoUSD > 0 ? resumen.montoFacturadoUSD.toFixed(2) + ' $' : '—';
             const inicialBs = resumen.inicialBs > 0 ? resumen.inicialBs.toFixed(2) : '—';
             const inicialUSD = resumen.inicialUSD > 0 ? resumen.inicialUSD.toFixed(2) + ' $' : '—';
@@ -3302,14 +3240,7 @@
                 '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span style="color:#4a5568;font-weight:500;">Depositado (Bs)</span><span style="color:#38a169;font-weight:700;font-family:monospace;font-size:14px;">' + resumen.totalDepositadoBs.toFixed(2) + '</span></div>' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span style="color:#4a5568;font-weight:500;">Deuda Pendiente (Bs)</span><span style="color:#e53e3e;font-weight:700;font-family:monospace;font-size:14px;">' + resumen.deudaPendienteBs.toFixed(2) + '</span></div>' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Deuda Pendiente ($)</span><span style="color:#e53e3e;font-weight:700;font-family:monospace;font-size:14px;">' + deudaPendienteUSD + '</span></div>' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Próxima Cuota</span><span style="color:#3182ce;font-weight:700;font-family:monospace;font-size:14px;">' + proximaCuota + '</span></div>' +
-                '<div style="padding:8px 0;font-size:13px;background:#f7fafc;">' +
-                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                        '<span style="color:#4a5568;font-weight:500;">N° Cuenta Bancaria</span>' +
-                        '<span id="' + this.cfg.key + '-banco-detectado" style="font-size:11px;color:#718096;">' + (cliente.banco || this._detectarBanco(cliente.numero_cuenta) || '—') + '</span>' +
-                    '</div>' +
-                    '<input type="text" data-name="numero_cuenta" value="' + (cliente.numero_cuenta || '') + '" placeholder="00000000000000000000" maxlength="20" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-family:monospace;font-size:13px;box-sizing:border-box;" data-name="numero_cuenta">' +
-                '</div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px;background:#f7fafc;"><span style="color:#4a5568;font-weight:500;">Próxima Cuota</span><span style="color:#3182ce;font-weight:700;font-family:monospace;font-size:14px;">' + proximaCuota + '</span></div>' +
                 '</div>';
         }
 
@@ -3338,15 +3269,16 @@
                 html += '<tr class="fila-inicial">';
                 html += (esAdmin ? '<td></td>' : '');
                 html += '<td><span class="badge-inicial">0</span></td>';
-                html += '<td><input type="number" data-name="inicial_bs" value="' + (cliente.inicial_bs || '') + '" readonly step="0.01" class="solo-lectura"></td>';
-                html += '<td><input type="text" data-name="ref_inicial" value="' + (cliente.ref_inicial || '') + '" readonly class="solo-lectura"></td>';
-                html += '<td><input type="text" data-name="fecha_inicial" value="' + this.formatearFechaInput(cliente.fecha_inicial) + '" disabled class="solo-lectura" placeholder="dd-mm-aaaa" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
-                html += '<td><input type="number" data-name="tasa_inicial" value="' + (cliente.tasa_inicial || '') + '" readonly step="0.0001" class="solo-lectura"></td>';
-                html += '<td><input type="number" data-name="inicial_usd" value="' + (cliente.inicial_usd || '') + '" readonly step="0.01" class="calculado"></td>';
+                html += '<td><input type="number" value="' + (cliente.inicial_bs || '') + '" readonly step="0.01" class="solo-lectura"></td>';
+                html += '<td><input type="text" value="' + (cliente.ref_inicial || '') + '" readonly class="solo-lectura"></td>';
+                html += '<td><input type="text" value="' + this.formatearFechaInput(cliente.fecha_inicial) + '" disabled class="solo-lectura" placeholder="dd-mm-aaaa" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
+                html += '<td><input type="number" value="' + (cliente.tasa_inicial || '') + '" readonly step="0.0001" class="solo-lectura"></td>';
+                html += '<td><input type="number" value="' + (cliente.inicial_usd || '') + '" readonly step="0.01" class="calculado"></td>';
                 html += '<td><span style="color:#38a169;font-weight:700">✓</span></td>';
                 html += '</tr>';
             }
-// Iterar sobre pagos_extra (tabla de pagos) en lugar de columnas planas
+
+            // v6.8: Iterar sobre pagos_extra (tabla de pagos) en lugar de columnas planas
             const pagosArray = cliente.pagos_extra || [];
             pagosArray.sort((a, b) => (a.nro_cuota || 0) - (b.nro_cuota || 0));
 
@@ -3398,11 +3330,11 @@
                     html += '<td style="text-align:center"><input type="checkbox" name="eliminar-cuota-' + this.cfg.key + '" value="' + i + '" title="Seleccionar para eliminar"></td>';
                 }
                 html += '<td>' + i + '</td>';
-                html += '<td><input type="number" data-name="cuota_' + i + '" data-nro-cuota="' + i + '" value="' + cuotaBs + '" ' + readonlyAttr + ' step="0.01"></td>';
-                html += '<td><input type="text" data-name="ref_cuota_' + i + '" data-nro-cuota="' + i + '" value="' + (refCuota || '') + '" ' + readonlyAttr + '></td>';
-                html += '<td><input type="text" data-name="fecha_cuota_' + i + '" data-nro-cuota="' + i + '" value="' + this.formatearFechaInput(fechaCuota) + '" ' + disabledAttr + ' class="solo-lectura" placeholder="dd-mm-aaaa" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
-                html += '<td><input type="number" data-name="tasa_cuota_' + i + '" data-nro-cuota="' + i + '" value="' + tasaCuota + '" ' + readonlyAttr + ' step="0.0001"></td>';
-                html += '<td><input type="number" data-name="dolar_cuota_' + i + '" data-nro-cuota="' + i + '" value="' + dolarCuota + '" readonly step="0.01" class="calculado"></td>';
+                html += '<td><input type="number" name="cuota_' + i + '" value="' + cuotaBs + '" ' + readonlyAttr + ' step="0.01" onchange="window.Tiendas.get(\'' + this.cfg.key + '\').__recalcularCuotaModal(this, ' + i + ')"></td>';
+                html += '<td><input type="text" name="ref_cuota_' + i + '" value="' + (refCuota || '') + '" ' + readonlyAttr + '></td>';
+                html += '<td><input type="text" name="fecha_cuota_' + i + '" value="' + this.formatearFechaInput(fechaCuota) + '" ' + disabledAttr + ' class="solo-lectura" placeholder="dd-mm-aaaa" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
+                html += '<td><input type="number" name="tasa_cuota_' + i + '" value="' + tasaCuota + '" ' + readonlyAttr + ' step="0.0001" onchange="window.Tiendas.get(\'' + this.cfg.key + '\').__recalcularCuotaModal(this, ' + i + ')"></td>';
+                html += '<td><input type="number" name="dolar_cuota_' + i + '" value="' + dolarCuota + '" readonly step="0.01" class="calculado"></td>';
                 html += '<td>' + estadoHTML + '</td>';
                 html += '</tr>';
             });html += '</tbody></table>';
@@ -3430,66 +3362,15 @@
             } else {
                 if (dolarInput) dolarInput.value = '';
             }
-            // Actualizar pagos_extra en lugar de columnas planas
-            if (this.currentEditItem) {
-                if (!this.currentEditItem.pagos_extra) this.currentEditItem.pagos_extra = [];
-                const idx = this.currentEditItem.pagos_extra.findIndex(p => parseInt(p.nro_cuota) === numCuota);
-                const pago = {
-                    nro_cuota: numCuota,
-                    monto_bs: montoBs,
-                    tasa_bcv: tasa,
-                    monto_usd: parseFloat(dolarInput?.value) || 0,
-                    referencia: fila.querySelector('[data-name="ref_cuota_' + numCuota + '"]').value || '',
-                    fecha: this._parseFechaInputToISO(fila.querySelector('[data-name="fecha_cuota_' + numCuota + '"]').value) || ''
-                };
-                if (idx >= 0) {
-                    this.currentEditItem.pagos_extra[idx] = pago;
-                } else {
-                    this.currentEditItem.pagos_extra.push(pago);
-                }
-                this.__marcarDirty();
-            }
             this.__actualizarTotalesModal();
-        }
-
-        __onCuotaFieldChange(input, numCuota) {
-            if (!this.currentEditItem) return;
-            if (!this.currentEditItem.pagos_extra) this.currentEditItem.pagos_extra = [];
-            const fila = input.closest('tr');
-            const fieldName = input.getAttribute('data-name');
-            const idx = this.currentEditItem.pagos_extra.findIndex(p => parseInt(p.nro_cuota) === numCuota);
-            let pago;
-            if (idx >= 0) {
-                pago = this.currentEditItem.pagos_extra[idx];
-            } else {
-                pago = {
-                    nro_cuota: numCuota,
-                    monto_bs: parseFloat(fila.querySelector('[data-name="cuota_' + numCuota + '"]').value) || 0,
-                    tasa_bcv: parseFloat(fila.querySelector('[data-name="tasa_cuota_' + numCuota + '"]').value) || 0,
-                    monto_usd: parseFloat(fila.querySelector('[data-name="dolar_cuota_' + numCuota + '"]').value) || 0,
-                    referencia: '',
-                    fecha: ''
-                };
-            }
-            if (fieldName === 'ref_cuota_' + numCuota) {
-                pago.referencia = input.value;
-            } else if (fieldName === 'fecha_cuota_' + numCuota) {
-                pago.fecha = this._parseFechaInputToISO(input.value) || input.value;
-            }
-            if (idx >= 0) {
-                this.currentEditItem.pagos_extra[idx] = pago;
-            } else {
-                this.currentEditItem.pagos_extra.push(pago);
-            }
-            this.__marcarDirty();
         }
 
         __actualizarTotalesModal() {
             const modal = document.getElementById(this.cfg.key + '-modal-v672');
             if (!modal) return;
             let totalBs = 0, totalUSD = 0;
-            const inputInicialBs = modal.querySelector('[data-name="inicial_bs"]');
-            const inputInicialUSD = modal.querySelector('[data-name="inicial_usd"]');
+            const inputInicialBs = modal.querySelector('[name="inicial_bs"]');
+            const inputInicialUSD = modal.querySelector('[name="inicial_usd"]');
             if (inputInicialBs) totalBs += parseFloat(inputInicialBs.value) || 0;
             if (inputInicialUSD) totalUSD += parseFloat(inputInicialUSD.value) || 0;
             for (let i = 1; i <= TOTAL_CUOTAS; i++) {
@@ -3822,19 +3703,6 @@
                 const esConsolidado = state.tiendaSeleccionada === 'todas';
                 const endpoint = esConsolidado ? '/api/reportes/v1/generar-consolidado' : '/api/reportes/v1/generar';
 
-                // Verificar que el endpoint existe
-                console.log('[Reportes] Endpoint:', endpoint);
-                console.log('[Reportes] Body:', JSON.stringify({
-                    tienda: this.cfg.key,
-                    tipo: state.tipo,
-                    formato: 'json',
-                    filtros: { ...state.filtros },
-                    ordenarPor: state.ordenarPor,
-                    orden: state.orden,
-                    pagina: state.pagina,
-                    porPagina: state.porPagina
-                }, null, 2));
-
                 const body = esConsolidado ? {
                     tiendas: ['caracas', 'maracay', 'maracaibo'],
                     tipo: state.tipo,
@@ -3855,6 +3723,7 @@
                     porPagina: state.porPagina
                 };
 
+                // Limpiar filtros vacios
                 Object.keys(body.filtros).forEach(k => {
                     if (body.filtros[k] === '' || body.filtros[k] === null || body.filtros[k] === undefined) {
                         delete body.filtros[k];
@@ -3869,12 +3738,6 @@
                     },
                     body: JSON.stringify(body)
                 });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('[Reportes] Error response:', errorText);
-                    throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
-                }
 
                 const data = await response.json();
 
@@ -3891,10 +3754,8 @@
                 this._renderTablaReportes();
                 this._renderPaginacion();
 
-                console.log('[Reportes] Cargado exitosamente:', state.datos.length, 'registros');
-
             } catch (error) {
-                console.error('[Reportes] Error:', error);
+                console.error('[Reportes Dinamicos] Error:', error);
                 this._mostrarErrorReportes(error.message);
             } finally {
                 state.cargando = false;
@@ -4391,11 +4252,17 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
 
-                notificar('Excel descargado correctamente', 'success');
+                if (typeof showToast === 'function') {
+                    showToast('Excel descargado correctamente', 'success');
+                }
 
             } catch (error) {
                 console.error('[Exportar Excel] Error:', error);
-                notificar('Error al exportar: ' + error.message, 'error');
+                if (typeof showToast === 'function') {
+                    showToast('Error al exportar: ' + error.message, 'error');
+                } else {
+                    alert('Error al exportar: ' + error.message);
+                }
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -4411,12 +4278,12 @@
         const state = this.reportesState;
 
         if (state.totalRegistros === 0) {
-            notificar('No hay datos para exportar', 'warning');
+            if (typeof showToast === 'function') showToast('No hay datos para exportar', 'warning');
             return;
         }
 
         if (!window.jspdf || !window.jspdf.jsPDF) {
-            notificar('Libreria PDF no disponible. Recargue la pagina.', 'error');
+            if (typeof showToast === 'function') showToast('Libreria PDF no disponible. Recargue la pagina.', 'error');
             return;
         }
 
@@ -4468,11 +4335,11 @@
 
             this._generarPDF(todosDatos, resumen, state.tipo, state.tiendaSeleccionada);
 
-            notificar(`PDF generado con ${todosDatos.length} registros`, 'success');
+            if (typeof showToast === 'function') showToast(`PDF generado con ${todosDatos.length} registros`, 'success');
 
         } catch (error) {
             console.error('[Exportar PDF] Error:', error);
-            notificar('Error al generar PDF: ' + error.message, 'error');
+            if (typeof showToast === 'function') showToast('Error al generar PDF: ' + error.message, 'error');
         } finally {
             this._mostrarLoadingReportes(false);
         }
@@ -4575,13 +4442,8 @@
         }
 
         // Generar tabla con autoTable
-        if (typeof doc.autoTable !== 'function') {
-            notificar('Error: El plugin autoTable de jsPDF no está cargado.', 'error');
-            doc.text('Error: La librería de tablas no está disponible.', 14, 50);
-            doc.save(`reporte_${tipo}_${tiendaNombre.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-            return;
-        }
-        doc.autoTable({
+        if (typeof doc.autoTable === 'function') {
+            doc.autoTable({
                 head: [headers],
                 body: rows,
                 startY: 45,
@@ -4595,38 +4457,34 @@
                     doc.text(`Inversora IPSFA - Pagina ${data.pageNumber}`, 14, doc.internal.pageSize.getHeight() - 10);
                 }
             });
+        } else {
+            // Fallback sin autoTable
+            let y = 45;
+            doc.setFontSize(8);
+            rows.forEach((row) => {
+                if (y > 180) { doc.addPage(); y = 20; }
+                doc.text(row.join(' | '), 10, y);
+                y += 5;
+            });
+        }
 
         doc.save(`reporte_${tipo}_${tiendaNombre.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
     }
 
         _mostrarLoadingReportes(mostrar) {
             const el = document.getElementById(`${this.cfg.pfx}-reportes-loading`);
-            if (el) {
-                if (mostrar) {
-                    el.classList.remove('hidden');
-                    el.style.display = 'block';
-                } else {
-                    el.classList.add('hidden');
-                    el.style.display = 'none';
-                }
-            } else {
-                // Fallback: buscar el contenedor de tabla
-                const container = document.getElementById(`${this.cfg.pfx}-reportes-tabla-container`);
-                if (container && mostrar) {
-                    container.innerHTML = '<div class="reportes-loading">⏳ Cargando reporte...</div>';
-                }
-            }
+            if (el) el.classList.toggle('hidden', !mostrar);
         }
 
         _mostrarErrorReportes(mensaje) {
             const container = document.getElementById(`${this.cfg.pfx}-reportes-tabla-container`);
             if (container) {
                 container.innerHTML = `
-                    <div class="reportes-empty" style="color:#e53e3e;padding:40px;text-align:center;">
-                        <i class="fas fa-exclamation-circle" style="font-size:3rem;display:block;margin-bottom:15px;"></i>
+                    <div class="reportes-empty" style="color:#e53e3e;">
+                        <i class="fas fa-exclamation-circle"></i>
                         <p><strong>Error:</strong> ${this._escapeHtml(mensaje)}</p>
-                        <button class="btn btn-primary" onclick="Tiendas.get('${this.cfg.key}')._cargarReporteDinamico()" style="margin-top:15px;padding:8px 20px;border:none;border-radius:6px;background:#3182ce;color:#fff;cursor:pointer;">
-                            🔄 Reintentar
+                        <button class="btn btn-primary" onclick="Tiendas.get('${this.cfg.key}')._cargarReporteDinamico()" style="margin-top:15px;">
+                            <i class="fas fa-redo"></i> Reintentar
                         </button>
                     </div>
                 `;
@@ -4684,7 +4542,7 @@
         }
 
         attachEvents(container) {
-// Logging para diagnosticar clics
+            // v6.7.3-fix: Logging para diagnosticar clics
             console.log(`[Tiendas] attachEvents montado en tienda ${this.cfg.key}, container #${this.cfg.contentId}`);
 
             // --- CLICK ---
@@ -4692,12 +4550,6 @@
                 const target = ev.target.closest('[data-action]');
                 if (!target) {
                     // Si no hay data-action, verificar si el clic fue en una tarjeta con onclick
-                    return;
-                }
-
-                // Si el elemento o su ancestro tiene onclick inline, no procesar data-action
-                // para evitar doble ejecución (el inline ya se disparó en el target phase)
-                if (target.onclick || target.closest('[onclick]')) {
                     return;
                 }
 

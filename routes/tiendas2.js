@@ -1,12 +1,11 @@
 // ============================================================
-// RUTAS GENERICAS DE TIENDAS - CRUD unificado  (v6.11)
+// RUTAS GENERICAS DE TIENDAS - CRUD unificado  (v6.10.1)
 // ============================================================
-// Cambios v6.11:
-//   - RECALCULO OBLIGATORIO: Siempre recalcula totales desde pagos_*
-//   - NO confía en valores del frontend para campos calculados
-//   - Usa GREATEST(0, ...) para evitar deudas negativas
-//   - Sanea todos los valores numéricos
-//   - Guarda TODOS los campos calculados en el UPDATE
+// Cambios v6.10.1:
+//   - SIEMPRE recalcula y guarda totales desde la tabla de pagos
+//   - No confía en los valores enviados por el frontend
+//   - Previene datos corruptos como deuda_usd negativo o inconsistente
+//   - Sanea valores NULL y NaN antes de guardar
 // ============================================================
 
 const express = require('express');
@@ -47,7 +46,15 @@ const CAMPOS_BASE = [
   'discrepancias_cuotas', 'deuda_remanente'
 ];
 
-// Campos que SIEMPRE son calculados por el backend (NO se aceptan del frontend)
+const CAMPOS_CUOTAS = [];
+for (let i = 1; i <= MAX_CUOTAS_PLANAS; i++) {
+  CAMPOS_CUOTAS.push(
+    `cuota_${i}`, `ref_cuota_${i}`, `fecha_cuota_${i}`,
+    `tasa_cuota_${i}`, `dolar_depositado_cuota_${i}`
+  );
+}
+
+// Campos que SIEMPRE son calculados por el backend (no se aceptan del frontend)
 const CAMPOS_CALCULADOS = [
   'total_depositado_usd', 'deuda_usd', 'monto_depositados', 
   'deuda', 'cuotas_pagadas', 'proxima_cuota', 'discrepancias_cuotas'
@@ -220,7 +227,11 @@ async function crearCliente(req, res) {
       return res.status(400).json({ error: 'Cuotas debe ser un numero entero entre 1 y 30' });
     }
 
-    // OPCIÓN A: Se eliminó la restricción de comparación entre fecha_inicial y fecha_factura
+    if (data.fecha_inicial && data.fecha_factura) {
+      if (new Date(data.fecha_inicial) < new Date(data.fecha_factura)) {
+        return res.status(400).json({ error: 'Fecha de inicial no puede ser anterior a la fecha de la factura' });
+      }
+    }
 
     const tasaFactura = parseFloat(data.tasa_bcv_factura);
     const tasaInicial = parseFloat(data.tasa_inicial);
@@ -349,7 +360,7 @@ async function crearCliente(req, res) {
 }
 
 // ============================================================
-// PUT /api/tiendas/:tienda/:id  —  v6.11 CORREGIDO
+// PUT /api/tiendas/:tienda/:id  —  CORREGIDO v6.10.1
 // ============================================================
 async function actualizarCliente(req, res) {
   try {
@@ -405,7 +416,7 @@ async function actualizarCliente(req, res) {
     }
 
     // ============================================================
-    // 3. RECALCULAR TOTALES DESDE CERO (siempre)
+    // 3. RECALCULAR TOTALES DESDE CERO (siempre, sin importar el frontend)
     // ============================================================
     let totalDepositadoBs = 0;
     let totalDepositadoUSD = 0;
@@ -427,12 +438,12 @@ async function actualizarCliente(req, res) {
         }
       }
     } catch (e) {
-      console.warn(`[v6.11] Error leyendo pagos de ${req.tablaPagos}:`, e.message);
+      console.warn(`[v6.10.1] Error leyendo pagos de ${req.tablaPagos}:`, e.message);
     }
 
     // FALLBACK: si no hay pagos en tabla de pagos, leer columnas planas legacy
     if (totalDepositadoBs === 0 && cuotasPagadas === 0) {
-      console.log(`[v6.11] Fallback: leyendo columnas planas legacy para factura_id=${id}`);
+      console.log(`[v6.10.1] Fallback: leyendo columnas planas legacy para factura_id=${id}`);
       for (let i = 1; i <= MAX_CUOTAS_PLANAS; i++) {
         const cuotaBs = sanearNumero(cliente[`cuota_${i}`]);
         const dolarCuota = sanearNumero(cliente[`dolar_depositado_cuota_${i}`]);
@@ -447,29 +458,27 @@ async function actualizarCliente(req, res) {
     // 4. Incluir inicial en totales
     const inicialBs = sanearNumero(cliente.inicial_bs);
     const inicialUSD = sanearNumero(cliente.inicial_usd);
-    if (inicialBs > 0 || inicialUSD > 0) {
+    const esNuevo = inicialBs > 0;
+    if (esNuevo) {
       totalDepositadoBs += inicialBs;
       totalDepositadoUSD += inicialUSD;
     }
 
-    // 5. Calcular deuda pendiente (NUNCA negativa)
+    // 5. Calcular deuda pendiente
     const montoFactura = sanearNumero(cliente.monto_factura);
     const montoFacturadoDivisa = sanearNumero(cliente.monto_facturado_divisa);
-    
-    let deudaPendienteBs = redondearDecimales(montoFactura - totalDepositadoBs);
-    let deudaPendienteUSD = redondearDecimales(montoFacturadoDivisa - totalDepositadoUSD);
+    const deudaPendienteBs = redondearDecimales(montoFactura - totalDepositadoBs);
+    const deudaPendienteUSD = redondearDecimales(montoFacturadoDivisa - totalDepositadoUSD);
 
-    // Si la deuda es muy pequeña o negativa, ponerla a 0
-    if (deudaPendienteBs < 0) deudaPendienteBs = 0;
-    if (deudaPendienteUSD < 0) deudaPendienteUSD = 0;
-    if (deudaPendienteBs < TOLERANCIA_CERO) deudaPendienteBs = 0;
-    if (deudaPendienteUSD < TOLERANCIA_CERO) deudaPendienteUSD = 0;
+    // Si la deuda es muy pequeña (por redondeo), ponerla a 0
+    const deudaFinalBs = Math.abs(deudaPendienteBs) < TOLERANCIA_CERO ? 0 : deudaPendienteBs;
+    const deudaFinalUSD = Math.abs(deudaPendienteUSD) < TOLERANCIA_CERO ? 0 : deudaPendienteUSD;
 
     // 6. Calcular proxima cuota
     const montoCuotaUSD = sanearNumero(cliente.monto_cuota_usd);
-    const proximaCuota = Math.min(montoCuotaUSD, deudaPendienteUSD);
+    const proximaCuota = Math.min(montoCuotaUSD, Math.max(0, deudaFinalUSD));
 
-    // 7. Calcular discrepancias
+    // 7. Calcular discrepancias desde tabla de pagos
     const totalCuotas = parseInt(cliente.cuotas) || 4;
     let discrepancias = {};
 
@@ -481,14 +490,13 @@ async function actualizarCliente(req, res) {
       for (const pago of pagosResult.rows) {
         const nroCuota = parseInt(pago.nro_cuota);
         const dolarRecibido = sanearNumero(pago.monto_usd);
-        if (dolarRecibido > 0 && montoCuotaUSD > 0) {
+        if (dolarRecibido > 0) {
+          const esUltimaPagada = nroCuota === cuotasPagadas && nroCuota === totalCuotas;
           let esperado = montoCuotaUSD;
-          // Si es la última cuota pagada, ajustar el esperado
-          if (nroCuota === cuotasPagadas && nroCuota === totalCuotas) {
+          if (esUltimaPagada && montoCuotaUSD > 0) {
             const acumuladoAnterior = redondearDecimales(montoCuotaUSD * (totalCuotas - 1));
             const deudaTotal = montoFacturadoDivisa - inicialUSD;
             esperado = redondearDecimales(deudaTotal - acumuladoAnterior);
-            if (esperado < 0) esperado = 0;
           }
           const diferencia = redondearDecimales(esperado - dolarRecibido);
           if (diferencia > 0.01) {
@@ -501,7 +509,7 @@ async function actualizarCliente(req, res) {
         }
       }
     } catch (e) {
-      console.warn(`[v6.11] Error calculando discrepancias:`, e.message);
+      console.warn(`[v6.10.1] Error calculando discrepancias:`, e.message);
     }
 
     // Limitar discrepancias a 10
@@ -514,11 +522,14 @@ async function actualizarCliente(req, res) {
     }
 
     // ============================================================
-    // 8. ELIMINAR CAMPOS CALCULADOS DEL PAYLOAD (NO confiar en el frontend)
+    // 8. CONSTRUIR UPDATE - SIEMPRE guardar valores recalculados
     // ============================================================
+    
+    // Eliminar campos calculados del payload (NO confiar en el frontend)
     for (const campo of CAMPOS_CALCULADOS) {
       delete data[campo];
     }
+    // También eliminar estos campos que no deben actualizarse
     delete data.nro_factura;
     delete data.numero;
     delete data.created_at;
@@ -526,15 +537,13 @@ async function actualizarCliente(req, res) {
     delete data.pagos_extra;
     delete data.eliminar_cuotas;
 
-    // ============================================================
-    // 9. CONSTRUIR UPDATE - SIEMPRE guardar valores recalculados
-    // ============================================================
     const fields = [];
     const values = [];
     let paramCount = 0;
 
     // Campos editables del payload
     for (const field of ALLOWED_FIELDS_UPDATE) {
+      // Saltar campos calculados (ya los vamos a setear nosotros)
       if (CAMPOS_CALCULADOS.includes(field)) {
         continue;
       }
@@ -542,6 +551,7 @@ async function actualizarCliente(req, res) {
         paramCount++;
         fields.push(`${field} = $${paramCount}`);
         const valor = DATE_FIELDS.includes(field) ? toDateOrNull(data[field]) : toNullIfEmpty(data[field]);
+        // Sanear números
         if (typeof valor === 'number' && !isNaN(valor)) {
           values.push(redondearDecimales(valor));
         } else {
@@ -550,14 +560,14 @@ async function actualizarCliente(req, res) {
       }
     }
 
-    // ✅ SIEMPRE guardar valores recalculados (el backend es la fuente de verdad)
+    // ✅ SIEMPRE guardar valores recalculados (NO confiar en el frontend)
     paramCount++;
     fields.push(`total_depositado_usd = $${paramCount}`);
     values.push(redondearDecimales(totalDepositadoUSD));
 
     paramCount++;
     fields.push(`deuda_usd = $${paramCount}`);
-    values.push(redondearDecimales(deudaPendienteUSD));
+    values.push(redondearDecimales(deudaFinalUSD));
 
     paramCount++;
     fields.push(`monto_depositados = $${paramCount}`);
@@ -565,7 +575,7 @@ async function actualizarCliente(req, res) {
 
     paramCount++;
     fields.push(`deuda = $${paramCount}`);
-    values.push(redondearDecimales(deudaPendienteBs));
+    values.push(redondearDecimales(deudaFinalBs));
 
     paramCount++;
     fields.push(`cuotas_pagadas = $${paramCount}`);
@@ -575,11 +585,9 @@ async function actualizarCliente(req, res) {
     fields.push(`proxima_cuota = $${paramCount}`);
     values.push(redondearDecimales(proximaCuota));
 
-    if (Object.keys(discrepancias).length > 0) {
-      paramCount++;
-      fields.push(`discrepancias_cuotas = $${paramCount}`);
-      values.push(JSON.stringify(discrepancias));
-    }
+    paramCount++;
+    fields.push(`discrepancias_cuotas = $${paramCount}`);
+    values.push(JSON.stringify(discrepancias));
 
     paramCount++;
     fields.push(`updated_at = $${paramCount}`);

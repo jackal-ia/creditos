@@ -1,0 +1,120 @@
+-- ============================================================
+-- REPARAR TODAS LAS TIENDAS - Corrige NULLs y valores negativos
+-- ============================================================
+
+-- 1. REPARAR CARACAS
+UPDATE tienda_caracas t
+SET 
+    total_depositado_usd = ROUND(
+        COALESCE(t.inicial_usd, 0) + COALESCE(
+            (SELECT SUM(p.monto_usd) FROM pagos_caracas p WHERE p.factura_id = t.id),
+            0
+        ), 2
+    ),
+    deuda_usd = ROUND(
+        GREATEST(0, COALESCE(t.monto_facturado_divisa, 0) - (
+            COALESCE(t.inicial_usd, 0) + COALESCE(
+                (SELECT SUM(p.monto_usd) FROM pagos_caracas p WHERE p.factura_id = t.id),
+                0
+            )
+        )), 2
+    ),
+    monto_depositados = ROUND(
+        COALESCE(t.inicial_bs, 0) + COALESCE(
+            (SELECT SUM(p.monto_bs) FROM pagos_caracas p WHERE p.factura_id = t.id),
+            0
+        ), 2
+    ),
+    deuda = ROUND(
+        GREATEST(0, COALESCE(t.monto_factura, 0) - (
+            COALESCE(t.inicial_bs, 0) + COALESCE(
+                (SELECT SUM(p.monto_bs) FROM pagos_caracas p WHERE p.factura_id = t.id),
+                0
+            )
+        )), 2
+    ),
+    cuotas_pagadas = (
+        SELECT COUNT(*) FROM pagos_caracas p 
+        WHERE p.factura_id = t.id AND COALESCE(p.monto_bs, 0) > 0
+    ),
+    updated_at = NOW()
+WHERE id IS NOT NULL;
+
+-- 2. REPARAR MARACAY
+UPDATE tienda_maracay t
+SET 
+    total_depositado_usd = ROUND(
+        COALESCE(t.inicial_usd, 0) + COALESCE(
+            (SELECT SUM(p.monto_usd) FROM pagos_maracay p WHERE p.factura_id = t.id),
+            0
+        ), 2
+    ),
+    deuda_usd = ROUND(
+        GREATEST(0, COALESCE(t.monto_facturado_divisa, 0) - (
+            COALESCE(t.inicial_usd, 0) + COALESCE(
+                (SELECT SUM(p.monto_usd) FROM pagos_maracay p WHERE p.factura_id = t.id),
+                0
+            )
+        )), 2
+    ),
+    monto_depositados = ROUND(
+        COALESCE(t.inicial_bs, 0) + COALESCE(
+            (SELECT SUM(p.monto_bs) FROM pagos_maracay p WHERE p.factura_id = t.id),
+            0
+        ), 2
+    ),
+    deuda = ROUND(
+        GREATEST(0, COALESCE(t.monto_factura, 0) - (
+            COALESCE(t.inicial_bs, 0) + COALESCE(
+                (SELECT SUM(p.monto_bs) FROM pagos_maracay p WHERE p.factura_id = t.id),
+                0
+            )
+        )), 2
+    ),
+    cuotas_pagadas = (
+        SELECT COUNT(*) FROM pagos_maracay p 
+        WHERE p.factura_id = t.id AND COALESCE(p.monto_bs, 0) > 0
+    ),
+    updated_at = NOW()
+WHERE id IS NOT NULL;
+
+-- 3. REPARAR MARACAIBO
+UPDATE tienda_maracaibo t
+SET 
+    total_depositado_usd = ROUND(
+        COALESCE(t.inicial_usd, 0) + COALESCE(
+            (SELECT SUM(p.monto_usd) FROM pagos_maracaibo p WHERE p.factura_id = t.id),
+            0
+        ), 2
+    ),
+    deuda_usd = ROUND(
+        GREATEST(0, COALESCE(t.monto_facturado_divisa, 0) - (
+            COALESCE(t.inicial_usd, 0) + COALESCE(
+                (SELECT SUM(p.monto_usd) FROM pagos_maracaibo p WHERE p.factura_id = t.id),
+                0
+            )
+        )), 2
+    ),
+    monto_depositados = ROUND(
+        COALESCE(t.inicial_bs, 0) + COALESCE(
+            (SELECT SUM(p.monto_bs) FROM pagos_maracaibo p WHERE p.factura_id = t.id),
+            0
+        ), 2
+    ),
+    deuda = ROUND(
+        GREATEST(0, COALESCE(t.monto_factura, 0) - (
+            COALESCE(t.inicial_bs, 0) + COALESCE(
+                (SELECT SUM(p.monto_bs) FROM pagos_maracaibo p WHERE p.factura_id = t.id),
+                0
+            )
+        )), 2
+    ),
+    cuotas_pagadas = (
+        SELECT COUNT(*) FROM pagos_maracaibo p 
+        WHERE p.factura_id = t.id AND COALESCE(p.monto_bs, 0) > 0
+    ),
+    updated_at = NOW()
+WHERE id IS NOT NULL;
+
+-- VERIFICAR RESULTADO
+SELECT '✅ TODAS LAS TIENDAS REPARADAS' AS mensaje;

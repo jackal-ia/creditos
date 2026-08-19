@@ -63,6 +63,14 @@ app.use('/api/estadisticas', require('./routes/estadisticas'));
 // RUTA: Actividades Pendientes
 app.use('/api/actividades', require('./routes/actividades'));
 
+// ============================================================
+// NUEVA RUTA: API de Reportes Dinámicos v1.0
+// IMPORTANTE: debe ir ANTES de /api/reportes (legacy) porque
+// Express resuelve rutas en orden. Si va después, /api/reportes/v1
+// sería capturado por el router legacy como tienda="v1".
+// ============================================================
+app.use('/api/reportes/v1', require('./routes/reportes-dinamicos'));
+
 // RUTA: Reportes por tienda (genérico: /api/reportes/:tienda)
 app.use('/api/reportes', require('./routes/reportes'));
 
@@ -121,4 +129,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('   → Todas:   http://0.0.0.0:' + PORT);
     console.log('📁 API Tiendas (genérica): http://localhost:' + PORT + '/api/tiendas/caracas');
     console.log('📁 Aliases legacy activos: /api/tienda-caracas, /api/tienda-maracay, /api/tienda-maracaibo');
+    console.log('📊 API Reportes Dinámicos v1.0: http://localhost:' + PORT + '/api/reportes/v1/generar');
 });

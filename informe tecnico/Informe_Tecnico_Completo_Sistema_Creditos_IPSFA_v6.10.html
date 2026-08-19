@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Técnico — Sistema de Créditos IPSFA v6.10</title>
+    <style>
+        :root { --primary: #1a365d; --secondary: #2c5282; --accent: #3182ce; --success: #38a169; --warning: #ed8936; --danger: #e53e3e; --bg: #f7fafc; --card: #ffffff; --text: #2d3748; --muted: #718096; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 40px 20px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 30px; }
+        header h1 { font-size: 2.2rem; margin-bottom: 10px; }
+        header p { opacity: 0.9; font-size: 1.05rem; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-primary { background: var(--accent); color: white; }
+        .badge-success { background: #c6f6d5; color: #22543d; }
+        .badge-warning { background: #feebc8; color: #744210; }
+        .badge-danger { background: #fed7d7; color: #742a2a; }
+        .card { background: var(--card); border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .card h2 { color: var(--primary); font-size: 1.4rem; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .card h3 { color: var(--secondary); font-size: 1.15rem; margin: 20px 0 10px; }
+        .card h4 { color: var(--accent); font-size: 1rem; margin: 15px 0 8px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.9rem; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #edf2f7; font-weight: 600; color: var(--primary); }
+        tr:hover { background: #f7fafc; }
+        code { background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.85rem; color: #c53030; }
+        pre { background: #1a202c; color: #e2e8f0; padding: 20px; border-radius: 10px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; margin: 15px 0; }
+        pre .comment { color: #68d391; }
+        pre .keyword { color: #63b3ed; }
+        pre .string { color: #f6ad55; }
+        pre .function { color: #d6bcfa; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+        .toc { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #e2e8f0; position: sticky; top: 20px; }
+        .toc h3 { margin-bottom: 15px; color: var(--primary); }
+        .toc ul { list-style: none; }
+        .toc li { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+        .toc a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+        .toc a:hover { text-decoration: underline; }
+        .highlight { background: #fffaf0; border-left: 4px solid var(--warning); padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .info-box { background: #ebf8ff; border-left: 4px solid var(--accent); padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .danger-box { background: #fff5f5; border-left: 4px solid var(--danger); padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .success-box { background: #f0fff4; border-left: 4px solid var(--success); padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .file-tree { font-family: 'Consolas', monospace; background: #1a202c; color: #e2e8f0; padding: 20px; border-radius: 10px; line-height: 1.8; }
+        .file-tree .folder { color: #f6ad55; font-weight: bold; }
+        .file-tree .file { color: #a0aec0; }
+        .file-tree .root { color: #68d391; font-weight: bold; }
+        footer { text-align: center; padding: 30px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid #e2e8f0; margin-top: 40px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>📋 Informe Técnico — Sistema de Créditos IPSFA</h1>
+    <p>Versión 6.10 | Inversora IPSFA C.A. | Agosto 2026</p>
+    <span class="badge badge-primary">Node.js + Express + PostgreSQL</span>
+    <span class="badge badge-success">SPA Vanilla JS</span>
+    <span class="badge badge-warning">Multi-tienda</span>
+</header>
+
+<div class="container">
+
+<!-- ÍNDICE -->
+<div class="toc">
+    <h3>📑 Tabla de Contenidos</h3>
+    <ul>
+        <li><a href="#sec1">1. Resumen Ejecutivo</a></li>
+        <li><a href="#sec2">2. Arquitectura del Sistema</a></li>
+        <li><a href="#sec3">3. Estructura de Carpetas y Archivos</a></li>
+        <li><a href="#sec4">4. Base de Datos PostgreSQL</a></li>
+        <li><a href="#sec5">5. Flujo de Datos — Cómo se Guardan las Cuotas</a></li>
+        <li><a href="#sec6">6. Backend (Node.js / Express)</a></li>
+        <li><a href="#sec7">7. Frontend (SPA Vanilla JS)</a></li>
+        <li><a href="#sec8">8. Autenticación y Seguridad</a></li>
+        <li><a href="#sec9">9. APIs REST Disponibles</a></li>
+        <li><a href="#sec10">10. Instalación y Despliegue</a></li>
+        <li><a href="#sec11">11. Historial de Cambios (v6.10)</a></li>
+    </ul>
+</div>
+
+<!-- SECCIÓN 1 -->
+<div class="card" id="sec1">
+    <h2>1. Resumen Ejecutivo</h2>
+    <p>El <strong>Sistema de Créditos IPSFA</strong> es una aplicación web full-stack para la gestión de clientes, créditos, cuotas y conciliaciones bancarias de tres tiendas físicas: <strong>Caracas</strong>, <strong>Maracay</strong> y <strong>Maracaibo</strong>.</p>
+    
+    <div class="grid-3">
+        <div class="info-box">
+            <strong>Backend</strong><br>
+            Node.js 20+ con Express.js. API REST con autenticación JWT. Conexión a PostgreSQL 18+ mediante <code>pg</code> pool.
+        </div>
+        <div class="info-box">
+            <strong>Frontend</strong><br>
+            SPA (Single Page Application) en JavaScript vanilla. Sin frameworks. UI responsive con CSS puro. Gráficos con ApexCharts.
+        </div>
+        <div class="info-box">
+            <strong>Base de Datos</strong><br>
+            PostgreSQL con tablas por tienda (<code>tienda_caracas</code>, <code>tienda_maracay</code>, <code>tienda_maracaibo</code>) + tablas de pagos normalizadas (<code>pagos_caracas</code>, etc.).
+        </div>
+    </div>
+
+    <h3>Roles de Usuario</h3>
+    <table>
+        <tr><th>Rol</th><th>Permisos</th><th>Restricciones</th></tr>
+        <tr><td><span class="badge badge-danger">administrador</span></td><td>Acceso total. Crea/edita/elimina usuarios. Borra cuotas. Ve reportes de todas las tiendas.</td><td>Ninguna</td></tr>
+        <tr><td><span class="badge badge-warning">operador</span></td><td>Crea clientes, registra pagos, ve su tienda asignada.</td><td>No puede borrar cuotas ni ver otras tiendas. No exporta PDFs sensibles.</td></tr>
+    </table>
+</div>
+
+<!-- SECCIÓN 2 -->
+<div class="card" id="sec2">
+    <h2>2. Arquitectura del Sistema</h2>
+    
+    <h3>Diagrama de Capas</h3>
+    <pre>
+┌─────────────────────────────────────────────────────────────┐
+│  CAPA DE PRESENTACIÓN (Frontend)                            │
+│  ───────────────────────────────                            │
+│  panel.html  →  panel.js  →  tienda-spa.js (v6.10)         │
+│  Navegación SPA | Modal de edición | Gráficos | Reportes    │
+└────────────────────────┬────────────────────────────────────┘
+                         │ HTTP + Bearer JWT
+┌────────────────────────▼────────────────────────────────────┐
+│  CAPA DE APLICACIÓN (Backend)                               │
+│  ───────────────────────────                                │
+│  server.js  →  Express Router                               │
+│    ├── /api/auth        →  routes/auth.js                   │
+│    ├── /api/bcv         →  routes/bcv.js                    │
+│    ├── /api/tiendas     →  routes/tiendas.js (v6.10)       │
+│    ├── /api/reportes    →  routes/reportes.js               │
+│    ├── /api/estadisticas→  routes/estadisticas.js           │
+│    ├── /api/actividades →  routes/actividades.js            │
+│    └── /api/usuarios    →  routes/usuarios.js               │
+└────────────────────────┬────────────────────────────────────┘
+                         │ SQL
+┌────────────────────────▼────────────────────────────────────┐
+│  CAPA DE DATOS (PostgreSQL)                                 │
+│  ─────────────────────────                                  │
+│  tienda_caracas, tienda_maracay, tienda_maracaibo          │
+│  pagos_caracas, pagos_maracay, pagos_maracaibo             │
+│  usuarios, sesiones, actividades, auditoria_usuarios       │
+│  tasas_bcv, reset_tokens                                   │
+└─────────────────────────────────────────────────────────────┘
+    </pre>
+
+    <h3>Patrones de Diseño</h3>
+    <ul>
+        <li><strong>Modularización por tienda:</strong> Una sola clase <code>TiendaApp</code> instanciada tres veces (caracas, maracay, maracaibo) en el frontend.</li>
+        <li><strong>Middleware de validación:</strong> <code>validarTienda</code> inyecta <code>req.tablaTienda</code> y <code>req.tablaPagos</code> dinámicamente según la URL.</li>
+        <li><strong>Pool de conexiones PostgreSQL:</strong> Un único pool reutilizado en todas las rutas mediante <code>config/database.js</code>.</li>
+    </ul>
+</div>
+
+<!-- SECCIÓN 3 -->
+<div class="card" id="sec3">
+    <h2>3. Estructura de Carpetas y Archivos</h2>
+    
+    <div class="file-tree">
+<span class="root">creditos2/</span>
+├── <span class="file">server.js</span>                    <span class="comment"># Punto de entrada Express</span>
+├── <span class="file">package.json</span>               <span class="comment"># Dependencias y scripts</span>
+├── <span class="file">.env</span>                       <span class="comment"># Variables de entorno (no versionado)</span>
+├── <span class="file">bd.sql</span>                     <span class="comment"># Dump completo de PostgreSQL</span>
+├── <span class="file">esquema2.txt</span>               <span class="comment"># Esquema con triggers y funciones</span>
+├── <span class="file">instalar-servicio.bat</span>      <span class="comment"># Script Windows para instalar como servicio</span>
+│
+├── <span class="folder">config/</span>
+│   └── <span class="file">database.js</span>            <span class="comment"># Pool de conexión PostgreSQL (dotenv)</span>
+│
+├── <span class="folder">middleware/</span>
+│   ├── <span class="file">auth.js</span>              <span class="comment"># verificarToken, soloAdmin, registrarAuditoria</span>
+│   └── <span class="file">validarTienda.js</span>     <span class="comment"># Inyecta tablaTienda/tablasPagos según URL</span>
+│
+├── <span class="folder">utils/</span>
+│   └── <span class="file">uppercase.js</span>         <span class="comment"># Helper toUpperCaseFields para normalizar textos</span>
+│
+├── <span class="folder">routes/</span>
+│   ├── <span class="file">auth.js</span>              <span class="comment"># Login, logout, refresh, verificar-sesion</span>
+│   ├── <span class="file">bcv.js</span>               <span class="comment"># Consulta tasa BCV actual e histórica</span>
+│   ├── <span class="file">tiendas.js</span>           <span class="comment"># CRUD genérico de tiendas (v6.10)</span>
+│   ├── <span class="file">reportes.js</span>          <span class="comment"># Generación de reportes filtrados</span>
+│   ├── <span class="file">estadisticas.js</span>      <span class="comment"># KPIs por tienda y globales</span>
+│   ├── <span class="file">actividades.js</span>       <span class="comment"># Gestión de tareas pendientes</span>
+│   └── <span class="file">usuarios.js</span>          <span class="comment"># CRUD de usuarios, roles, auditoría</span>
+│
+├── <span class="folder">public/</span>                    <span class="comment"># Archivos estáticos servidos por Express</span>
+│   ├── <span class="folder">assets/</span>              <span class="comment"># Logo, imágenes, fuentes</span>
+│   ├── <span class="folder">css/</span>                 <span class="comment"># Estilos globales y por componente</span>
+│   │   ├── <span class="file">styles.css</span>
+│   │   ├── <span class="file">components.css</span>
+│   │   └── <span class="file">responsive.css</span>
+│   └── <span class="folder">js/</span>                  <span class="comment"># Lógica del frontend SPA</span>
+│       ├── <span class="file">panel.js</span>         <span class="comment"># Navegación principal y menú lateral</span>
+│       ├── <span class="file">tienda-spa.js</span>    <span class="comment"># Módulo genérico de tiendas (v6.10)</span>
+│       ├── <span class="file">auth.js</span>          <span class="comment"># Login, JWT, manejo de sesión</span>
+│       ├── <span class="file">tasa-bcv.js</span>      <span class="comment"># Consulta y cache de tasa BCV</span>
+│       ├── <span class="file">utils.js</span>         <span class="comment"># Helpers: formatCurrency, escapeHtml, etc.</span>
+│       ├── <span class="file">api.js</span>           <span class="comment"># Wrapper fetch con token</span>
+│       ├── <span class="file">dashboard.js</span>     <span class="comment"># Panel principal con KPIs</span>
+│       ├── <span class="file">actividades.js</span>   <span class="comment"># Módulo de tareas pendientes</span>
+│       └── <span class="file">usuarios.js</span>      <span class="comment"># Gestión de usuarios (admin)</span>
+│
+├── <span class="folder">tools/</span>                     <span class="comment"># Scripts de utilidad</span>
+│   ├── <span class="file">limpiar-bd.js</span>
+│   ├── <span class="file">backup.js</span>
+│   └── <span class="file">importar-legacy.js</span>
+│
+├── <span class="folder">facturas/</span>                  <span class="comment"># PDFs generados (facturas, reportes)</span>
+│
+└── <span class="folder">informe tecnico/</span>         <span class="comment"># Documentación del proyecto</span>
+    ├── <span class="file">Informe_Tecnico_Sistema_Creditos_IPSFA_v6.7.html</span>
+    ├── <span class="file">Diagnostico_Tecnico_Sistema_Creditos_IPSFA_v6.7.html</span>
+    └── <span class="folder">api/</span>, <span class="folder">diagnostico/</span>, <span class="folder">informe de seguridad/</span>, etc.
+    </div>
+
+    <h3>Descripción Detallada de Archivos Clave</h3>
+
+    <h4>server.js</h4>
+    <p>Punto de entrada del servidor. Configura Express con:</p>
+    <ul>
+        <li><code>express.json()</code> y <code>express.urlencoded()</code> para parsear bodies</li>
+        <li><code>express.static('public')</code> para servir el frontend</li>
+        <li>CORS para localhost:3000</li>
+        <li>Montaje de rutas: <code>/api/auth</code>, <code>/api/bcv</code>, <code>/api/tiendas</code>, <code>/api/reportes</code>, <code>/api/estadisticas</code>, <code>/api/actividades</code>, <code>/api/usuarios</code></li>
+        <li>Redirección de rutas legacy: <code>/api/tienda-caracas</code> → <code>/api/tiendas/caracas</code></li>
+        <li>Manejo de errores 404 y 500</li>
+    </ul>
+
+    <h4>config/database.js</h4>
+    <pre>
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    database: process.env.DB_NAME
+});
+
+pool.on('connect', () => console.log('Conectado a PostgreSQL'));
+module.exports = pool;
+    </pre>
+
+    <h4>middleware/auth.js</h4>
+    <p>Contiene tres funciones principales:</p>
+    <ul>
+        <li><code>verificarToken(req, res, next)</code>: Valida JWT del header <code>Authorization</code>. Verifica <code>token_version</code> contra la BD para revocar sesiones. Inyecta <code>req.usuario</code>.</li>
+        <li><code>soloAdmin(req, res, next)</code>: Middleware adicional que rechaza si <code>rol !== 'administrador'</code>.</li>
+        <li><code>registrarAuditoria(req, res, next)</code>: Guarda en <code>auditoria_usuarios</code> cada acción CRUD con datos en JSONB.</li>
+    </ul>
+
+    <h4>middleware/validarTienda.js</h4>
+    <p>Middleware dinámico que mapea la tienda de la URL a las tablas reales de PostgreSQL:</p>
+    <pre>
+const TIENDAS = {
+  caracas:   { tabla: 'tienda_caracas',   pagos: 'pagos_caracas' },
+  maracay:   { tabla: 'tienda_maracay',   pagos: 'pagos_maracay' },
+  maracaibo: { tabla: 'tienda_maracaibo', pagos: 'pagos_maracaibo' }
+};
+    </pre>
+    <p>Inyecta <code>req.tienda</code>, <code>req.tablaTienda</code>, <code>req.tablaPagos</code> y <code>req.reportesApi</code> para que las rutas genéricas sepan sobre qué tabla operar.</p>
+
+    <h4>utils/uppercase.js</h4>
+    <p>Helper que convierte campos de texto a MAYÚSCULAS antes de guardar en BD. Se usa en <code>crearCliente</code>, <code>actualizarCliente</code>, <code>crearActividad</code>, etc. para mantener consistencia.</p>
+
+    <h4>instalar-servicio.bat</h4>
+    <p>Script batch de Windows que instala la aplicación Node.js como un servicio de Windows usando <code>node-windows</code> (nssm). Útil para producción en servidores Windows sin necesidad de mantener una consola abierta.</p>
+</div>
+
+<!-- SECCIÓN 4 -->
+<div class="card" id="sec4">
+    <h2>4. Base de Datos PostgreSQL</h2>
+
+    <h3>4.1 Tablas Principales por Tienda</h3>
+    <p>Cada tienda tiene una tabla propia con la misma estructura base. A continuación el esquema de <code>tienda_caracas</code> (representativo de las tres):</p>
+
+    <table>
+        <tr><th>Columna</th><th>Tipo</th><th>Descripción</th></tr>
+        <tr><td>id</td><td>INTEGER (PK, serial)</td><td>Identificador único autoincremental</td></tr>
+        <tr><td>numero</td><td>INTEGER</td><td>Número correlativo interno</td></tr>
+        <tr><td>nro_factura</td><td>VARCHAR(50)</td><td>Número de factura física</td></tr>
+        <tr><td>nombre_apellido</td><td>VARCHAR(255)</td><td>Nombre del cliente (mayúsculas)</td></tr>
+        <tr><td>cedula</td><td>VARCHAR(20)</td><td>Cédula de identidad</td></tr>
+        <tr><td>telefono</td><td>VARCHAR(20)</td><td>Teléfono de contacto</td></tr>
+        <tr><td>monto_factura</td><td>NUMERIC(15,2)</td><td>Monto total en Bolívares (Bs)</td></tr>
+        <tr><td>monto_facturado_divisa</td><td>NUMERIC(15,2)</td><td>Monto total en Dólares ($)</td></tr>
+        <tr><td>tasa_bcv_factura</td><td>NUMERIC(15,4)</td><td>Tasa BCV al momento de la factura</td></tr>
+        <tr><td>fecha_factura</td><td>DATE</td><td>Fecha de emisión de la factura</td></tr>
+        <tr><td>cuotas</td><td>INTEGER</td><td>Número total de cuotas (default 11 en BD, pero frontend envía el valor real)</td></tr>
+        <tr><td>monto_cuota_usd</td><td>NUMERIC(15,2)</td><td>Monto de cada cuota en $</td></tr>
+        <tr><td>inicial_bs</td><td>NUMERIC(15,2)</td><td>Monto del depósito inicial en Bs</td></tr>
+        <tr><td>inicial_usd</td><td>NUMERIC(15,2)</td><td>Monto del depósito inicial en $</td></tr>
+        <tr><td>ref_inicial</td><td>VARCHAR(50)</td><td>Referencia bancaria del inicial</td></tr>
+        <tr><td>fecha_inicial</td><td>DATE</td><td>Fecha del depósito inicial</td></tr>
+        <tr><td>tasa_inicial</td><td>NUMERIC(15,4)</td><td>Tasa BCV del depósito inicial</td></tr>
+        <tr><td>monto_depositados</td><td>NUMERIC(15,2)</td><td>Total depositado en cuotas (Bs) — <strong>legacy</strong></td></tr>
+        <tr><td>deuda</td><td>NUMERIC(15,2)</td><td>Deuda pendiente (Bs) — <strong>legacy</strong></td></tr>
+        <tr><td>cuotas_pagadas</td><td>INTEGER</td><td>Contador de cuotas pagadas</td></tr>
+        <tr><td>total_depositado_usd</td><td>NUMERIC(15,2)</td><td>Total depositado en cuotas ($)</td></tr>
+        <tr><td>deuda_usd</td><td>NUMERIC(15,2)</td><td>Deuda pendiente ($)</td></tr>
+        <tr><td>proxima_cuota</td><td>NUMERIC(15,2)</td><td>Monto de la próxima cuota a pagar</td></tr>
+        <tr><td>discrepancias_cuotas</td><td>JSONB</td><td>Registro de diferencias esperado vs recibido</td></tr>
+        <tr><td>numero_cuenta</td><td>VARCHAR(20)</td><td>Número de cuenta bancaria del cliente</td></tr>
+        <tr><td>banco</td><td>VARCHAR(100)</td><td>Banco (auto-detectado por los primeros 4 dígitos)</td></tr>
+        <tr><td>created_at</td><td>TIMESTAMP</td><td>Fecha de creación del registro</td></tr>
+        <tr><td>updated_at</td><td>TIMESTAMP</td><td>Fecha de última modificación</td></tr>
+    </table>
+
+    <div class="highlight">
+        <strong>Nota sobre columnas legacy (cuota_1 … cuota_11):</strong><br>
+        Las tablas aún contienen columnas planas <code>cuota_1</code> hasta <code>cuota_11</code>, <code>ref_cuota_1</code>, <code>fecha_cuota_1</code>, etc. Estas son de la versión antigua. Desde la v6.8+ las cuotas se guardan en tablas normalizadas <code>pagos_XXX</code>. Las columnas planas se mantienen por compatibilidad pero no se usan en nuevos registros.
+    </div>
+
+    <h3>4.2 Tablas de Pagos Normalizadas (v6.8+)</h3>
+    <p>Cada tienda tiene su tabla de pagos con clave compuesta <code>(factura_id, nro_cuota)</code>:</p>
+    <pre>
+CREATE TABLE pagos_caracas (
+    id SERIAL PRIMARY KEY,
+    factura_id INTEGER NOT NULL REFERENCES tienda_caracas(id) ON DELETE CASCADE,
+    nro_cuota INTEGER NOT NULL,
+    monto_bs NUMERIC(15,2) NOT NULL,
+    referencia VARCHAR(50),
+    fecha DATE,
+    tasa_bcv NUMERIC(15,4),
+    monto_usd NUMERIC(15,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(factura_id, nro_cuota)
+);
+    </pre>
+    <p>Mismas estructuras para <code>pagos_maracay</code> y <code>pagos_maracaibo</code>.</p>
+
+    <h3>4.3 Otras Tablas del Sistema</h3>
+    <table>
+        <tr><th>Tabla</th><th>Propósito</th></tr>
+        <tr><td>usuarios</td><td>Usuarios del sistema (admin/operador). Incluye <code>token_version</code> para revocación de sesiones, <code>ip_asignada</code> y <code>tienda</code> para restricciones.</td></tr>
+        <tr><td>sesiones</td><td>Tokens activos con <code>expires_at</code> y <code>activa</code>. Permite cerrar sesiones remotamente.</td></tr>
+        <tr><td>actividades</td><td>Tareas pendientes por tienda con prioridad (baja/media/alta/urgente) y estado (pendiente/completada).</td></tr>
+        <tr><td>auditoria_usuarios</td><td>Log de cambios en usuarios (trigger <code>trg_auditoria_usuarios</code>).</td></tr>
+        <tr><td>tasas_bcv</td><td>Historial de tasas del Banco Central de Venezuela por fecha.</td></tr>
+        <tr><td>reset_tokens</td><td>Tokens de recuperación de contraseña con expiración de 1 hora.</td></tr>
+    </table>
+
+    <h3>4.4 Triggers y Funciones</h3>
+    <ul>
+        <li><code>registrar_auditoria()</code>: Función PL/pgSQL que inserta en <code>auditoria_usuarios</code> en cada INSERT/UPDATE/DELETE de la tabla <code>usuarios</code>.</li>
+        <li><code>trg_auditoria_usuarios</code>: Trigger AFTER que ejecuta la función anterior.</li>
+        <li><code>update_tienda_maracay_updated_at()</code>: Actualiza <code>updated_at</code> automáticamente en <code>tienda_maracay</code>.</li>
+    </ul>
+
+    <h3>4.5 Índices de Rendimiento</h3>
+    <p>Índices B-tree en columnas de búsqueda frecuente:</p>
+    <ul>
+        <li><code>idx_nro_factura</code>, <code>idx_nombre</code>, <code>idx_cedula</code> (tienda_caracas)</li>
+        <li><code>idx_maracay_nro_factura</code>, <code>idx_maracay_nombre</code>, <code>idx_maracay_cedula</code>, <code>idx_maracay_deuda</code></li>
+        <li><code>idx_tienda_maracaibo_nro_factura</code>, <code>idx_tienda_maracaibo_cedula</code>, <code>idx_tienda_maracaibo_fecha_factura</code></li>
+        <li><code>idx_actividades_fecha_estado</code>, <code>idx_actividades_tienda</code></li>
+        <li><code>idx_sesiones_token</code>, <code>idx_sesiones_usuario</code></li>
+    </ul>
+</div>
+
+<!-- SECCIÓN 5 -->
+<div class="card" id="sec5">
+    <h2>5. Flujo de Datos — Cómo se Guardan las Cuotas</h2>
+
+    <h3>5.1 Creación de un Nuevo Crédito (POST)</h3>
+    <ol>
+        <li>El usuario completa el formulario en 3 pestañas: <strong>Datos de Factura → Depósito Inicial → Plan de Cuotas</strong>.</li>
+        <li>El frontend calcula en tiempo real:
+            <ul>
+                <li><code>monto_usd = monto_bs / tasa_bcv</code></li>
+                <li><code>inicial_usd = inicial_bs / tasa_inicial</code></li>
+                <li><code>deuda_usd = monto_usd - inicial_usd</code></li>
+                <li><code>monto_cuota_usd = deuda_usd / cuotas</code></li>
+            </ul>
+        </li>
+        <li>El frontend envía <code>POST /api/tiendas/{tienda}</code> con el payload JSON.</li>
+        <li>El backend (<code>crearCliente</code> en <code>routes/tiendas.js</code>):
+            <ul>
+                <li>Filtra solo los campos permitidos (<code>ALLOWED_FIELDS_INSERT</code>).</li>
+                <li><strong>v6.10-fix:</strong> Incluye explícitamente <code>cuotas</code> en el INSERT para evitar que PostgreSQL use el DEFAULT 11.</li>
+                <li>Ejecuta <code>INSERT INTO tienda_XXX (...) VALUES (...)</code>.</li>
+                <li>Retorna el registro creado con <code>RETURNING *</code>.</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>5.2 Registro de una Cuota (PUT con pagos_extra)</h3>
+    <ol>
+        <li>En <strong>Conciliaciones Bancarias</strong>, el usuario busca una factura por número.</li>
+        <li>El backend devuelve el cliente con su array <code>pagos_extra</code> (JOIN con tabla de pagos).</li>
+        <li>El usuario llena: monto (Bs), referencia, fecha, tasa BCV. El frontend calcula automáticamente <code>monto_usd = monto_bs / tasa</code>.</li>
+        <li>Al guardar, el frontend envía <code>PUT /api/tiendas/{tienda}/{id}</code> con:
+            <pre>
+{
+  "pagos_extra": [{
+    "nro_cuota": 1,
+    "monto_bs": 300000,
+    "referencia": "1212",
+    "fecha": "2026-08-15",
+    "tasa_bcv": 772.5441,
+    "monto_usd": 388.33
+  }]
+}
+            </pre>
+        </li>
+        <li>El backend (<code>actualizarCliente</code>):
+            <ul>
+                <li>Recorre cada pago del array y ejecuta <code>INSERT ... ON CONFLICT (factura_id, nro_cuota) DO UPDATE</code> en la tabla <code>pagos_XXX</code>.</li>
+                <li>Luego <strong>recalcula totales</strong> haciendo <code>SELECT SUM(monto_bs), SUM(monto_usd), COUNT(*) FROM pagos_XXX WHERE factura_id = $1</code>.</li>
+                <li>Suma el inicial si existe.</li>
+                <li>Calcula <code>deuda = monto_factura - totalDepositado</code>.</li>
+                <li>Actualiza las columnas de resumen en la tabla principal: <code>monto_depositados</code>, <code>deuda</code>, <code>total_depositado_usd</code>, <code>deuda_usd</code>, <code>cuotas_pagadas</code>, <code>proxima_cuota</code>.</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>5.3 Eliminación de Cuotas (v6.9.1+)</h3>
+    <ol>
+        <li>El administrador abre el modal de edición, marca checkboxes de cuotas a eliminar y presiona <strong>"Borrar Seleccionadas"</strong>.</li>
+        <li>El frontend envía <code>PUT /api/tiendas/{tienda}/{id}</code> con:
+            <pre>{ "eliminar_cuotas": [2, 3] }</pre>
+        </li>
+        <li>El backend ejecuta:
+            <pre>DELETE FROM pagos_XXX WHERE factura_id = $1 AND nro_cuota = $2</pre>
+            por cada cuota en el array.
+        </li>
+        <li>Luego recalcula totales (paso 5.2) y actualiza la tabla principal.</li>
+    </ol>
+
+    <div class="success-box">
+        <strong>Flujo resumido:</strong> Las cuotas individuales viven en <code>pagos_caracas/maracay/maracaibo</code>. La tabla principal solo guarda los <strong>totales agregados</strong> para consultas rápidas. Cada PUT recalcula estos totales desde la tabla de pagos, garantizando consistencia.
+    </div>
+</div>
+
+<!-- SECCIÓN 6 -->
+<div class="card" id="sec6">
+    <h2>6. Backend (Node.js / Express)</h2>
+
+    <h3>6.1 Dependencias Principales (package.json)</h3>
+    <table>
+        <tr><th>Paquete</th><th>Versión</th><th>Uso</th></tr>
+        <tr><td>express</td><td>^4.18.x</td><td>Framework web</td></tr>
+        <tr><td>pg</td><td>^8.11.x</td><td>Driver PostgreSQL</td></tr>
+        <tr><td>jsonwebtoken</td><td>^9.0.x</td><td>Autenticación JWT</td></tr>
+        <tr><td>bcryptjs</td><td>^2.4.x</td><td>Hash de contraseñas</td></tr>
+        <tr><td>dotenv</td><td>^16.3.x</td><td>Variables de entorno</td></tr>
+        <tr><td>express-validator</td><td>^7.0.x</td><td>Validación de inputs</td></tr>
+        <tr><td>jspdf</td><td>^2.5.x</td><td>Generación de PDFs (cliente)</td></tr>
+        <tr><td>jspdf-autotable</td><td>^3.5.x</td><td>Tablas en PDFs</td></tr>
+        <tr><td>sheetjs</td><td>^0.18.x</td><td>Exportación Excel (cliente)</td></tr>
+        <tr><td>apexcharts</td><td>^3.44.x</td><td>Gráficos (cliente)</td></tr>
+    </table>
+
+    <h3>6.2 routes/tiendas.js — Lógica Principal (v6.10)</h3>
+    <p>Este es el archivo más crítico del sistema. Contiene:</p>
+
+    <h4>Constantes de Configuración</h4>
+    <pre>
+const TIENDAS = {
+  caracas:   { tabla: 'tienda_caracas',   pagos: 'pagos_caracas',   reportes: '/api/reportes/caracas' },
+  maracay:   { tabla: 'tienda_maracay',   pagos: 'pagos_maracay',   reportes: '/api/reportes/maracay' },
+  maracaibo: { tabla: 'tienda_maracaibo', pagos: 'pagos_maracaibo', reportes: '/api/reportes/maracaibo' }
+};
+
+const CAMPOS_BASE = ['nro_factura','nombre_apellido','cedula','telefono',
+  'monto_factura','fecha_factura','monto_facturado_divisa','tasa_bcv_factura',
+  'cuotas','monto_cuota_usd','inicial_bs','inicial_usd','ref_inicial',
+  'fecha_inicial','tasa_inicial','numero_cuenta','banco'];
+
+const ALLOWED_FIELDS_UPDATE = CAMPOS_BASE.filter(f => f !== 'cuotas');
+const ALLOWED_FIELDS_INSERT = ['numero', 'cuotas', ...ALLOWED_FIELDS_UPDATE];
+    </pre>
+
+    <h4>Funciones Principales</h4>
+    <table>
+        <tr><th>Función</th><th>Método</th><th>Descripción</th></tr>
+        <tr><td>listarClientes</td><td>GET /api/tiendas/:tienda</td><td>Devuelve todos los clientes de una tienda con pagos_extra anidados (LEFT JOIN con tabla de pagos).</td></tr>
+        <tr><td>obtenerCliente</td><td>GET /api/tiendas/:tienda/:id</td><td>Devuelve un cliente específico con su historial de pagos.</td></tr>
+        <tr><td>crearCliente</td><td>POST /api/tiendas/:tienda</td><td>Inserta nuevo cliente. <strong>v6.10:</strong> fuerza <code>cuotas</code> como entero.</td></tr>
+        <tr><td>actualizarCliente</td><td>PUT /api/tiendas/:tienda/:id</td><td>Actualiza datos, procesa pagos_extra (upsert), elimina cuotas si viene <code>eliminar_cuotas</code>, y recalcula totales.</td></tr>
+        <tr><td>eliminarCliente</td><td>DELETE /api/tiendas/:tienda/:id</td><td>Elimina cliente y sus pagos (CASCADE).</td></tr>
+    </table>
+
+    <h4>Recálculo de Totales (v6.10)</h4>
+    <p>Después de cualquier modificación de pagos, el backend ejecuta:</p>
+    <pre>
+// 1. Leer todos los pagos de la tabla normalizada
+const pagosResult = await pool.query(
+  `SELECT monto_bs, monto_usd FROM ${tablaPagos} WHERE factura_id = $1`, [id]
+);
+
+// 2. Sumar totales
+let totalDepositadoBs = 0, totalDepositadoUSD = 0, cuotasPagadas = 0;
+for (const pago of pagosResult.rows) {
+    if (parseFloat(pago.monto_bs) > 0) {
+        totalDepositadoBs += parseFloat(pago.monto_bs);
+        totalDepositadoUSD += parseFloat(pago.monto_usd);
+        cuotasPagadas++;
+    }
+}
+
+// 3. Sumar inicial (si es registro nuevo v6.7+)
+if (esNuevo) {
+    totalDepositadoBs += parseFloat(cliente.inicial_bs) || 0;
+    totalDepositadoUSD += parseFloat(cliente.inicial_usd) || 0;
+}
+
+// 4. Calcular deudas
+const deudaPendienteBs = montoFactura - totalDepositadoBs;
+const deudaPendienteUSD = montoFacturadoDivisa - totalDepositadoUSD;
+
+// 5. Guardar totales en tabla principal (legacy + nuevas columnas)
+UPDATE tienda_XXX SET
+    monto_depositados = $1,
+    deuda = $2,
+    total_depositado_usd = $3,
+    deuda_usd = $4,
+    cuotas_pagadas = $5,
+    proxima_cuota = $6
+WHERE id = $7
+    </pre>
+
+    <h3>6.3 routes/auth.js — Autenticación</h3>
+    <ul>
+        <li><code>POST /api/auth/login</code>: Valida email/password, genera JWT (expira en 24h), guarda sesión en tabla <code>sesiones</code>, retorna token + datos de usuario.</li>
+        <li><code>POST /api/auth/logout</code>: Marca sesión como inactiva en BD y limpia localStorage.</li>
+        <li><code>POST /api/auth/refresh</code>: Renueva token si la sesión sigue activa.</li>
+        <li><code>GET /api/auth/verificar-sesion</code>: Valida token y retorna datos del usuario.</li>
+    </ul>
+
+    <h3>6.4 routes/bcv.js — Tasas de Cambio</h3>
+    <ul>
+        <li><code>GET /api/bcv/actual</code>: Devuelve la tasa BCV más reciente de la tabla <code>tasas_bcv</code>.</li>
+        <li><code>GET /api/bcv/fecha/:fecha</code>: Devuelve tasa histórica para una fecha específica (formato <code>YYYY-MM-DD</code>). Si no existe, usa la tasa actual como fallback.</li>
+    </ul>
+
+    <h3>6.5 routes/reportes.js</h3>
+    <p>Genera reportes filtrados por fecha, estado, monto y nombre. Devuelve JSON con:</p>
+    <ul>
+        <li><code>datos</code>: Array de clientes que coinciden</li>
+        <li><code>resumen</code>: Totales agregados (clientes, deuda, depositado, mora, promedio)</li>
+        <li><code>total</code>: Cantidad de registros</li>
+    </ul>
+</div>
+
+<!-- SECCIÓN 7 -->
+<div class="card" id="sec7">
+    <h2>7. Frontend (SPA Vanilla JS)</h2>
+
+    <h3>7.1 tienda-spa.js — Módulo Genérico de Tiendas (v6.10)</h3>
+    <p>Archivo más grande del frontend (~3000 líneas). Reemplaza a los antiguos archivos separados por tienda.</p>
+
+    <h4>Clase TiendaApp</h4>
+    <p>Una única clase instanciada tres veces (una por tienda):</p>
+    <pre>
+const TIENDAS_CONFIG = {
+    caracas:   { key: 'caracas',   pfx: 'tc',  concPfx: 'conc',   busqPfx: 'busq',   sfx: '',    api: '/api/tiendas/caracas' },
+    maracay:   { key: 'maracay',   pfx: 'tm',  concPfx: 'concm',  busqPfx: 'busqm',  sfx: '-m',  api: '/api/tiendas/maracay' },
+    maracaibo: { key: 'maracaibo', pfx: 'tmb', concPfx: 'concmb', busqPfx: 'busqmb', sfx: '-mb', api: '/api/tiendas/maracaibo' }
+};
+    </pre>
+
+    <h4>Vistas Internas de Cada Tienda</h4>
+    <table>
+        <tr><th>Vista</th><th>Función</th></tr>
+        <tr><td>Menú Principal (v6.5)</td><td>Dashboard operativo con KPIs, gráficos ApexCharts, alertas de morosos, cobranza del mes.</td></tr>
+        <tr><td>Base de Datos</td><td>Tabla paginada con filtros rápidos (deudores, al día, abiertas, canceladas) y búsqueda avanzada.</td></tr>
+        <tr><td>Conciliaciones</td><td>Búsqueda por factura, historial de cuotas, formulario de nueva cuota con cálculo automático USD.</td></tr>
+        <tr><td>Reportes</td><td>Filtros por fecha/estado/monto, tabla paginada, gráficos de barras/pastel, exportación Excel/PDF.</td></tr>
+    </table>
+
+    <h4>Flujo del Modal de Edición (v6.7.5+)</h4>
+    <ol>
+        <li><code>verDetalle(id)</code>: Hace fetch a <code>GET /api/tiendas/{tienda}/{id}</code>.</li>
+        <li><code>_calcularCamposFaltantes()</code>: Si falta tasa BCV o monto en USD, consulta la API BCV por fecha y recalcula.</li>
+        <li><code>fillFormData()</code>: Renders el modal en dos columnas:
+            <ul>
+                <li><strong>Izquierda:</strong> Panel de resumen (monto factura, inicial, deuda, cuotas, depositado, próxima cuota).</li>
+                <li><strong>Derecha:</strong> Tabla de cuotas con checkboxes (solo admin).</li>
+            </ul>
+        </li>
+        <li><strong>v6.10-fix:</strong> La tabla de cuotas itera exactamente <code>1 … totalCuotas</code> (no sobre el array de pagos). Esto garantiza que se vean todas las filas, incluso las pendientes, y que los checkboxes de admin estén disponibles.</li>
+    </ol>
+
+    <h3>7.2 panel.js</h3>
+    <p>Controla la navegación global del sistema:</p>
+    <ul>
+        <li>Menú lateral con secciones: Panel Principal, Tiendas, Actividades, Configuración.</li>
+        <li><code>mostrarSeccion(seccion, tienda)</code>: Muestra/oculta content-areas y delega a <code>Tiendas.show(seccion)</code> cuando es una tienda.</li>
+        <li>Reloj en tiempo real en el header.</li>
+    </ul>
+
+    <h3>7.3 auth.js (frontend)</h3>
+    <ul>
+        <li><code>login(email, password)</code>: Llama a <code>POST /api/auth/login</code>, guarda token en <code>localStorage</code>, redirige al panel.</li>
+        <li><code>verificarSesion()</code>: Valida token al cargar la página. Si expiró, redirige al login.</li>
+        <li><code>getUserRole()</code>: Lee <code>rol</code> del objeto usuario en localStorage.</li>
+    </ul>
+</div>
+
+<!-- SECCIÓN 8 -->
+<div class="card" id="sec8">
+    <h2>8. Autenticación y Seguridad</h2>
+
+    <h3>8.1 JWT (JSON Web Tokens)</h3>
+    <ul>
+        <li><strong>Payload:</strong> <code>{ id, email, rol, tienda, token_version, iat, exp }</code></li>
+        <li><strong>Expiración:</strong> 24 horas</li>
+        <li><strong>Almacenamiento:</strong> localStorage (token) + cookie HTTPOnly opcional</li>
+        <li><strong>Revocación:</strong> Al cambiar password, rol, activo o IP asignada, el backend incrementa <code>token_version</code> en la BD. Los tokens antiguos con versiones menores son rechazados.</li>
+    </ul>
+
+    <h3>8.2 Middleware de Protección</h3>
+    <table>
+        <tr><th>Middleware</th><th>Uso</th></tr>
+        <tr><td>verificarToken</td><td>Todas las rutas protegidas. Valida JWT y token_version.</td></tr>
+        <tr><td>soloAdmin</td><td>Rutas de usuarios, auditoría, estadísticas globales.</td></tr>
+        <tr><td>validarTienda</td><td>Rutas de tiendas. Asegura que la tienda exista y exista la tabla.</td></tr>
+    </table>
+
+    <h3>8.3 Restricciones por Rol en el Frontend</h3>
+    <table>
+        <tr><th>Función</th><th>Admin</th><th>Operador</th></tr>
+        <tr><td>Ver clientes</td><td>✅ Todas las tiendas</td><td>✅ Solo su tienda</td></tr>
+        <tr><td>Crear cliente</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Editar cliente</td><td>✅</td><td>✅ Solo datos básicos</td></tr>
+        <tr><td>Borrar cuotas</td><td>✅ Con checkboxes</td><td>❌ No ve checkboxes</td></tr>
+        <tr><td>Eliminar registro</td><td>✅ Botón visible</td><td>❌ Botón oculto</td></tr>
+        <tr><td>Exportar PDF/Excel</td><td>✅</td><td>✅ Solo listado básico</td></tr>
+        <tr><td>Ver reportes completos</td><td>✅ Con totales</td><td>❌ Sin "Total Cancelado"</td></tr>
+    </table>
+</div>
+
+<!-- SECCIÓN 9 -->
+<div class="card" id="sec9">
+    <h2>9. APIs REST Disponibles</h2>
+
+    <h3>Auth</h3>
+    <table>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr>
+        <tr><td>POST</td><td>/api/auth/login</td><td>Login con email/password</td></tr>
+        <tr><td>POST</td><td>/api/auth/logout</td><td>Cerrar sesión</td></tr>
+        <tr><td>POST</td><td>/api/auth/refresh</td><td>Renovar token</td></tr>
+        <tr><td>GET</td><td>/api/auth/verificar-sesion</td><td>Validar sesión activa</td></tr>
+    </table>
+
+    <h3>BCV</h3>
+    <table>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr>
+        <tr><td>GET</td><td>/api/bcv/actual</td><td>Tasa BCV del día</td></tr>
+        <tr><td>GET</td><td>/api/bcv/fecha/:fecha</td><td>Tasa histórica (YYYY-MM-DD)</td></tr>
+    </table>
+
+    <h3>Tiendas (Genéricas)</h3>
+    <table>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr>
+        <tr><td>GET</td><td>/api/tiendas/:tienda</td><td>Listar clientes</td></tr>
+        <tr><td>GET</td><td>/api/tiendas/:tienda/:id</td><td>Obtener cliente</td></tr>
+        <tr><td>POST</td><td>/api/tiendas/:tienda</td><td>Crear cliente</td></tr>
+        <tr><td>PUT</td><td>/api/tiendas/:tienda/:id</td><td>Actualizar cliente / agregar cuotas / eliminar cuotas</td></tr>
+        <tr><td>DELETE</td><td>/api/tiendas/:tienda/:id</td><td>Eliminar cliente</td></tr>
+    </table>
+    <p><em>:tienda = caracas | maracay | maracaibo</em></p>
+
+    <h3>Reportes</h3>
+    <table>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr>
+        <tr><td>POST</td><td>/api/reportes/:tienda</td><td>Generar reporte filtrado</td></tr>
+    </table>
+
+    <h3>Estadísticas</h3>
+    <table>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr>
+        <tr><td>GET</td><td>/api/estadisticas/:tienda</td><td>KPIs de una tienda</td></tr>
+        <tr><td>GET</td><td>/api/estadisticas/global</td><td>KPIs consolidados</td></tr>
+    </table>
+
+    <h3>Actividades</h3>
+    <table>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr>
+        <tr><td>GET</td><td>/api/actividades</td><td>Listar tareas</td></tr>
+        <tr><td>POST</td><td>/api/actividades</td><td>Crear tarea</td></tr>
+        <tr><td>PUT</td><td>/api/actividades/:id</td><td>Actualizar tarea</td></tr>
+        <tr><td>DELETE</td><td>/api/actividades/:id</td><td>Eliminar tarea</td></tr>
+    </table>
+
+    <h3>Usuarios (Admin)</h3>
+    <table>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr>
+        <tr><td>GET</td><td>/api/usuarios</td><td>Listar usuarios</td></tr>
+        <tr><td>POST</td><td>/api/usuarios</td><td>Crear usuario</td></tr>
+        <tr><td>PUT</td><td>/api/usuarios/:id</td><td>Actualizar usuario</td></tr>
+        <tr><td>DELETE</td><td>/api/usuarios/:id</td><td>Desactivar usuario</td></tr>
+        <tr><td>GET</td><td>/api/usuarios/auditoria/:id</td><td>Auditoría de un usuario</td></tr>
+    </table>
+</div>
+
+<!-- SECCIÓN 10 -->
+<div class="card" id="sec10">
+    <h2>10. Instalación y Despliegue</h2>
+
+    <h3>10.1 Requisitos</h3>
+    <ul>
+        <li>Node.js 20+</li>
+        <li>PostgreSQL 14+</li>
+        <li>npm o yarn</li>
+    </ul>
+
+    <h3>10.2 Variables de Entorno (.env)</h3>
+    <pre>
+PORT=3000
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=creditos_ipsfa
+DB_USER=postgres
+DB_PASSWORD=tu_password
+JWT_SECRET=tu_clave_secreta_muy_larga
+    </pre>
+
+    <h3>10.3 Comandos de Instalación</h3>
+    <pre>
+# 1. Clonar repositorio
+git clone https://github.com/jackal-ia/creditos2.git
+cd creditos2
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Crear base de datos en PostgreSQL y restaurar schema
+psql -U postgres -d creditos_ipsfa -f bd.sql
+
+# 4. Crear usuario admin inicial (directo en BD o mediante script)
+node tools/crear-admin.js
+
+# 5. Iniciar en desarrollo
+npm run dev
+
+# 6. Iniciar en producción
+npm start
+    </pre>
+
+    <h3>10.4 Instalación como Servicio Windows</h3>
+    <p>Ejecutar <code>instalar-servicio.bat</code> como administrador. Este script:</p>
+    <ol>
+        <li>Verifica privilegios de administrador</li>
+        <li>Instala <code>node-windows</code> globalmente</li>
+        <li>Crea un servicio Windows llamado <code>IPSFA-Creditos</code></li>
+        <li>Configura inicio automático</li>
+        <li>Inicia el servicio</li>
+    </ol>
+    <p>El servicio escucha en <code>http://0.0.0.0:3000</code> y se reinicia automáticamente ante fallos.</p>
+</div>
+
+<!-- SECCIÓN 11 -->
+<div class="card" id="sec11">
+    <h2>11. Historial de Cambios (v6.10)</h2>
+
+    <table>
+        <tr><th>Versión</th><th>Fecha</th><th>Cambios</th></tr>
+        <tr>
+            <td>v6.10</td>
+            <td>15 Ago 2026</td>
+            <td>
+                <strong>Fix crítico:</strong> ALLOWED_FIELDS_INSERT ahora incluye 'cuotas' para respetar la selección del usuario (antes PostgreSQL aplicaba DEFAULT 11).<br>
+                <strong>Fix backend:</strong> Eliminada duplicación de totales en PUT. Ahora se actualizan monto_depositados y deuda (Bs) en la tabla principal.<br>
+                <strong>Fix frontend:</strong> renderizarPanelCuotas itera exactamente 1..totalCuotas (no sobre pagosArray). Esto muestra filas vacías para cuotas pendientes y habilita checkboxes de admin.<br>
+                <strong>Fix frontend:</strong> cargarHistorialCuotas y processItemData respetan el límite de cuotas configurado.
+            </td>
+        </tr>
+        <tr>
+            <td>v6.9.1</td>
+            <td>Ago 2026</td>
+            <td>Eliminación de cuotas mediante array <code>eliminar_cuotas</code> en PUT. DELETE en tabla de pagos + recálculo automático.</td>
+        </tr>
+        <tr>
+            <td>v6.9</td>
+            <td>Ago 2026</td>
+            <td>Migración de cuotas a tablas normalizadas (pagos_caracas, pagos_maracay, pagos_maracaibo). ON CONFLICT DO UPDATE para upsert.</td>
+        </tr>
+        <tr>
+            <td>v6.8</td>
+            <td>Jul 2026</td>
+            <td>Tablas de pagos creadas. Backend lee pagos_extra desde JOIN. processItemData suma desde pagos_extra.</td>
+        </tr>
+        <tr>
+            <td>v6.7.5</td>
+            <td>Jul 2026</td>
+            <td>Modal de edición en 2 columnas. Cálculo automático de campos faltantes (tasa BCV, monto USD) al abrir cliente antiguo.</td>
+        </tr>
+        <tr>
+            <td>v6.7</td>
+            <td>Jul 2026</td>
+            <td>Nuevo registro con 3 pestañas (factura, inicial, cuotas). Cálculos en tiempo real.</td>
+        </tr>
+        <tr>
+            <td>v6.6</td>
+            <td>Jul 2026</td>
+            <td>Modal corporativo unificado. Detección automática de banco por código de cuenta (4 primeros dígitos).</td>
+        </tr>
+        <tr>
+            <td>v6.5</td>
+            <td>Jul 2026</td>
+            <td>Menú principal rediseñado con dashboard operativo, KPIs, gráficos ApexCharts y alertas de morosos.</td>
+        </tr>
+        <tr>
+            <td>v6.0</td>
+            <td>Jun 2026</td>
+            <td>Refactor: un solo módulo tienda-spa.js reemplaza tienda-caracas-spa.js, tienda-maracay-spa.js, tienda-maracaibo-spa.js.</td>
+        </tr>
+    </table>
+</div>
+
+<footer>
+    <p>Documento generado automáticamente el 15 de agosto de 2026.</p>
+    <p>Repositorio: <a href="https://github.com/jackal-ia/creditos2">github.com/jackal-ia/creditos2</a></p>
+    <p>Sistema de Créditos IPSFA — Inversora IPSFA C.A.</p>
+</footer>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,25 @@
+-- ============================================
+-- ACTUALIZAR monto_facturado_divisa EN LAS 3 TIENDAS
+-- Fórmula: monto_facturado_divisa = monto_factura / dolar_facturado
+-- ============================================
+
+-- 1. Tienda Caracas
+UPDATE tienda_caracas 
+SET monto_facturado_divisa = monto_factura / NULLIF(dolar_facturado, 0)
+WHERE dolar_facturado IS NOT NULL 
+  AND dolar_facturado != 0
+  AND monto_factura IS NOT NULL;
+
+-- 2. Tienda Maracay
+UPDATE tienda_maracay 
+SET monto_facturado_divisa = monto_factura / NULLIF(dolar_facturado, 0)
+WHERE dolar_facturado IS NOT NULL 
+  AND dolar_facturado != 0
+  AND monto_factura IS NOT NULL;
+
+-- 3. Tienda Maracaibo
+UPDATE tienda_maracaibo 
+SET monto_facturado_divisa = monto_factura / NULLIF(dolar_facturado, 0)
+WHERE dolar_facturado IS NOT NULL 
+  AND dolar_facturado != 0
+  AND monto_factura IS NOT NULL;

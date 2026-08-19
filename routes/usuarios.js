@@ -76,7 +76,7 @@ router.post('/', verificarToken, soloAdmin, [
 
     try {
         // FIX: No convertir 'rol' a mayúsculas — el constraint de BD solo acepta minúsculas
-        const upperFields = ['nombre', 'tienda', 'ip_asignada'];
+        const upperFields = ['nombre', 'ip_asignada'];
         const datos = toUpperCaseFields(req.body, upperFields);
         const { nombre, email, password, rol, ip_asignada, tienda } = datos;
 
@@ -120,7 +120,7 @@ router.put('/:id', verificarToken, async (req, res) => {
         }
 
         // FIX: No convertir 'rol' a mayúsculas
-        const upperFields = ['nombre', 'tienda', 'ip_asignada'];
+        const upperFields = ['nombre', 'ip_asignada'];
         const datos = toUpperCaseFields(req.body, upperFields);
         const { nombre, email, rol, activo, ip_asignada, tienda } = datos;
 
