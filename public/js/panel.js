@@ -3951,26 +3951,53 @@ const DomiciliacionModule = (() => {
         const operador = refs.operador.value.trim() || "17";
 
         const fechaFormateada = fechaNomina.replace(/-/g, "");
-        const totalMonto = excelData.reduce((sum, r) => sum + r.monto, 0);
+
+        // ── CÁLCULO EN CENTAVOS ENTEROS CON DISTRIBUCIÓN DE RESIDUO ──
+        // Convertir cada monto a centavos, dividir entre 15, distribuir
+        // el residuo en las primeras N cuotas para que la suma sea EXACTA.
+        let totalMontoCentavos = 0;
+        const registrosProcesados = [];
+
+        excelData.forEach((registro) => {
+            const montoTotalCentavos = Math.round(registro.monto * 100);
+            totalMontoCentavos += montoTotalCentavos;
+
+            const baseCentavos = Math.floor(montoTotalCentavos / CUOTAS);
+            const residuoCentavos = montoTotalCentavos - (baseCentavos * CUOTAS);
+
+            registrosProcesados.push({
+                cedula: registro.cedula,
+                cuenta: registro.cuenta,
+                baseCentavos: baseCentavos,
+                residuoCentavos: residuoCentavos
+            });
+        });
+
         const totalLineas = excelData.length * CUOTAS;
         const totalRegistros = String(totalLineas).padStart(4, "0");
 
         const encabezado = 
             padLeft(cuentaMatriz, 20, "0") +
             fechaFormateada +
-            padLeft(String(Math.round(totalMonto * 100)), 17, "0") +
+            padLeft(String(totalMontoCentavos), 17, "0") +
             totalRegistros +
             padLeft(operador, 2, "0");
 
         let contenido = encabezado + "\n";
 
-        excelData.forEach((registro) => {
-            const montoPorCuota = registro.monto / CUOTAS;
-            const montoCuotaStr = padLeft(String(Math.round(montoPorCuota * 100)), 12, "0");
-            const cuenta = padLeft(registro.cuenta, 20, "0");
-            const cedula = padLeft(registro.cedula, 10, "0");
+        registrosProcesados.forEach((reg) => {
+            const cuenta = padLeft(reg.cuenta, 20, "0");
+            const cedula = padLeft(reg.cedula, 10, "0");
 
             for (let i = 0; i < CUOTAS; i++) {
+                // Distribuir el residuo: las primeras N cuotas llevan 1 centavo extra
+                let cuotaCentavos = reg.baseCentavos;
+                if (i < reg.residuoCentavos) {
+                    cuotaCentavos += 1;
+                }
+
+                const montoCuotaStr = padLeft(String(cuotaCentavos), 12, "0");
+
                 const linea = 
                     padLeft(codigoEmpresa, 4, "0") +
                     montoCuotaStr +
@@ -3983,8 +4010,37 @@ const DomiciliacionModule = (() => {
             }
         });
 
+        // ── VALIDACIÓN DE LONGITUDES (debug, se puede quitar en producción) ──
+        validarLongitudes(contenido);
+
         txtContent = contenido;
         return contenido;
+    }
+
+    function validarLongitudes(contenido) {
+        const lineas = contenido.trim().split("\n");
+        const enc = lineas[0];
+        console.log("[DOMI] Encabezado longitud:", enc.length, "→ debe ser 51");
+        if (enc.length !== 51) console.error("[DOMI] ❌ ENCABEZADO MAL");
+
+        let sumaDetalleCentavos = 0;
+        for (let i = 1; i < lineas.length; i++) {
+            if (lineas[i].length !== 54) {
+                console.error("[DOMI] ❌ Línea", i, "mide", lineas[i].length, ", debe ser 54");
+            }
+            // Extraer monto de la línea (pos 5-16, 12 dígitos)
+            const montoStr = lineas[i].substring(4, 16);
+            sumaDetalleCentavos += parseInt(montoStr, 10);
+        }
+
+        const montoEncabezado = parseInt(enc.substring(28, 45), 10);
+        console.log("[DOMI] Monto encabezado:", montoEncabezado);
+        console.log("[DOMI] Suma detalle:   ", sumaDetalleCentavos);
+        if (montoEncabezado !== sumaDetalleCentavos) {
+            console.error("[DOMI] ❌ DISCREPANCIA: encabezado vs detalle no coinciden");
+        } else {
+            console.log("[DOMI] ✅ Montos coinciden exactamente");
+        }
     }
 
     function padLeft(str, length, char) {
