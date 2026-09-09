@@ -3656,11 +3656,25 @@
                             </div>
                             <div class="filtro-group">
                                 <label>Desde</label>
-                                <input type="date" id="${pfx}-rep-fecha-desde" onchange="Tiendas.get('${this.cfg.key}')._aplicarFiltroReporte('fechaDesde', this.value)">
+                                <div class="fecha-ddmmyyyy">
+                                    <input type="text" id="${pfx}-rep-fecha-desde-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
+                                        oninput="Tiendas.get('${this.cfg.key}')._onFechaTxtInput('desde', this)"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaTxtChange('desde', this)">
+                                    <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    <input type="date" id="${pfx}-rep-fecha-desde" class="fecha-overlay" tabindex="-1" title="Abrir calendario"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaPickerChange('desde', this)">
+                                </div>
                             </div>
                             <div class="filtro-group">
                                 <label>Hasta</label>
-                                <input type="date" id="${pfx}-rep-fecha-hasta" onchange="Tiendas.get('${this.cfg.key}')._aplicarFiltroReporte('fechaHasta', this.value)">
+                                <div class="fecha-ddmmyyyy">
+                                    <input type="text" id="${pfx}-rep-fecha-hasta-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
+                                        oninput="Tiendas.get('${this.cfg.key}')._onFechaTxtInput('hasta', this)"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaTxtChange('hasta', this)">
+                                    <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    <input type="date" id="${pfx}-rep-fecha-hasta" class="fecha-overlay" tabindex="-1" title="Abrir calendario"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaPickerChange('hasta', this)">
+                                </div>
                             </div>
                             <div class="filtro-group">
                                 <label>Deuda Min (Bs)</label>
@@ -3737,6 +3751,13 @@
                 .reportes-filtros-card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
                 .filtros-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 15px; }
                 .filtro-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #4a5568; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+                /* Campos de fecha DD/MM/AAAA: texto visible + calendario nativo superpuesto */
+                .fecha-ddmmyyyy { position: relative; display: flex; align-items: center; }
+                .fecha-ddmmyyyy input[type="text"] { width: 100%; padding-right: 36px; }
+                .fecha-ddmmyyyy .fecha-icono { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; display: block; }
+                .fecha-ddmmyyyy .fecha-overlay { position: absolute; right: 0; width: 36px; height: 100%; opacity: 0; cursor: pointer; border: none; padding: 0; background: transparent; }
+                .fecha-ddmmyyyy .fecha-overlay::-webkit-calendar-picker-indicator { position: absolute; right: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; cursor: pointer; }
                 .filtro-group input, .filtro-group select { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; transition: border-color 0.2s; }
                 .filtro-group input:focus, .filtro-group select:focus { outline: none; border-color: #3182ce; }
                 .filtros-actions { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -3954,12 +3975,19 @@
                         <div class="kpi-porcentaje positivo">${r.porcentajeCuotasPagadas}%</div>
                     </div>
                     <div class="kpi-card info">
-                        <div class="kpi-label">Depositado (Bs)</div>
+                        <div class="kpi-label">Cobrado (Bs)</div>
                         <div class="kpi-value">${this._fmtCurrency(r.totalDepositadoBs)}</div>
+                        <div class="kpi-sub">${r.porcentajeCobrado || 0}% del total</div>
                     </div>
-                    <div class="kpi-card info">
-                        <div class="kpi-label">Depositado ($)</div>
-                        <div class="kpi-value">$${this._fmtCurrency(r.totalDepositadoUSD)}</div>
+                    <div class="kpi-card ${(r.totalPendienteBs || 0) > 0 ? 'warning' : 'success'}">
+                        <div class="kpi-label">Pendiente (Bs)</div>
+                        <div class="kpi-value">${this._fmtCurrency(r.totalPendienteBs || 0)}</div>
+                        <div class="kpi-sub">por cobrar</div>
+                    </div>
+                    <div class="kpi-card danger">
+                        <div class="kpi-label">Total a Cobrar (Bs)</div>
+                        <div class="kpi-value">${this._fmtCurrency(r.totalEsperadoBs || 0)}</div>
+                        <div class="kpi-sub">cartera total</div>
                     </div>
                 `;
             } else if (tipo === 'deudores') {
@@ -4266,6 +4294,78 @@
             this.reportesState.pagina = 1;
         }
 
+        // ============================================================
+        // FECHAS EN FORMATO DD/MM/AAAA (filtros de reportes)
+        // El input type="date" nativo muestra MM/DD/AAAA segun el
+        // idioma del navegador y NO se puede cambiar. Solucion: campo
+        // de texto visible DD/MM/AAAA + input date invisible encima
+        // del icono de calendario. El backend siempre recibe ISO
+        // (YYYY-MM-DD), igual que antes.
+        // ============================================================
+
+        // ISO 'YYYY-MM-DD' -> 'DD/MM/AAAA'
+        _fechaISOaDMA(iso) {
+            if (!iso) return '';
+            const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+        }
+
+        // 'DD/MM/AAAA' -> ISO 'YYYY-MM-DD' (null si invalida)
+        _fechaDMAaISO(dma) {
+            const m = String(dma || '').trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+            if (!m) return null;
+            const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), a = parseInt(m[3], 10);
+            if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+            const dt = new Date(a, mo - 1, d);
+            if (dt.getFullYear() !== a || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+            return `${a}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+
+        // Mascara automatica mientras escribe: 01082026 -> 01/08/2026
+        _onFechaTxtInput(cual, input) {
+            let v = input.value.replace(/\D/g, '').slice(0, 8);
+            if (v.length > 4) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+            else if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+            input.value = v;
+        }
+
+        // Al salir del campo de texto: validar y aplicar filtro
+        _onFechaTxtChange(cual, input) {
+            const campo = cual === 'desde' ? 'fechaDesde' : 'fechaHasta';
+            const picker = document.getElementById(`${this.cfg.pfx}-rep-fecha-${cual}`);
+            const valor = input.value.trim();
+
+            if (!valor) {
+                input.style.borderColor = '';
+                if (picker) picker.value = '';
+                this._aplicarFiltroReporte(campo, '');
+                return;
+            }
+
+            const iso = this._fechaDMAaISO(valor);
+            if (iso) {
+                input.value = this._fechaISOaDMA(iso);
+                input.style.borderColor = '';
+                if (picker) picker.value = iso;
+                this._aplicarFiltroReporte(campo, iso);
+            } else {
+                // Fecha invalida: marcar en rojo y NO aplicar el filtro
+                input.style.borderColor = '#e53e3e';
+            }
+        }
+
+        // Al elegir en el calendario nativo: mostrar DD/MM/AAAA y aplicar
+        _onFechaPickerChange(cual, input) {
+            const campo = cual === 'desde' ? 'fechaDesde' : 'fechaHasta';
+            const iso = input.value || '';
+            const txt = document.getElementById(`${this.cfg.pfx}-rep-fecha-${cual}-txt`);
+            if (txt) {
+                txt.value = this._fechaISOaDMA(iso);
+                txt.style.borderColor = '';
+            }
+            this._aplicarFiltroReporte(campo, iso);
+        }
+
         _debounceBusqueda(valor) {
             if (this._debounceTimer) clearTimeout(this._debounceTimer);
             this._debounceTimer = setTimeout(() => {
@@ -4290,6 +4390,8 @@
             const estado = document.getElementById(`${pfx}-rep-estado`);
             const fechaDesde = document.getElementById(`${pfx}-rep-fecha-desde`);
             const fechaHasta = document.getElementById(`${pfx}-rep-fecha-hasta`);
+            const fechaDesdeTxt = document.getElementById(`${pfx}-rep-fecha-desde-txt`);
+            const fechaHastaTxt = document.getElementById(`${pfx}-rep-fecha-hasta-txt`);
             const minDeuda = document.getElementById(`${pfx}-rep-min-deuda`);
             const maxDeuda = document.getElementById(`${pfx}-rep-max-deuda`);
             const busqueda = document.getElementById(`${pfx}-rep-busqueda`);
@@ -4297,6 +4399,8 @@
             if (estado) estado.value = 'todos';
             if (fechaDesde) fechaDesde.value = '';
             if (fechaHasta) fechaHasta.value = '';
+            if (fechaDesdeTxt) { fechaDesdeTxt.value = ''; fechaDesdeTxt.style.borderColor = ''; }
+            if (fechaHastaTxt) { fechaHastaTxt.value = ''; fechaHastaTxt.style.borderColor = ''; }
             if (minDeuda) minDeuda.value = '';
             if (maxDeuda) maxDeuda.value = '';
             if (busqueda) busqueda.value = '';
@@ -4501,6 +4605,62 @@
         }
         if (resumen.totalDeudaBs) {
             doc.text(`Deuda: ${this._fmtCurrency(resumen.totalDeudaBs)} Bs`, 80, 38);
+        }
+
+        // ── GRÁFICO DE COBRANZA (solo tipo cobranza) ──
+        if (tipo === 'cobranza' && resumen.totalEsperadoBs) {
+            const cobrado = resumen.totalDepositadoBs || 0;
+            const pendiente = resumen.totalPendienteBs || 0;
+            const total = resumen.totalEsperadoBs || 0;
+            const pctCobrado = total > 0 ? (cobrado / total * 100) : 0;
+            const pctPendiente = total > 0 ? (pendiente / total * 100) : 0;
+
+            const chartY = 45;
+            const chartX = 14;
+            const chartW = 130;
+            const barH = 22;
+
+            doc.setFontSize(11);
+            doc.setTextColor(26, 54, 93);
+            doc.text('Resumen de Cobranza', chartX, chartY);
+
+            // Fondo de la barra
+            doc.setFillColor(240, 240, 240);
+            doc.rect(chartX, chartY + 6, chartW, barH, 'F');
+
+            // Barra Cobrado (verde)
+            const wCobrado = chartW * (pctCobrado / 100);
+            if (wCobrado > 0) {
+                doc.setFillColor(56, 161, 105);
+                doc.rect(chartX, chartY + 6, wCobrado, barH, 'F');
+            }
+
+            // Barra Pendiente (rojo)
+            const wPendiente = chartW * (pctPendiente / 100);
+            if (wPendiente > 0) {
+                doc.setFillColor(229, 62, 62);
+                doc.rect(chartX + wCobrado, chartY + 6, wPendiente, barH, 'F');
+            }
+
+            // Texto sobre la barra
+            doc.setFontSize(9);
+            doc.setTextColor(255);
+            if (wCobrado > 40) {
+                doc.text(`COBRADO: ${this._fmtCurrency(cobrado)} (${pctCobrado.toFixed(1)}%)`, chartX + 4, chartY + 19);
+            }
+            if (wPendiente > 40) {
+                doc.text(`PENDIENTE: ${this._fmtCurrency(pendiente)} (${pctPendiente.toFixed(1)}%)`, chartX + wCobrado + 4, chartY + 19);
+            }
+
+            // Leyenda debajo
+            doc.setFontSize(9);
+            doc.setTextColor(80);
+            doc.text(`Total Cartera: ${this._fmtCurrency(total)}  |  Cobrado: ${this._fmtCurrency(cobrado)}  |  Pendiente: ${this._fmtCurrency(pendiente)}`, chartX, chartY + 36);
+
+            // Línea separadora
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.3);
+            doc.line(chartX, chartY + 40, chartX + chartW, chartY + 40);
         }
 
         // Preparar datos para tabla

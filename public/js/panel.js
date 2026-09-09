@@ -419,18 +419,35 @@ async function buscarTasaModal() {
         const data = await response.json();
         const resultado = document.getElementById('modalResultado');
         if (data.exito) {
-            const usd = data.tasa && data.tasa.usd !== undefined ? parseFloat(data.tasa.usd) : null;
-            const eur = data.tasa && data.tasa.eur !== undefined ? parseFloat(data.tasa.eur) : null;
-            const fechaTasa = data.tasa && data.tasa.date ? data.tasa.date : (data.fecha || fecha);
+            // ── Compatibilidad: formato PLANO (nuevo backend) y ANIDADO (legacy) ──
+            let usd = null, eur = null, fechaTasa = null;
+            if (data.tasa) {
+                if (data.tasa.usd !== undefined) {
+                    // Formato plano (nuevo backend)
+                    usd = parseFloat(data.tasa.usd);
+                    eur = parseFloat(data.tasa.eur);
+                    fechaTasa = data.tasa.date;
+                } else if (data.tasa.current && data.tasa.current.usd !== undefined) {
+                    // Formato anidado (legacy fallback)
+                    usd = parseFloat(data.tasa.current.usd);
+                    eur = parseFloat(data.tasa.current.eur);
+                    fechaTasa = data.tasa.current.date;
+                }
+            }
+
             let html = '<div style="text-align:center;padding:16px;">';
-            html += '<div style="font-size:24px;font-weight:700;color:#48bb78;margin-bottom:8px;">' + (usd !== null ? usd.toFixed(4) : '—') + ' Bs/USD</div>';
-            if (eur !== null) {
+            html += '<div style="font-size:24px;font-weight:700;color:#48bb78;margin-bottom:8px;">' + (usd !== null && !isNaN(usd) ? usd.toFixed(4) : '—') + ' Bs/USD</div>';
+            if (eur !== null && !isNaN(eur)) {
                 html += '<div style="font-size:18px;color:#667eea;margin-bottom:8px;">' + eur.toFixed(4) + ' Bs/EUR</div>';
             }
-            html += '<div style="font-size:13px;color:#718096;">Fecha: ' + fechaTasa + '</div></div>';
+            html += '<div style="font-size:13px;color:#718096;">Fecha: ' + (fechaTasa || fecha) + '</div>';
+            if (data.nota) {
+                html += '<div style="font-size:11px;color:#e67e22;margin-top:6px;">' + escapeHtml(data.nota) + '</div>';
+            }
+            html += '</div>';
             resultado.innerHTML = html;
         } else {
-            resultado.innerHTML = '<div style="text-align:center;color:#e53e3e;padding:16px;">' + (data.error || 'No se encontro tasa para esa fecha') + '</div>';
+            resultado.innerHTML = '<div style="text-align:center;color:#e53e3e;padding:16px;">' + escapeHtml(data.error || 'No se encontro tasa para esa fecha') + '</div>';
         }
         resultado.classList.add('active');
     } catch (err) {
@@ -477,12 +494,23 @@ async function buscarTasaPorFecha(fecha) {
         const data = await response.json();
         const resultado = document.getElementById('resultadoTasa');
         if (data.exito) {
-            const usd = data.tasa && data.tasa.usd !== undefined ? parseFloat(data.tasa.usd) : null;
-            const eur = data.tasa && data.tasa.eur !== undefined ? parseFloat(data.tasa.eur) : null;
-            const fechaTasa = data.tasa && data.tasa.date ? data.tasa.date : (data.fecha || fecha);
-            document.getElementById('resultadoFecha').textContent = fechaTasa;
-            document.getElementById('resultadoUSD').textContent = (usd !== null ? usd.toFixed(4) : '—') + ' Bs';
-            document.getElementById('resultadoEUR').textContent = (eur !== null ? eur.toFixed(4) : '—') + ' Bs';
+            // ── Compatibilidad: formato PLANO (nuevo backend) y ANIDADO (legacy) ──
+            let usd = null, eur = null, fechaTasa = null;
+            if (data.tasa) {
+                if (data.tasa.usd !== undefined) {
+                    usd = parseFloat(data.tasa.usd);
+                    eur = parseFloat(data.tasa.eur);
+                    fechaTasa = data.tasa.date;
+                } else if (data.tasa.current && data.tasa.current.usd !== undefined) {
+                    usd = parseFloat(data.tasa.current.usd);
+                    eur = parseFloat(data.tasa.current.eur);
+                    fechaTasa = data.tasa.current.date;
+                }
+            }
+
+            document.getElementById('resultadoFecha').textContent = fechaTasa || fecha;
+            document.getElementById('resultadoUSD').textContent = (usd !== null && !isNaN(usd) ? usd.toFixed(4) : '—') + ' Bs';
+            document.getElementById('resultadoEUR').textContent = (eur !== null && !isNaN(eur) ? eur.toFixed(4) : '—') + ' Bs';
             resultado.style.display = 'block';
         } else {
             alert(data.error || 'No se encontro tasa para esa fecha');

@@ -1,9 +1,9 @@
 // ============================================================
 // RUTAS BCV — API directa (sin base de datos)
 // ============================================================
-// Flujo: 1) API externa real → 2) Fallback realista
-// Formato respuesta: { exito: true, tasa: data }
-// donde 'data' es la respuesta cruda de rates.dolarvzla.com
+// Flujo: 1) API externa real → 2) Buscar hacia atrás hasta 10 días
+//          → 3) Fallback a tasa actual real → 4) Error controlado
+// Formato respuesta SIEMPRE plano: { exito: true, tasa: { date, usd, eur } }
 // ============================================================
 
 const express = require('express');
@@ -11,10 +11,6 @@ const router = express.Router();
 const { verificarToken } = require('../middleware/auth');
 
 const BCV_URL = 'https://rates.dolarvzla.com';
-
-// Fallback realista para julio 2026 (AJUSTA si es necesario)
-const TASA_FALLBACK_USD = 76.85;
-const TASA_FALLBACK_EUR = 82.40;
 
 // Helper: fetch con timeout manual (compatible con Node.js < 18)
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
@@ -30,25 +26,72 @@ async function fetchWithTimeout(url, options = {}, timeout = 10000) {
     }
 }
 
+// Helper: obtener tasa actual real (formato plano normalizado)
+async function obtenerTasaActualReal() {
+    const response = await fetchWithTimeout(`${BCV_URL}/bcv/current.json`);
+    if (!response.ok) throw new Error('current no disponible');
+    const data = await response.json();
+    // Normalizar a formato plano
+    if (data.current) {
+        return {
+            date: data.current.date,
+            usd: parseFloat(data.current.usd),
+            eur: parseFloat(data.current.eur)
+        };
+    }
+    if (data.usd !== undefined) {
+        return {
+            date: data.date,
+            usd: parseFloat(data.usd),
+            eur: parseFloat(data.eur)
+        };
+    }
+    throw new Error('Formato current inesperado');
+}
+
+// Helper: buscar tasa histórica exacta; si no existe, buscar hacia atrás
+// hasta 10 días para encontrar la última tasa publicada por el BCV
+async function buscarTasaHistorica(year, month, day) {
+    let intentos = 0;
+    const maxIntentos = 10; // máximo 10 días hacia atrás
+
+    while (intentos < maxIntentos) {
+        const url = `${BCV_URL}/bcv/${year}/${month}/${day}.json`;
+        try {
+            const response = await fetchWithTimeout(url);
+            if (response.ok) {
+                const data = await response.json();
+                // Normalizar a formato plano
+                return {
+                    date: data.date || `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,
+                    usd: parseFloat(data.usd),
+                    eur: parseFloat(data.eur),
+                    _fuente: 'historico'
+                };
+            }
+        } catch (e) {
+            // 404 u otro error: seguir buscando hacia atrás
+        }
+
+        // Retroceder un día
+        const d = new Date(year, month - 1, day);
+        d.setDate(d.getDate() - 1);
+        year = d.getFullYear();
+        month = d.getMonth() + 1;
+        day = d.getDate();
+        intentos++;
+    }
+
+    return null;
+}
+
 router.get('/actual', verificarToken, async (req, res) => {
     try {
-        const response = await fetchWithTimeout(`${BCV_URL}/bcv/current.json`);
-        const data = await response.json();
-        res.json({ exito: true, tasa: data });
+        const tasa = await obtenerTasaActualReal();
+        res.json({ exito: true, tasa });
     } catch (err) {
         console.error('[BCV] Error API /actual:', err.message);
-        res.json({
-            exito: true,
-            tasa: {
-                current: {
-                    usd: TASA_FALLBACK_USD,
-                    eur: TASA_FALLBACK_EUR,
-                    date: new Date().toISOString().split('T')[0]
-                }
-            },
-            fallback: true,
-            nota: 'API externa no disponible. Usando tasa de respaldo.'
-        });
+        res.status(500).json({ exito: false, error: 'Error obteniendo tasa actual' });
     }
 });
 
@@ -76,70 +119,39 @@ router.get('/fechas', verificarToken, async (req, res) => {
 
 router.get('/fecha/:fecha', verificarToken, async (req, res) => {
     try {
-        const fecha = req.params.fecha;
+        const fecha = req.params.fecha; // YYYY-MM-DD
         const partes = fecha.split('-');
-        const year = partes[0];
+        const year = parseInt(partes[0]);
         const month = parseInt(partes[1]);
         const day = parseInt(partes[2]);
 
-        // 1) Intentar tasa histórica exacta
-        try {
-            const response = await fetchWithTimeout(
-                `${BCV_URL}/bcv/${year}/${month}/${day}.json`
-            );
-            if (response.ok) {
-                const data = await response.json();
-                return res.json({ exito: true, tasa: data });
-            }
-        } catch (e) {
-            console.warn(`[BCV] Histórica ${fecha} no disponible:`, e.message);
-        }
-
-        // 2) Fallback: tasa actual
-        console.warn(`[BCV] Tasa histórica ${fecha} no encontrada, usando tasa actual como fallback`);
-        const fallbackResponse = await fetchWithTimeout(`${BCV_URL}/bcv/current.json`);
-        if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
+        // 1) Buscar histórica exacta o la más cercana anterior (hasta 10 días atrás)
+        const historica = await buscarTasaHistorica(year, month, day);
+        if (historica) {
             return res.json({
                 exito: true,
-                tasa: {
-                    current: {
-                        usd: fallbackData.current.usd,
-                        eur: fallbackData.current.eur,
-                        date: fecha
-                    }
-                },
-                fallback: true,
-                nota: 'Tasa histórica no disponible. Usando tasa actual como referencia.'
+                tasa: historica,
+                nota: historica.date !== fecha
+                    ? `Tasa del ${historica.date} (última publicada antes del ${fecha})`
+                    : undefined
             });
         }
 
-        // 3) Último fallback: tasa hardcodeada realista
+        // 2) Si no hay histórica reciente, usar tasa actual real
+        console.warn(`[BCV] No se encontró histórico reciente para ${fecha}, usando tasa actual`);
+        const actual = await obtenerTasaActualReal();
         res.json({
             exito: true,
-            tasa: {
-                current: {
-                    usd: TASA_FALLBACK_USD,
-                    eur: TASA_FALLBACK_EUR,
-                    date: fecha
-                }
-            },
+            tasa: actual,
             fallback: true,
-            nota: 'API externa no disponible. Usando tasa de respaldo.'
+            nota: 'No hay tasa histórica disponible para esa fecha. Mostrando tasa actual.'
         });
+
     } catch (err) {
         console.error('[BCV] Error fatal /fecha/:fecha:', err.message);
-        res.json({
-            exito: true,
-            tasa: {
-                current: {
-                    usd: TASA_FALLBACK_USD,
-                    eur: TASA_FALLBACK_EUR,
-                    date: req.params.fecha
-                }
-            },
-            fallback: true,
-            nota: 'Error de red. Usando tasa de respaldo.'
+        res.status(500).json({
+            exito: false,
+            error: 'Error de red consultando la tasa'
         });
     }
 });

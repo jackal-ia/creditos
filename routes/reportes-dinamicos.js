@@ -1,7 +1,32 @@
 // ============================================================
-// API DE REPORTES DINAMICOS v1.2 — Sistema de Creditos IPSFA
+// API DE REPORTES DINAMICOS v1.6 — Sistema de Creditos IPSFA
 // ============================================================
-// Fecha: 2026-08-16
+// Fecha: 2026-09-08
+// Cambios v1.6:
+//   - FIX filtro "Sin Pago" con rango: la INICIAL (cuota 0) NO esta en
+//     la tabla de pagos (vive en inicial_bs/inicial_usd/fecha_inicial
+//     del credito), asi que clientes que pagaron SOLO la inicial dentro
+//     del rango aparecian como "sin pago". Ahora tambien se excluye
+//     quien tenga la inicial pagada con fecha_inicial dentro del rango.
+// Cambios v1.5:
+//   - CRITERIO "DEUDOR" ahora es Deuda Pendiente en $ (deuda_usd) > 0.
+//     Antes se usaba la deuda en Bs (campo deuda). Aplica a: filtro
+//     Estado (deudor/aldia/incompleto), reporte DEUDORES, etiqueta
+//     de estado en CARTERA y contadores al dia/deudores del resumen.
+// Cambios v1.4:
+//   - FIX filtro "Sin Pago" con rango de fechas: antes usaba
+//     monto_depositados = 0 (historico de por vida) y filtraba por
+//     fecha_factura. Ahora, cuando hay fechas, usa NOT EXISTS contra
+//     la tabla de pagos real: trae los clientes SIN NINGUN PAGO en el
+//     rango seleccionado (y ya no filtra por fecha_factura).
+//   - Cobranza con fechas + estado "sinpago": LEFT JOIN + IS NULL
+//     (antes INNER JOIN contradecia el filtro y devolvia 0 o datos malos).
+// Cambios v1.3:
+//   - FIX CRITICO: "Cannot access 'countQuery' before initialization"
+//     (error 500 en reporte COBRANZA con filtro de fechas).
+//     countQuery/countParams se declaraban con let DESPUES del switch
+//     pero el caso 'cobranza' con fechas ya las asignaba dentro del
+//     switch (TDZ). Ahora se declaran al inicio de construirQuery().
 // Cambios v1.2:
 //   - El filtro DEUDORES usa deuda_usd DIRECTAMENTE de la BD
 //   - Mantiene consistencia con el modal de edición
@@ -249,15 +274,27 @@ router.post('/generar-consolidado', verificarToken, async (req, res) => {
 // ============================================================
 function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagina, tiendaKey, sinPaginacion) {
     const where = ['1=1'];
-    const params = [];
+    let params = [];
     let idx = 1;
+    // FIX v1.3: declarar AQUI (antes del switch). El caso 'cobranza'
+    // con filtro de fechas las asigna dentro del switch; si se declaran
+    // con let al final de la funcion, esa asignacion cae en la TDZ y
+    // Node lanza "Cannot access 'countQuery' before initialization".
+    let countQuery = null;
+    let countParams = null;
 
-    if (filtros.fechaDesde) {
+    // FIX v1.4: "Sin Pago" + rango de fechas = clientes SIN NINGUN PAGO
+    // en ese rango (segun la tabla de pagos real). En ese caso NO se
+    // filtra por fecha_factura: lo que importa es la fecha del PAGO.
+    const hayRangoFechas = !!(filtros.fechaDesde || filtros.fechaHasta);
+    const sinPagoConRango = filtros.estado === 'sinpago' && hayRangoFechas;
+
+    if (filtros.fechaDesde && !sinPagoConRango) {
         where.push(`fecha_factura >= $${idx++}`);
         params.push(filtros.fechaDesde);
     }
 
-    if (filtros.fechaHasta) {
+    if (filtros.fechaHasta && !sinPagoConRango) {
         where.push(`fecha_factura <= $${idx++}`);
         params.push(filtros.fechaHasta);
     }
@@ -265,16 +302,56 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
     if (filtros.estado && filtros.estado !== 'todos') {
         switch (filtros.estado) {
             case 'aldia':
-                where.push('COALESCE(deuda, 0) <= 0');
+                // v1.5: al dia = Deuda Pendiente ($) <= 0
+                where.push('COALESCE(deuda_usd, 0) <= 0');
                 break;
             case 'deudor':
-                where.push('COALESCE(deuda, 0) > 0');
+                // v1.5: deudor = Deuda Pendiente ($) > 0
+                where.push('COALESCE(deuda_usd, 0) > 0');
                 break;
             case 'incompleto':
-                where.push('COALESCE(monto_depositados, 0) > 0 AND COALESCE(deuda, 0) > 0');
+                where.push('COALESCE(monto_depositados, 0) > 0 AND COALESCE(deuda_usd, 0) > 0');
                 break;
             case 'sinpago':
-                where.push('COALESCE(monto_depositados, 0) = 0');
+                if (hayRangoFechas) {
+                    // v1.4: sin pagos EN EL RANGO, verificado contra la
+                    // tabla de pagos real (fuente de verdad).
+                    // OJO: el reporte 'cuotas' usa alias "t" para la tabla.
+                    const tablaPagosSP = TABLAS_PAGOS[tiendaKey];
+                    const refExterna = (tipo === 'cuotas') ? 't' : tabla;
+                    const condsPago = [];
+                    if (filtros.fechaDesde) {
+                        condsPago.push(`p.fecha >= $${idx++}`);
+                        params.push(filtros.fechaDesde);
+                    }
+                    if (filtros.fechaHasta) {
+                        condsPago.push(`p.fecha <= $${idx++}`);
+                        params.push(filtros.fechaHasta);
+                    }
+                    where.push(`NOT EXISTS (SELECT 1 FROM ${tablaPagosSP} p WHERE p.factura_id = ${refExterna}.id AND ${condsPago.join(' AND ')})`);
+
+                    // v1.6: la INICIAL (cuota 0) tambien cuenta como pago,
+                    // pero NO esta en la tabla de pagos: vive en el propio
+                    // credito. Si fecha_inicial cae en el rango y el monto
+                    // de la inicial es > 0, el cliente SI pago en el rango.
+                    const condsInicial = [
+                        `(COALESCE(${refExterna}.inicial_bs, 0) > 0 OR COALESCE(${refExterna}.inicial_usd, 0) > 0)`,
+                        `${refExterna}.fecha_inicial IS NOT NULL`
+                    ];
+                    if (filtros.fechaDesde) {
+                        condsInicial.push(`${refExterna}.fecha_inicial >= $${idx++}`);
+                        params.push(filtros.fechaDesde);
+                    }
+                    if (filtros.fechaHasta) {
+                        condsInicial.push(`${refExterna}.fecha_inicial <= $${idx++}`);
+                        params.push(filtros.fechaHasta);
+                    }
+                    where.push(`NOT (${condsInicial.join(' AND ')})`);
+                } else {
+                    // Sin rango de fechas: comportamiento original
+                    // (nunca ha depositado nada).
+                    where.push('COALESCE(monto_depositados, 0) = 0');
+                }
                 break;
         }
     }
@@ -326,13 +403,132 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
             params.push(limit, offset);
             break;
 
-        case 'cobranza':
-            query = `SELECT id, nro_factura, nombre_apellido, cedula,
-                      monto_depositados, deuda, fecha_factura, cuotas, cuotas_pagadas,
-                      monto_factura, monto_facturado_divisa, total_depositado_usd, deuda_usd
-                      FROM ${tabla} WHERE ${whereClause} ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
-            params.push(limit, offset);
+        case 'cobranza': {
+            const tablaPagos = TABLAS_PAGOS[tiendaKey];
+            const hayFechasPagos = filtros.fechaDesde || filtros.fechaHasta;
+
+            if (hayFechasPagos) {
+                // ── COBRANZA CON FILTRO DE FECHAS: filtra por fecha DE PAGO ──
+                let pCond = [];
+                let pIdx = 1;
+                let pParams = [];
+                if (filtros.fechaDesde) { pCond.push(`fecha >= $${pIdx++}`); pParams.push(filtros.fechaDesde); }
+                if (filtros.fechaHasta) { pCond.push(`fecha <= $${pIdx++}`); pParams.push(filtros.fechaHasta); }
+                const pWhere = pCond.length > 0 ? 'WHERE ' + pCond.join(' AND ') : '';
+
+                // WHERE principal (sin fechas de factura)
+                let whereCobranza = ['1=1'];
+                let paramsCobranza = [];
+                let cIdx = pParams.length + 1;
+
+                // v1.4: "sinpago" con rango = clientes SIN pagos en el
+                // rango. Se implementa con LEFT JOIN + IS NULL mas abajo;
+                // aqui NO se agrega condicion de estado (el INNER JOIN
+                // original contradecia el filtro).
+                const esSinPagoRango = filtros.estado === 'sinpago';
+
+                if (filtros.estado && filtros.estado !== 'todos' && !esSinPagoRango) {
+                    switch (filtros.estado) {
+                        // v1.5: criterio por Deuda Pendiente ($)
+                        case 'aldia': whereCobranza.push('COALESCE(c.deuda_usd, 0) <= 0'); break;
+                        case 'deudor': whereCobranza.push('COALESCE(c.deuda_usd, 0) > 0'); break;
+                        case 'incompleto': whereCobranza.push('COALESCE(c.monto_depositados, 0) > 0 AND COALESCE(c.deuda_usd, 0) > 0'); break;
+                    }
+                }
+
+                // v1.6: la INICIAL (cuota 0) no esta en la tabla de pagos;
+                // si cayo dentro del rango, el cliente SI pago y debe
+                // excluirse del reporte "sin pago".
+                if (esSinPagoRango) {
+                    const iniConds = [
+                        '(COALESCE(c.inicial_bs, 0) > 0 OR COALESCE(c.inicial_usd, 0) > 0)',
+                        'c.fecha_inicial IS NOT NULL'
+                    ];
+                    if (filtros.fechaDesde) {
+                        iniConds.push(`c.fecha_inicial >= $${cIdx++}`);
+                        paramsCobranza.push(filtros.fechaDesde);
+                    }
+                    if (filtros.fechaHasta) {
+                        iniConds.push(`c.fecha_inicial <= $${cIdx++}`);
+                        paramsCobranza.push(filtros.fechaHasta);
+                    }
+                    whereCobranza.push(`NOT (${iniConds.join(' AND ')})`);
+                }
+                if (filtros.minDeuda !== undefined && filtros.minDeuda !== null && filtros.minDeuda !== '') {
+                    whereCobranza.push(`COALESCE(c.deuda, 0) >= $${cIdx++}`);
+                    paramsCobranza.push(parseFloat(filtros.minDeuda));
+                }
+                if (filtros.maxDeuda !== undefined && filtros.maxDeuda !== null && filtros.maxDeuda !== '') {
+                    whereCobranza.push(`COALESCE(c.deuda, 0) <= $${cIdx++}`);
+                    paramsCobranza.push(parseFloat(filtros.maxDeuda));
+                }
+                if (filtros.busqueda) {
+                    whereCobranza.push(`(c.nombre_apellido ILIKE $${cIdx} OR c.cedula ILIKE $${cIdx})`);
+                    paramsCobranza.push(`%${filtros.busqueda}%`);
+                    cIdx++;
+                }
+
+                const whereCobranzaStr = whereCobranza.join(' AND ');
+                const _offset = sinPaginacion ? 0 : (parseInt(pagina) - 1) * parseInt(porPagina);
+                const _limit = sinPaginacion ? 10000 : parseInt(porPagina);
+
+                // v1.4: sinpago = LEFT JOIN y quedarse con los que NO
+                // tienen pagos en el rango (p.factura_id IS NULL)
+                const joinTipo = esSinPagoRango ? 'LEFT JOIN' : 'INNER JOIN';
+                const condSinPago = esSinPagoRango ? 'AND p.factura_id IS NULL' : '';
+
+                query = `
+                    WITH pagos_filtrados AS (
+                        SELECT factura_id, COUNT(*) as cantidad,
+                               SUM(monto_bs) as monto_total_bs, SUM(monto_usd) as monto_total_usd
+                        FROM ${tablaPagos}
+                        ${pWhere}
+                        GROUP BY factura_id
+                    )
+                    SELECT c.id, c.nro_factura, c.nombre_apellido, c.cedula,
+                      c.monto_factura, c.monto_facturado_divisa, c.cuotas,
+                      COALESCE(p.cantidad, 0) as cuotas_pagadas_rango,
+                      COALESCE(p.monto_total_bs, 0) as depositado_rango_bs,
+                      COALESCE(p.monto_total_usd, 0) as depositado_rango_usd,
+                      c.deuda, c.deuda_usd, c.fecha_factura,
+                      c.monto_depositados as total_depositado_historico,
+                      c.cuotas_pagadas as cuotas_pagadas_historico
+                    FROM ${tabla} c
+                    ${joinTipo} pagos_filtrados p ON c.id = p.factura_id
+                    WHERE ${whereCobranzaStr} ${condSinPago}
+                    ORDER BY ${colOrden} ${dirOrden}
+                    LIMIT $${cIdx++} OFFSET $${cIdx++}`;
+
+                const allParams = [...pParams, ...paramsCobranza, _limit, _offset];
+
+                const countQueryStr = `
+                    WITH pagos_filtrados AS (
+                        SELECT factura_id
+                        FROM ${tablaPagos}
+                        ${pWhere}
+                        GROUP BY factura_id
+                    )
+                    SELECT COUNT(*) FROM ${tabla} c
+                    ${joinTipo} pagos_filtrados p ON c.id = p.factura_id
+                    WHERE ${whereCobranzaStr} ${condSinPago}`;
+
+                const countParamsArr = [...pParams, ...paramsCobranza];
+
+                // Asignar a las variables let del scope padre
+                params = allParams;
+                countQuery = countQueryStr;
+                countParams = countParamsArr;
+
+            } else {
+                // ── COBRANZA SIN FECHAS: comportamiento original ──
+                query = `SELECT id, nro_factura, nombre_apellido, cedula,
+                          monto_depositados, deuda, fecha_factura, cuotas, cuotas_pagadas,
+                          monto_factura, monto_facturado_divisa, total_depositado_usd, deuda_usd
+                          FROM ${tabla} WHERE ${whereClause} ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
+                params.push(limit, offset);
+            }
             break;
+        }
 
         case 'deudores':
             query = `SELECT id, nro_factura, nombre_apellido, cedula,
@@ -340,7 +536,7 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
                       monto_facturado_divisa, total_depositado_usd, deuda_usd,
                       cuotas, monto_cuota_usd, cuotas_pagadas,
                       telefono, numero_cuenta, banco
-                      FROM ${tabla} WHERE ${whereClause} AND COALESCE(deuda, 0) > 0
+                      FROM ${tabla} WHERE ${whereClause} AND COALESCE(deuda_usd, 0) > 0
                       ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
             params.push(limit, offset);
             break;
@@ -371,8 +567,12 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
             params.push(limit, offset);
     }
 
-    const countQuery = `SELECT COUNT(*) FROM ${tabla} WHERE ${whereClause}`;
-    const countParams = params.slice(0, params.length - 2);
+    // Valores por defecto para el COUNT: solo si el caso (ej. cobranza
+    // con fechas) no asigno ya su propio countQuery/countParams.
+    if (countQuery === null) {
+        countQuery = `SELECT COUNT(*) FROM ${tabla} WHERE ${whereClause}`;
+        countParams = params.slice(0, params.length - 2);
+    }
 
     return { query, params, countQuery, countParams };
 }
@@ -399,7 +599,8 @@ function formatearReporte(tipo, rows) {
                     montoBs: parseFloat(r.monto_factura) || 0,
                     depositadoBs: parseFloat(r.monto_depositados) || 0,
                     deudaBs: deudaBs,
-                    estado: deudaBs <= 0 ? 'Al dia' : 'Deudor',
+                    // v1.5: la etiqueta se decide por Deuda Pendiente ($)
+                    estado: deudaUSD <= 0 ? 'Al dia' : 'Deudor',
                     montoUSD: montoUSD,
                     tasaBCV: parseFloat(r.tasa_bcv_factura) || 0,
                     cuotas: parseInt(r.cuotas) || 0,
@@ -419,9 +620,19 @@ function formatearReporte(tipo, rows) {
         case 'cobranza':
             return rows.map(r => {
                 const cuotasTotales = parseInt(r.cuotas) || 0;
-                const cuotasPagadas = parseInt(r.cuotas_pagadas) || 0;
-                const porcentajePagado = cuotasTotales > 0
-                    ? parseFloat(((cuotasPagadas / cuotasTotales) * 100).toFixed(2))
+                const enRango = r.depositado_rango_bs !== undefined;
+                const cuotasPagadas = enRango
+                    ? parseInt(r.cuotas_pagadas_rango) || 0
+                    : parseInt(r.cuotas_pagadas) || 0;
+                const depositadoBs = enRango
+                    ? parseFloat(r.depositado_rango_bs) || 0
+                    : parseFloat(r.monto_depositados) || 0;
+                const depositadoUSD = enRango
+                    ? parseFloat(r.depositado_rango_usd) || 0
+                    : parseFloat(r.total_depositado_usd) || 0;
+                const montoFactura = parseFloat(r.monto_factura) || 0;
+                const porcentajePagado = montoFactura > 0
+                    ? parseFloat(((depositadoBs / montoFactura) * 100).toFixed(2))
                     : 0;
                 return {
                     id: r.id,
@@ -431,10 +642,11 @@ function formatearReporte(tipo, rows) {
                     cuotasPagadas,
                     cuotasTotales,
                     porcentajePagado,
-                    totalDepositadoBs: parseFloat(r.monto_depositados) || 0,
-                    totalDepositadoUSD: parseFloat(r.total_depositado_usd) || 0,
+                    totalDepositadoBs: depositadoBs,
+                    totalDepositadoUSD: depositadoUSD,
                     deudaRestanteBs: parseFloat(r.deuda) || 0,
                     deudaRestanteUSD: parseFloat(r.deuda_usd) || 0,
+                    montoFacturaBs: montoFactura,
                     fecha: r.fecha_factura
                 };
             });
@@ -505,8 +717,9 @@ function calcularResumen(tipo, datos) {
         const totalFacturadoUSD = datos.reduce((s, d) => s + (d.montoUSD || 0), 0);
         const totalDepositadoUSD = datos.reduce((s, d) => s + (d.depositadoUSD || 0), 0);
         const totalDeudaUSD = datos.reduce((s, d) => s + (d.deudaUSD || 0), 0);
-        const clientesAlDia = datos.filter(d => (d.deudaBs || 0) <= 0).length;
-        const clientesDeudores = datos.filter(d => (d.deudaBs || 0) > 0).length;
+        // v1.5: contadores por Deuda Pendiente ($)
+        const clientesAlDia = datos.filter(d => (d.deudaUSD || 0) <= 0).length;
+        const clientesDeudores = datos.filter(d => (d.deudaUSD || 0) > 0).length;
 
         return {
             totalRegistros: datos.length,
@@ -529,6 +742,8 @@ function calcularResumen(tipo, datos) {
         const totalCuotasTotales = datos.reduce((s, d) => s + (d.cuotasTotales || 0), 0);
         const totalDepositadoBs = datos.reduce((s, d) => s + (d.totalDepositadoBs || 0), 0);
         const totalDepositadoUSD = datos.reduce((s, d) => s + (d.totalDepositadoUSD || 0), 0);
+        const totalEsperadoBs = datos.reduce((s, d) => s + (d.montoFacturaBs || 0), 0);
+        const totalPendienteBs = datos.reduce((s, d) => s + (d.deudaRestanteBs || 0), 0);
         return {
             totalRegistros: datos.length,
             totalCuotasPagadas,
@@ -537,7 +752,12 @@ function calcularResumen(tipo, datos) {
                 ? parseFloat(((totalCuotasPagadas / totalCuotasTotales) * 100).toFixed(2))
                 : 0,
             totalDepositadoBs: parseFloat(totalDepositadoBs.toFixed(2)),
-            totalDepositadoUSD: parseFloat(totalDepositadoUSD.toFixed(2))
+            totalDepositadoUSD: parseFloat(totalDepositadoUSD.toFixed(2)),
+            totalEsperadoBs: parseFloat(totalEsperadoBs.toFixed(2)),
+            totalPendienteBs: parseFloat(totalPendienteBs.toFixed(2)),
+            porcentajeCobrado: totalEsperadoBs > 0
+                ? parseFloat(((totalDepositadoBs / totalEsperadoBs) * 100).toFixed(2))
+                : 0
         };
     }
 
