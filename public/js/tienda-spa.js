@@ -459,7 +459,7 @@
                     </div>
                     <div class="tm2-panel">
                         <h3>Estado de cartera</h3>
-                        <div class="tm2-sub">Créditos según su situación de pago</div>
+                        <div class="tm2-sub">Situación de pago en el mes seleccionado</div>
                         <div id="${id('ch-donut')}" class="tm2-chart"></div>
                     </div>
                 </div>
@@ -520,21 +520,23 @@
             const lista = clientes || [];
             let cartera = 0, cobradoTotal = 0, deuda = 0, deudores = 0;
             let cobradoMes = 0, pagosMes = 0, cobradoHoy = 0, pagosHoy = 0;
-            let conCuotaMes = 0, porCobrar = 0, alDia = 0, incompleto = 0, noPago = 0, morosos = 0;
+            let conCuotaMes = 0, conCuotaMesAct = 0, activos = 0, activosMes = 0, porCobrar = 0, alDia = 0, incompleto = 0, noPago = 0, morosos = 0;
             const evoMap = {};
             const ultimos = [], sinPagar = [];
 
             lista.forEach(c => {
                 const factura = tmN(c.monto_factura);
-                const depositado = (typeof c.monto_depositados === 'number') ? c.monto_depositados : tmN(c.monto_depositados);
-                const deudaC = (typeof c.deuda === 'number') ? c.deuda : Math.max(0, factura - depositado);
-                const esCanc = this.esCancelada(c); // v7.0: cancelación evaluada en divisa
+                const esCanc = this.esCancelada(c); // v7.1: cancelación evaluada en divisa
                 cartera += factura;
-                cobradoTotal += depositado;
-                if (!esCanc) { deuda += Math.max(0, deudaC); deudores++; }
+                // v7.2: ¿la factura ya existía en el mes de referencia?
+                const fFact = tmParseFecha(c.fecha_factura);
+                const existiaEnMes = !fFact || (fFact.anio * 12 + fFact.mes) <= (anioAct * 12 + mesAct);
+                if (!esCanc && existiaEnMes) activosMes++;
 
                 let ultimaCuota = null, cuotasPagadas = 0, pagoEsteMes = false;
                 let tienePagosExtra = false;
+                let sumaPagos = 0;      // v7.2: cobrado EN VIVO (inicial + pagos reales)
+                let pagosHastaMes = 0;  // v7.2: pagos hasta el fin del mes de referencia (torta)
 
                 // 1) Intentar leer desde pagos_extra (tabla de pagos)
                 const pagosExtra = c.pagos_extra || [];
@@ -546,10 +548,12 @@
                         const monto = tmN(p.monto_bs);
                         if (monto > 0) {
                             cuotasPagadas++;
+                            sumaPagos += monto; // v7.2
                             const f = tmParseFecha(p.fecha);
                             if (f) {
                                 const key = f.anio * 12 + f.mes;
                                 if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
+                                if (key <= anioAct * 12 + mesAct) pagosHastaMes++; // v7.2
                                 if (f.anio === anioAct && f.mes === mesAct) {
                                     pagoEsteMes = true;
                                     cobradoMes += monto;
@@ -569,10 +573,12 @@
                         const monto = tmN(c['cuota_' + i]);
                         if (monto > 0) {
                             cuotasPagadas++;
+                            sumaPagos += monto; // v7.2
                             const f = tmParseFecha(c['fecha_cuota_' + i]);
                             if (f) {
                                 const key = f.anio * 12 + f.mes;
                                 if (!ultimaCuota || key > ultimaCuota.key) ultimaCuota = { key, anio: f.anio, mes: f.mes };
+                                if (key <= anioAct * 12 + mesAct) pagosHastaMes++; // v7.2
                                 if (f.anio === anioAct && f.mes === mesAct) {
                                     pagoEsteMes = true;
                                     cobradoMes += monto;
@@ -585,12 +591,54 @@
                         }
                     }
                 }
-                if (pagoEsteMes) conCuotaMes++;
-                if (!esCanc && !pagoEsteMes) porCobrar++;
 
-                if (esCanc) alDia++;
-                else if (cuotasPagadas === 0) noPago++;
-                else incompleto++;
+                // 3) v7.2: la INICIAL cuenta como pago (cuota 0) — misma regla
+                // que Reportes y Estadísticas. Suma al cobrado y, si cayó en
+                // el mes de referencia, cuenta como "pagó ese mes".
+                const iniBs = tmN(c.inicial_bs);
+                if (iniBs > 0) {
+                    sumaPagos += iniBs;
+                    const fIni = tmParseFecha(c.fecha_inicial);
+                    if (fIni) {
+                        const keyIni = fIni.anio * 12 + fIni.mes;
+                        if (!ultimaCuota || keyIni > ultimaCuota.key) ultimaCuota = { key: keyIni, anio: fIni.anio, mes: fIni.mes };
+                        if (keyIni <= anioAct * 12 + mesAct) pagosHastaMes++;
+                        if (fIni.anio === anioAct && fIni.mes === mesAct) {
+                            pagoEsteMes = true;
+                            cobradoMes += iniBs;
+                            pagosMes++;
+                            if (fIni.dia === diaAct) { cobradoHoy += iniBs; pagosHoy++; }
+                            evoMap[keyIni] = (evoMap[keyIni] || 0) + iniBs;
+                            ultimos.push({ nombre: (c.nombre_apellido || 'Sin nombre') + ' (inicial)', f: fIni, monto: iniBs });
+                        }
+                    }
+                }
+
+                // v7.2: cobrado/deuda EN VIVO (las columnas guardadas
+                // monto_depositados/deuda están desactualizadas)
+                const depositado = sumaPagos;
+                const deudaC = Math.max(0, factura - depositado);
+                cobradoTotal += depositado;
+                if (!esCanc) {
+                    activos++;
+                    deuda += deudaC; // solo activas: congeladas/canceladas no se cobran
+                    if (deudaC > 0.01) deudores++;
+                }
+
+                if (pagoEsteMes) conCuotaMes++;
+                if (!esCanc && pagoEsteMes) conCuotaMesAct++;
+                if (!esCanc && !pagoEsteMes && existiaEnMes) porCobrar++; // v7.2: no exigir cuota a facturas con fecha futura
+
+                // v7.2: torta según la situación EN EL MES seleccionado:
+                //   - solo cuentan facturas que YA EXISTÍAN ese mes
+                //   - Al día: cancelada (v7.1) o pagó en ese mes (cuota o inicial)
+                //   - Sin pago: activa sin ningún pago hasta ese mes
+                //   - Incompleto: activa con pagos anteriores, pero no en ese mes
+                if (existiaEnMes && factura > 0) {
+                    if (esCanc || pagoEsteMes) alDia++;
+                    else if (pagosHastaMes === 0) noPago++;
+                    else incompleto++;
+                }
 
                 if (!esCanc) {
                     const ref = ultimaCuota || tmParseFecha(c.fecha_factura);
@@ -617,9 +665,9 @@
 
             return {
                 cartera, cobradoTotal, deuda, deudores,
-                creditos: lista.length,
+                creditos: lista.length, activos, activosMes, // v7.2: activos = no canceladas; activosMes = las que ya existían en el mes de referencia
                 cobradoMes, pagosMes, cobradoHoy, pagosHoy,
-                conCuotaMes, porCobrar, morosos,
+                conCuotaMes, conCuotaMesAct, porCobrar, morosos,
                 recuperacion: cartera > 0 ? (cobradoTotal / cartera * 100) : 0,
                 distribucion: { alDia, incompleto, noPago },
                 evolucion: { labels: evoLabels, data: evoData },
@@ -671,7 +719,9 @@
 
             // --- KPIs ---
             setTxt('k-cartera', 'Bs ' + TM_FMT.format(r.cartera));
-            setHtml('k-creditos', '<b>' + r.creditos + '</b> créditos activos');
+            // v7.2: créditos activos = NO canceladas (las congeladas no se cuentan)
+            setHtml('k-creditos', '<b>' + r.activos + '</b> créditos activos' +
+                (r.activos !== r.creditos ? ' <span style="color:#94a3b8;font-weight:400">(' + r.creditos + ' registrados)</span>' : ''));
             setTxt('k-cobrado', 'Bs ' + TM_FMT.format(r.cobradoMes));
             setHtml('k-pagos-mes', '<b class="up">' + r.pagosMes + '</b> pagos este mes');
             setTxt('k-deuda', 'Bs ' + TM_FMT.format(r.deuda));
@@ -691,10 +741,13 @@
             setHtml('met-rep', 'Excel · PDF');
 
             // --- Cobranza del mes (según el mes seleccionado) ---
-            const pct = rMes.creditos > 0 ? Math.round(rMes.conCuotaMes / rMes.creditos * 100) : 0;
+            // v7.2: cobranza del mes = ACTIVAS con pago / ACTIVAS que ya
+            // existían ese mes (en el mes actual cuadra con la alerta
+            // "sin cuota este mes": cobradas + porCobrar = activos)
+            const pct = rMes.activosMes > 0 ? Math.round(rMes.conCuotaMesAct / rMes.activosMes * 100) : 0;
             const prog = el('prog');
             if (prog) prog.style.width = pct + '%';
-            setTxt('cm-cuotas', rMes.conCuotaMes + ' / ' + rMes.creditos);
+            setTxt('cm-cuotas', rMes.conCuotaMesAct + ' / ' + rMes.activosMes);
             setTxt('cm-pct', pct + '%');
             // "Hoy" solo aplica cuando el mes seleccionado es el actual
             setTxt('cm-hoy', esMesActual ? 'Bs ' + TM_FMT.format(rMes.cobradoHoy) : '—');
@@ -738,9 +791,10 @@
                 }
                 if (chDonut) {
                     chDonut.innerHTML = '';
+                    // v7.2: la torta sigue al MES SELECCIONADO (rMes), no al mes actual
                     const c2 = new ApexCharts(chDonut, {
                         chart: { type: 'donut', height: 220, fontFamily: 'inherit' },
-                        series: [r.distribucion.alDia, r.distribucion.incompleto, r.distribucion.noPago],
+                        series: [rMes.distribucion.alDia, rMes.distribucion.incompleto, rMes.distribucion.noPago],
                         labels: ['Al día', 'Incompleto', 'Sin pago'],
                         colors: ['#27ae60', '#e67e22', '#c0392b'],
                         legend: { position: 'bottom', fontSize: '11px' },
@@ -988,9 +1042,9 @@
                                             <div class="form-group"><label>N° Factura *</label><input type="text" id="${c}-nueva-factura" required></div>
                                             <div class="form-group"><label>Fecha Factura *</label>
                                                 <div class="fecha-ddmmyyyy">
-                                                    <input type="text" id="${c}-nueva-fecha-factura-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
-                                                        oninput="window.Tiendas.get('${this.cfg.key}')._onFechaGenInput(this)"
-                                                        onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenChange('${c}-nueva-fecha-factura', this)">
+                                                    <input type="text" id="${c}-nueva-fecha-factura-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off" readonly
+                                                        title="Use el calendario para elegir la fecha"
+                                                        onclick="window.Tiendas.get('${this.cfg.key}')._abrirCalendario('${c}-nueva-fecha-factura')">
                                                     <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                                                     <input type="date" id="${c}-nueva-fecha-factura" class="fecha-overlay" tabindex="-1" title="Abrir calendario" required
                                                         onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenPicker('${c}-nueva-fecha-factura', this)">
@@ -1019,9 +1073,9 @@
                                             <div class="form-group"><label>Referencia Inicial *</label><input type="text" id="${c}-nueva-ref-inicial" required></div>
                                             <div class="form-group"><label>Fecha Inicial *</label>
                                                 <div class="fecha-ddmmyyyy">
-                                                    <input type="text" id="${c}-nueva-fecha-inicial-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
-                                                        oninput="window.Tiendas.get('${this.cfg.key}')._onFechaGenInput(this)"
-                                                        onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenChange('${c}-nueva-fecha-inicial', this)">
+                                                    <input type="text" id="${c}-nueva-fecha-inicial-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off" readonly
+                                                        title="Use el calendario para elegir la fecha"
+                                                        onclick="window.Tiendas.get('${this.cfg.key}')._abrirCalendario('${c}-nueva-fecha-inicial')">
                                                     <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                                                     <input type="date" id="${c}-nueva-fecha-inicial" class="fecha-overlay" tabindex="-1" title="Abrir calendario" required
                                                         onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenPicker('${c}-nueva-fecha-inicial', this)">
@@ -3139,12 +3193,17 @@
                 return null;
             };
 
-            const calcularMontoUSD = async () => {
+            // v7.2: al CAMBIAR LA FECHA (por el calendario) la tasa BCV
+            // se vuelve a consultar SIEMPRE, aunque el campo ya tenga
+            // valor; antes solo se consultaba si estaba vacia y por eso
+            // la tasa no seguia a la fecha. La tasa se puede escribir a
+            // mano DESPUES de elegir la fecha si se quiere otra.
+            const calcularMontoUSD = async (forzarTasa) => {
                 const montoBs = parseFloat(el('nueva-monto').value) || 0;
                 const fecha = el('nueva-fecha-factura').value;
                 if (montoBs <= 0 || !fecha) { el('nueva-monto-usd').value = ''; return; }
                 let tasa = parseFloat(el('nueva-tasa-factura').value);
-                if (!tasa || tasa <= 0.0001) {
+                if (forzarTasa || !tasa || tasa <= 0.0001) {
                     try {
                         const res = await this._apiFetch('/api/bcv/fecha/' + fecha);
                         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -3163,12 +3222,12 @@
                 self.calcularDeudaYCuota();
             };
 
-            const calcularInicialUSD = async () => {
+            const calcularInicialUSD = async (forzarTasa) => {
                 const inicialBs = parseFloat(el('nueva-inicial-bs').value) || 0;
                 const fecha = el('nueva-fecha-inicial').value;
                 if (inicialBs <= 0 || !fecha) { el('nueva-inicial-usd').value = ''; return; }
                 let tasa = parseFloat(el('nueva-tasa-inicial').value);
-                if (!tasa || tasa <= 0.0001) {
+                if (forzarTasa || !tasa || tasa <= 0.0001) {
                     try {
                         const res = await this._apiFetch('/api/bcv/fecha/' + fecha);
                         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -3187,12 +3246,12 @@
                 self.calcularDeudaYCuota();
             };
 
-            el('nueva-monto').addEventListener('input', calcularMontoUSD);
-            el('nueva-fecha-factura').addEventListener('change', calcularMontoUSD);
-            el('nueva-tasa-factura').addEventListener('input', calcularMontoUSD);
-            el('nueva-inicial-bs').addEventListener('input', calcularInicialUSD);
-            el('nueva-fecha-inicial').addEventListener('change', calcularInicialUSD);
-            el('nueva-tasa-inicial').addEventListener('input', calcularInicialUSD);
+            el('nueva-monto').addEventListener('input', () => calcularMontoUSD(false));
+            el('nueva-fecha-factura').addEventListener('change', () => calcularMontoUSD(true)); // fecha cambio -> reconsultar tasa
+            el('nueva-tasa-factura').addEventListener('input', () => calcularMontoUSD(false));
+            el('nueva-inicial-bs').addEventListener('input', () => calcularInicialUSD(false));
+            el('nueva-fecha-inicial').addEventListener('change', () => calcularInicialUSD(true)); // fecha cambio -> reconsultar tasa
+            el('nueva-tasa-inicial').addEventListener('input', () => calcularInicialUSD(false));
             el('nueva-total-cuotas').addEventListener('change', () => self.calcularDeudaYCuota());
         }
 
@@ -4504,6 +4563,20 @@
                 }
             } else {
                 input.style.borderColor = '#e53e3e';
+            }
+        }
+
+        // Abre el calendario nativo del input date oculto.
+        // Se usa en campos de fecha de SOLO-CALENDARIO (readonly):
+        // clic en el texto visible o en el icono abre el picker.
+        _abrirCalendario(isoId) {
+            const el = document.getElementById(isoId);
+            if (!el) return;
+            try {
+                if (typeof el.showPicker === 'function') el.showPicker();
+                else { el.focus(); el.click(); }
+            } catch (e) {
+                try { el.focus(); el.click(); } catch (e2) { /* sin picker */ }
             }
         }
 

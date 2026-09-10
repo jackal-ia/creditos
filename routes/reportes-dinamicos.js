@@ -1,7 +1,13 @@
 // ============================================================
-// API DE REPORTES DINAMICOS v1.7 — Sistema de Creditos IPSFA
+// API DE REPORTES DINAMICOS v1.7.1 — Sistema de Creditos IPSFA
 // ============================================================
 // Fecha: 2026-09-10
+// Cambios v1.7.1:
+//   - FIX "Sin Pago" con rango de fechas: la factura debe haber
+//     EXISTIDO dentro del rango (fecha_factura <= fechaHasta).
+//     Antes, una factura creada DESPUES del rango aparecia como
+//     "sin pago" en ese periodo (obviamente no pago: no existia).
+//     Esto alinea el conteo con Estadisticas > "Sin cuota en el mes".
 // Cambios v1.7 (migracion canceladas a divisa, v7.1):
 //   - REGLA UNIFICADA DE CANCELADA en todos los filtros y reportes:
 //     cancelada = (cancelada_fija >= 1) OR (deuda_usd <= 0.01).
@@ -111,9 +117,14 @@ function sqlEsCancelada(alias, colFijaExiste) {
 //   factura - inicial - Σ pagos (monto_bs > 0)
 // La columna almacenada "deuda" esta OBSOLETA en varias facturas
 // y NO se debe mostrar en reportes.
-function sqlDeudaVivaBs(alias, tablaPagos) {
+// OJO: la referencia al id externo SIEMPRE va calificada (alias o
+// nombre de tabla). Si queda sin calificar, la subconsulta la
+// resuelve contra p2.id (la tabla de pagos tambien tiene "id") y
+// la suma sale mal.
+function sqlDeudaVivaBs(alias, tablaPagos, tablaTienda) {
     const p = alias ? `${alias}.` : '';
-    return `(COALESCE(${p}monto_factura, 0) - COALESCE(${p}inicial_bs, 0) - COALESCE((SELECT SUM(p2.monto_bs) FROM ${tablaPagos} p2 WHERE p2.factura_id = ${p}id AND COALESCE(p2.monto_bs, 0) > 0), 0))`;
+    const refId = alias ? `${alias}.id` : `${tablaTienda}.id`;
+    return `(COALESCE(${p}monto_factura, 0) - COALESCE(${p}inicial_bs, 0) - COALESCE((SELECT SUM(p2.monto_bs) FROM ${tablaPagos} p2 WHERE p2.factura_id = ${refId} AND COALESCE(p2.monto_bs, 0) > 0), 0))`;
 }
 
 // ============================================================
@@ -415,6 +426,17 @@ async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, p
                         params.push(filtros.fechaHasta);
                     }
                     where.push(`NOT (${condsInicial.join(' AND ')})`);
+
+                    // v1.7.1: la factura debe haber EXISTIDO dentro del
+                    // rango. Sin esto, facturas creadas DESPUES del rango
+                    // salian como "sin pago" en un periodo en el que ni
+                    // siquiera existian.
+                    if (filtros.fechaHasta) {
+                        where.push(`${refExterna}.fecha_factura <= $${idx++}`);
+                        params.push(filtros.fechaHasta);
+                    } else {
+                        where.push(`${refExterna}.fecha_factura <= CURRENT_DATE`);
+                    }
                 } else {
                     // Sin rango de fechas: comportamiento original
                     // (nunca ha depositado nada).
@@ -470,7 +492,7 @@ async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, p
                       total_depositado_usd, deuda_usd, cuotas_pagadas, proxima_cuota,
                       numero_cuenta, banco, created_at,
                       ${colFija ? 'cancelada_fija' : '0 AS cancelada_fija'},
-                      ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey])} AS deuda_viva_bs
+                      ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey], tabla)} AS deuda_viva_bs
                       FROM ${tabla} WHERE ${whereClause} ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
             params.push(limit, offset);
             break;
@@ -528,6 +550,14 @@ async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, p
                         paramsCobranza.push(filtros.fechaHasta);
                     }
                     whereCobranza.push(`NOT (${iniConds.join(' AND ')})`);
+
+                    // v1.7.1: la factura debe haber EXISTIDO dentro del rango
+                    if (filtros.fechaHasta) {
+                        whereCobranza.push(`c.fecha_factura <= $${cIdx++}`);
+                        paramsCobranza.push(filtros.fechaHasta);
+                    } else {
+                        whereCobranza.push('c.fecha_factura <= CURRENT_DATE');
+                    }
                 }
                 // v1.7: Deuda Min/Max en $ (deuda_usd), no en la columna Bs obsoleta
                 if (filtros.minDeuda !== undefined && filtros.minDeuda !== null && filtros.minDeuda !== '') {
@@ -570,7 +600,7 @@ async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, p
                       c.monto_depositados as total_depositado_historico,
                       c.cuotas_pagadas as cuotas_pagadas_historico,
                       ${colFija ? 'c.cancelada_fija' : '0 AS cancelada_fija'},
-                      ${sqlDeudaVivaBs('c', tablaPagos)} AS deuda_viva_bs
+                      ${sqlDeudaVivaBs('c', tablaPagos, tabla)} AS deuda_viva_bs
                     FROM ${tabla} c
                     ${joinTipo} pagos_filtrados p ON c.id = p.factura_id
                     WHERE ${whereCobranzaStr} ${condSinPago}
@@ -603,7 +633,7 @@ async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, p
                           monto_depositados, deuda, fecha_factura, cuotas, cuotas_pagadas,
                           monto_factura, monto_facturado_divisa, total_depositado_usd, deuda_usd,
                           ${colFija ? 'cancelada_fija' : '0 AS cancelada_fija'},
-                          ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey])} AS deuda_viva_bs
+                          ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey], tabla)} AS deuda_viva_bs
                           FROM ${tabla} WHERE ${whereClause} ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
                 params.push(limit, offset);
             }
@@ -620,7 +650,7 @@ async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, p
                       cuotas, monto_cuota_usd, cuotas_pagadas,
                       telefono, numero_cuenta, banco,
                       ${colFija ? 'cancelada_fija' : '0 AS cancelada_fija'},
-                      ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey])} AS deuda_viva_bs
+                      ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey], tabla)} AS deuda_viva_bs
                       FROM ${tabla} WHERE ${whereClause} AND NOT ${esCanc}
                       ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
             // v1.7 FIX: el COUNT debe repetir el filtro de deudor,
@@ -659,7 +689,12 @@ async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, p
     // Valores por defecto para el COUNT: solo si el caso (ej. cobranza
     // con fechas) no asigno ya su propio countQuery/countParams.
     if (countQuery === null) {
-        countQuery = `SELECT COUNT(*) FROM ${tabla} WHERE ${whereClause}`;
+        // v1.7.1: el reporte 'cuotas' usa alias "t" en su query principal
+        // y el filtro Sin-Pago-con-rango referencia t.id / t.fecha_inicial /
+        // t.fecha_factura; el COUNT debe repetir ese alias o revienta con
+        // "missing FROM-clause entry for table t".
+        const aliasCount = (tipo === 'cuotas') ? ' t' : '';
+        countQuery = `SELECT COUNT(*) FROM ${tabla}${aliasCount} WHERE ${whereClause}`;
         countParams = params.slice(0, params.length - 2);
     }
 

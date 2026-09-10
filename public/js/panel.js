@@ -1593,15 +1593,9 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             }));
         }
 
-        // SIN CUOTA en el mes: NO cancelada (en divisa), ya existía en ese mes y no pagó
-        if (!cancelada && montoMes <= 0) {
-            const ff = parseFechaLocal(c.fecha_factura);
-            const yaExistia = !ff || ff.getFullYear() < anioFiltro ||
-                (ff.getFullYear() === anioFiltro && (ff.getMonth() + 1) <= mesFiltro);
-            if (yaExistia) {
-                sinCuotaLista.push(Object.assign({}, base, { deuda: deudaVista }));
-            }
-        }
+        // NOTA v7.2: la vista SIN CUOTA se calcula aparte (mas abajo),
+        // sobre TODAS las facturas y contando la INICIAL como pago,
+        // para cuadrar con Reportes Dinamicos > "Sin Pago".
 
         // CUOTAS INCOMPLETAS: facturados en ese mes con pago parcial (sin cancelar en divisa)
         if (!cancelada && cuotasPagadas > 0 && cuotasPagadas < totalCuotasC) {
@@ -1610,6 +1604,53 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
                 incompletasLista.push(Object.assign({}, base, { deuda: deudaVista, pagado: montoDepositadoC }));
             }
         }
+    });
+
+    // ============================================================
+    // SIN CUOTA EN EL MES (v7.2) — alineado con Reportes Dinamicos
+    // > Estado "Sin Pago" con el mismo mes como rango de fechas:
+    //   * la factura YA EXISTIA al cierre del mes (cualquier año);
+    //   * NO esta cancelada (marca congelada o deuda_usd <= 0.01);
+    //   * NO registro NINGUN pago en el mes: ni cuotas NI la INICIAL
+    //     (la inicial no esta en la tabla de pagos; vive en
+    //     inicial_bs / inicial_usd / fecha_inicial del credito).
+    // Se recorre TODA la cartera (no solo las facturas del año) para
+    // incluir deudores de años anteriores que tampoco pagaron.
+    // ============================================================
+    const finMesFiltro = new Date(anioFiltro, mesFiltro, 0); // ultimo dia del mes
+    clientes.forEach(c => {
+        if (esCanceladaUSD(c)) return;
+        const ff = parseFechaLocal(c.fecha_factura);
+        if (ff && ff > finMesFiltro) return; // aun no existia en ese mes
+
+        // ¿pago alguna CUOTA en el mes?
+        let pagoMes = 0;
+        const pagosExtraSC = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+        const procPagoSC = (monto, fechaVal) => {
+            if (!(monto > 0)) return;
+            const f = parseFechaLocal(fechaVal);
+            if (f && f.getFullYear() === anioFiltro && (f.getMonth() + 1) === mesFiltro) pagoMes += monto;
+        };
+        for (const pago of pagosExtraSC) procPagoSC(parseFloat(pago.monto_bs) || 0, pago.fecha);
+        for (let i = 1; i <= 11; i++) procPagoSC(parseFloat(c['cuota_' + i]) || 0, c['fecha_cuota_' + i]);
+        if (pagoMes > 0) return;
+
+        // ¿pago la INICIAL en el mes? (cuenta como pago, igual que en Reportes)
+        const iniBs = parseFloat(c.inicial_bs) || 0;
+        const iniUsd = parseFloat(c.inicial_usd) || 0;
+        const fIni = parseFechaLocal(c.fecha_inicial);
+        if ((iniBs > 0 || iniUsd > 0) && fIni &&
+            fIni.getFullYear() === anioFiltro && (fIni.getMonth() + 1) === mesFiltro) return;
+
+        const deuda = deudaBsDe(c);
+        const deudaVista = deuda > 0 ? deuda : deudaUSDde(c);
+        sinCuotaLista.push({
+            nombre: c.nombre_apellido || 'Sin nombre',
+            cedula: c.cedula || '-',
+            factura: c.nro_factura || '-',
+            tienda: c._tienda || (tiendaFiltro !== 'todas' ? tiendaFiltro : '') || '',
+            deuda: deudaVista
+        });
     });
 
     abonadosLista.sort((a, b) => b.montoMes - a.montoMes);
@@ -3975,6 +4016,30 @@ async function dgCargarDatos(tiendas) {
     }
 }
 
+// v7.2 — Regla de cancelada EN DIVISA (misma v7.1 del resto del sistema):
+//   cancelada ⟺ cancelada_fija >= 1 (1 = congelada por migración,
+//   2 = cancelada por divisa)  o  deuda_usd <= 0.01.
+function dgEsCancelada(c) {
+    if (parseInt(c.cancelada_fija) >= 1) return true;
+    if (c.deuda_usd !== null && c.deuda_usd !== undefined && c.deuda_usd !== '') {
+        const d = parseFloat(c.deuda_usd);
+        if (!isNaN(d)) return d <= 0.01;
+    }
+    return false;
+}
+
+// v7.2 — Cobrado EN VIVO: inicial + pagos reales (las columnas guardadas
+// monto_depositados/deuda están desactualizadas en muchas facturas).
+function dgCobradoVivo(c) {
+    let cob = dgNum(c.inicial_bs);
+    const pagos = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+    for (const p of pagos) {
+        const m = dgNum(p.monto_bs);
+        if (m > 0) cob += m;
+    }
+    return cob;
+}
+
 // Extrae año/mes de una fecha PG ('2026-07-15', ISO, etc.) sin problemas de zona horaria
 function dgParsearFecha(f) {
     if (!f) return null;
@@ -3992,7 +4057,7 @@ function dgCalcular(datasets, fechaRef) {
     const anioActual = hoy.getFullYear();
 
     const r = {
-        kpis: { cartera: 0, cobrado: 0, deuda: 0, creditos: 0, cuotasCobradas: 0, deudores: 0, recuperacion: 0 },
+        kpis: { cartera: 0, cobrado: 0, deuda: 0, creditos: 0, congeladas: 0, cuotasCobradas: 0, deudores: 0, recuperacion: 0 },
         porTienda: [],          // [{tienda, facturado, cobrado, deuda}]
         distribucion: { alDia: 0, incompleto: 0, noPago: 0 },
         evolucion: {},          // {tienda: [12 montos]}
@@ -4008,22 +4073,29 @@ function dgCalcular(datasets, fechaRef) {
         };
 
         (clientes || []).forEach((c) => {
+            // v7.2: totales EN VIVO + cancelada en divisa (v7.1)
             const factura = dgNum(c.monto_factura);
-            const depositado = dgNum(c.monto_depositados);
-            const deuda = dgNum(c.deuda);
+            const depositado = dgCobradoVivo(c);
+            const deuda = Math.max(0, factura - depositado);
+            const cancelada = dgEsCancelada(c);
+            const congelada = (parseInt(c.cancelada_fija) === 1);
 
             t.facturado += factura;
             t.cobrado += depositado;
-            t.deuda += deuda;
+            // v7.2: la DEUDA pendiente solo cuenta créditos NO cancelados
+            // (las congeladas son intocables: su remanente no se cobra)
+            if (!cancelada) t.deuda += deuda;
 
-            // Estado de cartera (por crédito)
+            // Estado de cartera (por crédito) — v7.1: al día = cancelada
             if (factura > 0) {
-                if (depositado >= factura) r.distribucion.alDia++;
+                if (cancelada) r.distribucion.alDia++;
                 else if (depositado > 0) r.distribucion.incompleto++;
                 else r.distribucion.noPago++;
             }
 
-            if (deuda > 0) r.kpis.deudores++;
+            if (congelada) r.kpis.congeladas++;
+            if (!cancelada) r.kpis.creditos++;
+            if (!cancelada && deuda > 0.01) r.kpis.deudores++;
 
             // v6.9: Recorrer pagos_extra primero, luego columnas planas legacy
             let cobroEsteMes = false;
@@ -4056,8 +4128,9 @@ function dgCalcular(datasets, fechaRef) {
                     }
                 }
             }
+            // v7.2: vigentes = solo créditos activos (sin canceladas/congeladas)
             if (cobroEsteMes) { t.conCobroMes++; t.vigentes++; }
-            else if (deuda > 0) { t.vigentes++; }
+            else if (!cancelada && deuda > 0.01) { t.vigentes++; }
 
             c.__ultimaCuota = ultimaCuota;
         });
@@ -4065,7 +4138,6 @@ function dgCalcular(datasets, fechaRef) {
         r.kpis.cartera += t.facturado;
         r.kpis.cobrado += t.cobrado;
         r.kpis.deuda += t.deuda;
-        r.kpis.creditos += (clientes || []).length;
 
         r.porTienda.push({ tienda, facturado: t.facturado, cobrado: t.cobrado, deuda: t.deuda });
         r.evolucion[tienda] = t.evolucion;
@@ -4077,11 +4149,13 @@ function dgCalcular(datasets, fechaRef) {
         });
 
         // Candidatos a top deudores (v6.4.2: prioridad por tiempo sin pagar)
+        // v7.2: solo créditos ACTIVOS (sin congeladas ni canceladas por
+        // divisa) y con deuda calculada EN VIVO
         (clientes || []).forEach((c) => {
-            const deuda = dgNum(c.deuda);
-            if (deuda > 0) {
-                const factura = dgNum(c.monto_factura);
-                const depositado = dgNum(c.monto_depositados);
+            const factura = dgNum(c.monto_factura);
+            const depositado = dgCobradoVivo(c);
+            const deuda = Math.max(0, factura - depositado);
+            if (!dgEsCancelada(c) && deuda > 0.01) {
                 // Referencia: último pago; si nunca pagó, la fecha de la factura
                 const ref = c.__ultimaCuota || dgParsearFecha(c.fecha_factura);
                 const mesesSinPagar = ref
@@ -4124,14 +4198,14 @@ function dgRender(cont, res, tiendas, datos) {
     let html = `
         <div class="dg-titulo">Resumen ${esGlobal ? 'global' : 'de tienda'} <span class="dg-scope">${scopeTxt}</span></div>
         <div class="dg-kpis">
-            <div class="dg-kpi"><div class="dg-k-lbl">Cartera total</div><div class="dg-k-num">Bs ${dgFmt.format(k.cartera)}</div><div class="dg-k-sub">${dgFmtInt.format(k.creditos)} créditos activos</div></div>
+            <div class="dg-kpi"><div class="dg-k-lbl">Cartera total</div><div class="dg-k-num">Bs ${dgFmt.format(k.cartera)}</div><div class="dg-k-sub">${dgFmtInt.format(k.creditos)} créditos activos${k.congeladas ? ` (${dgFmtInt.format(k.congeladas)} congeladas)` : ''}</div></div>
             <div class="dg-kpi k-verde"><div class="dg-k-lbl">Cobrado total</div><div class="dg-k-num">Bs ${dgFmt.format(k.cobrado)}</div><div class="dg-k-sub up">${dgFmtInt.format(k.cuotasCobradas)} cuotas cobradas</div></div>
             <div class="dg-kpi k-ambar"><div class="dg-k-lbl">Deuda pendiente</div><div class="dg-k-num">Bs ${dgFmt.format(k.deuda)}</div><div class="dg-k-sub warn">${dgFmtInt.format(k.deudores)} deudores activos</div></div>
             <div class="dg-kpi k-dorado"><div class="dg-k-lbl">% Recuperación</div><div class="dg-k-num">${k.recuperacion.toFixed(1).replace('.', ',')}%</div><div class="dg-k-sub">cobrado / facturado</div></div>
         </div>
         <div class="dg-fila f-3-2">
             <div class="dg-card"><h3>${esGlobal ? 'Comparativa por tienda' : 'Resumen de tu tienda'}</h3><div class="dg-fuente">Facturado vs cobrado vs deuda</div><div id="dgChartComparativa"></div></div>
-            <div class="dg-card"><h3>Estado de cartera</h3><div class="dg-fuente">Créditos al día, incompletos y sin pago</div><div id="dgChartDistribucion"></div></div>
+            <div class="dg-card"><h3>Estado de cartera</h3><div class="dg-fuente">Al día/canceladas; incompletas y sin pago (solo activas)</div><div id="dgChartDistribucion"></div></div>
         </div>
         <div class="dg-fila f-2-3">
             <div class="dg-card"><h3>Top 5 — Mayor tiempo sin pagar</h3><div class="dg-fuente">Ordenado por meses sin pagar; en empate, por mayor deuda</div><div id="dgTop5"></div></div>
@@ -4170,7 +4244,7 @@ function dgRender(cont, res, tiendas, datos) {
         dgCharts.push(new ApexCharts(document.getElementById('dgChartDistribucion'), {
             chart: { type: 'donut', height: 290, fontFamily: 'Segoe UI, sans-serif' },
             series: [d.alDia, d.incompleto, d.noPago],
-            labels: ['Al día', 'Incompleto', 'No pagó'],
+            labels: ['Al día / Cancelada', 'Incompleto', 'No pagó'],
             colors: ['#27ae60', '#e67e22', '#c0392b'],
             legend: { position: 'bottom' },
             dataLabels: { formatter: (v) => v.toFixed(1) + '%' },

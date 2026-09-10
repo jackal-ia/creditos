@@ -1,5 +1,13 @@
 // ============================================================
-// RUTAS GENERICAS DE TIENDAS - CRUD unificado  (v6.11)
+// RUTAS GENERICAS DE TIENDAS - CRUD unificado  (v6.11 → v7.2)
+// ============================================================
+// Cambios v7.2 (11-09-2026):
+//   - FIX crearCliente: al registrar una factura NUEVA el backend calcula
+//     y guarda los totales (deuda_usd, total_depositado_usd, deuda,
+//     monto_depositados, cuotas_pagadas, proxima_cuota). Antes no se
+//     enviaban desde el wizard y deuda_usd caía en su DEFAULT 0, con lo
+//     que la regla v7.1 (deuda_usd <= 0.01 = cancelada) marcaba la
+//     factura recién creada como CANCELADA aunque tuviera deuda real.
 // ============================================================
 // Cambios v6.11:
 //   - RECALCULO OBLIGATORIO: Siempre recalcula totales desde pagos_*
@@ -283,6 +291,41 @@ async function crearCliente(req, res) {
           facturas: checkCedula.rows.map(r => r.nro_factura)
         };
       }
+    }
+
+    // ============================================================
+    // v7.2: calcular totales de la factura NUEVA en el servidor.
+    // El wizard no envía los campos calculados y deuda_usd tiene
+    // DEFAULT 0 en BD → la regla v7.1 (deuda_usd <= 0.01 = cancelada)
+    // la marcaría CANCELADA al nacer. Se usa la misma fórmula del
+    // recálculo de actualizarCliente (inicial cuenta como depositado).
+    // ============================================================
+    const iniBsIns = sanearNumero(data.inicial_bs);
+    const iniUsdIns = sanearNumero(data.inicial_usd);
+    const montoBsIns = sanearNumero(data.monto_factura);
+    const montoUsdIns = sanearNumero(data.monto_facturado_divisa);
+
+    if (data.total_depositado_usd === undefined || data.total_depositado_usd === null || data.total_depositado_usd === '') {
+      data.total_depositado_usd = iniUsdIns > 0 ? iniUsdIns : 0;
+    }
+    if (data.deuda_usd === undefined || data.deuda_usd === null || data.deuda_usd === '') {
+      let deudaUsdIns = redondearDecimales(montoUsdIns - iniUsdIns);
+      if (deudaUsdIns < TOLERANCIA_CERO) deudaUsdIns = 0;
+      data.deuda_usd = deudaUsdIns;
+    }
+    if (data.monto_depositados === undefined || data.monto_depositados === null || data.monto_depositados === '') {
+      data.monto_depositados = iniBsIns > 0 ? iniBsIns : 0;
+    }
+    if (data.deuda === undefined || data.deuda === null || data.deuda === '') {
+      let deudaBsIns = redondearDecimales(montoBsIns - iniBsIns);
+      if (deudaBsIns < TOLERANCIA_CERO) deudaBsIns = 0;
+      data.deuda = deudaBsIns;
+    }
+    if (data.cuotas_pagadas === undefined || data.cuotas_pagadas === null || data.cuotas_pagadas === '') {
+      data.cuotas_pagadas = 0;
+    }
+    if (data.proxima_cuota === undefined || data.proxima_cuota === null || data.proxima_cuota === '') {
+      data.proxima_cuota = Math.min(sanearNumero(data.monto_cuota_usd), sanearNumero(data.deuda_usd));
     }
 
     const fields = [];
