@@ -1395,6 +1395,44 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
         return depositado;
     };
 
+    // v7.0 — Depositado en DIVISA (pagos_extra.monto_usd + legacy)
+    const calcularDepositadoUSD = (c) => {
+        let dep = 0;
+        const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+        for (const pago of pagosExtra) {
+            dep += parseFloat(pago.monto_usd) || 0;
+        }
+        for (let i = 1; i <= 11; i++) {
+            dep += parseFloat(c['dolar_depositado_cuota_' + i]) || 0;
+        }
+        return dep;
+    };
+
+    // v7.0 — Deuda en DIVISA: usa deuda_usd del backend si existe;
+    // si no, la calcula (monto_facturado_divisa - inicial_usd - pagos$)
+    const deudaUSDde = (c) => {
+        if (c.deuda_usd !== null && c.deuda_usd !== undefined && c.deuda_usd !== '') {
+            const d = parseFloat(c.deuda_usd);
+            if (!isNaN(d)) return Math.max(0, d);
+        }
+        const montoUSD = parseFloat(c.monto_facturado_divisa)
+            || ((parseFloat(c.monto_factura) || 0) / (parseFloat(c.tasa_bcv_factura) || 1));
+        return Math.max(0, montoUSD - (parseFloat(c.inicial_usd) || 0) - calcularDepositadoUSD(c));
+    };
+
+    // v7.0 — CANCELACIÓN EN DIVISA:
+    // cancelada ⟺ cancelada_fija = 1 (congelada)  o  deuda_usd <= 0.01.
+    // Fallback a Bs cuando el registro no tiene deuda_usd calculada.
+    const esCanceladaUSD = (c) => {
+        if (parseInt(c.cancelada_fija) >= 1) return true; // 1 = congelada por migración, 2 = cancelada por divisa
+        if (c.deuda_usd !== null && c.deuda_usd !== undefined && c.deuda_usd !== '') {
+            const d = parseFloat(c.deuda_usd);
+            if (!isNaN(d)) return d <= 0.01;
+        }
+        const montoFactura = parseFloat(c.monto_factura) || 0;
+        return (montoFactura - calcularDepositado(c)) <= 0.01;
+    };
+
     // ============================================================
     // VISTA "TODOS": KPIs clásicos sobre clientes FACTURADOS en el
     // mes/año seleccionado + evolución + distribución + deudores
@@ -1410,11 +1448,20 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
         return true;
     });
 
+    // v7.0 — Deuda Bs: preferir el valor calculado por el backend
+    // (incluye la inicial y está saneado); si no viene, calcularla.
+    const deudaBsDe = (c) => {
+        const almacenada = parseFloat(c.deuda);
+        if (!isNaN(almacenada)) return almacenada;
+        return (parseFloat(c.monto_factura) || 0) - calcularDepositado(c);
+    };
+
     clientesFiltrados.forEach(c => {
         const montoFactura = parseFloat(c.monto_factura) || 0;
         const montoDepositado = calcularDepositado(c);
         let cuotasPagadas = contarCuotasPagadas(c);
-        const totalCuotas = 11;
+        const totalCuotas = parseInt(c.cuotas) || 11; // v7.0: cuotas variables
+        const cancelada = esCanceladaUSD(c); // v7.0: cancelación en divisa
 
         // v6.9: Evolución mensual desde pagos_extra primero, luego legacy
         const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
@@ -1442,10 +1489,12 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             }
         }
 
-        const deuda = montoFactura - montoDepositado;
+        const deuda = deudaBsDe(c);
 
+        // v7.0: la clasificación cancelada/deudor se define en DIVISA;
+        // los montos mostrados siguen en Bs como siempre.
         let estado = 'Al dia';
-        if (deuda > 0) {
+        if (!cancelada) {
             if (cuotasPagadas === 0) {
                 estado = 'No pago';
                 noPago++;
@@ -1454,22 +1503,22 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
                 incompleto++;
             }
             totalDeudores++;
-            montoDeudores += deuda;
+            montoDeudores += Math.max(0, deuda);
         } else {
             alDia++;
             cuotasCanceladas++;
             montoCanceladas += montoFactura;
         }
 
-        if (deuda > 0 && cuotasPagadas > 0 && cuotasPagadas < totalCuotas) {
+        if (!cancelada && cuotasPagadas > 0 && cuotasPagadas < totalCuotas) {
             cuotasIncompletas++;
-            montoIncompletas += deuda;
+            montoIncompletas += Math.max(0, deuda);
         }
 
         creditosActivos++;
         montoCreditos += montoFactura;
 
-        if (deuda > 0) {
+        if (!cancelada) {
             deudores.push({
                 nombre: c.nombre_apellido || 'Sin nombre',
                 cedula: c.cedula || '-',
@@ -1509,8 +1558,13 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
     clientesAnio.forEach(c => {
         const montoFactura = parseFloat(c.monto_factura) || 0;
         const montoDepositadoC = calcularDepositado(c);
-        const deuda = montoFactura - montoDepositadoC;
+        const deuda = deudaBsDe(c);
         const cuotasPagadas = contarCuotasPagadas(c);
+        // v7.0: inclusión en las vistas se define por la regla en divisa;
+        // si la deuda Bs ya es 0 pero aún debe en divisa, se muestra la deuda USD
+        const cancelada = esCanceladaUSD(c);
+        const totalCuotasC = parseInt(c.cuotas) || 11;
+        const deudaVista = deuda > 0 ? deuda : deudaUSDde(c);
         const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
         const base = {
             nombre: c.nombre_apellido || 'Sin nombre',
@@ -1539,21 +1593,21 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             }));
         }
 
-        // SIN CUOTA en el mes: con deuda, ya existía en ese mes y no pagó
-        if (deuda > 0 && montoMes <= 0) {
+        // SIN CUOTA en el mes: NO cancelada (en divisa), ya existía en ese mes y no pagó
+        if (!cancelada && montoMes <= 0) {
             const ff = parseFechaLocal(c.fecha_factura);
             const yaExistia = !ff || ff.getFullYear() < anioFiltro ||
                 (ff.getFullYear() === anioFiltro && (ff.getMonth() + 1) <= mesFiltro);
             if (yaExistia) {
-                sinCuotaLista.push(Object.assign({}, base, { deuda: deuda }));
+                sinCuotaLista.push(Object.assign({}, base, { deuda: deudaVista }));
             }
         }
 
-        // CUOTAS INCOMPLETAS: facturados en ese mes con pago parcial
-        if (deuda > 0 && cuotasPagadas > 0 && cuotasPagadas < 11) {
+        // CUOTAS INCOMPLETAS: facturados en ese mes con pago parcial (sin cancelar en divisa)
+        if (!cancelada && cuotasPagadas > 0 && cuotasPagadas < totalCuotasC) {
             const ff = parseFechaLocal(c.fecha_factura);
             if (ff && ff.getFullYear() === anioFiltro && (ff.getMonth() + 1) === mesFiltro) {
-                incompletasLista.push(Object.assign({}, base, { deuda: deuda, pagado: montoDepositadoC }));
+                incompletasLista.push(Object.assign({}, base, { deuda: deudaVista, pagado: montoDepositadoC }));
             }
         }
     });

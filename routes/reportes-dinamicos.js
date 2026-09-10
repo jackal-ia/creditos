@@ -1,7 +1,26 @@
 // ============================================================
-// API DE REPORTES DINAMICOS v1.6 — Sistema de Creditos IPSFA
+// API DE REPORTES DINAMICOS v1.7 — Sistema de Creditos IPSFA
 // ============================================================
-// Fecha: 2026-09-08
+// Fecha: 2026-09-10
+// Cambios v1.7 (migracion canceladas a divisa, v7.1):
+//   - REGLA UNIFICADA DE CANCELADA en todos los filtros y reportes:
+//     cancelada = (cancelada_fija >= 1) OR (deuda_usd <= 0.01).
+//     Las facturas congeladas en la migracion (cancelada_fija = 1)
+//     NUNCA aparecen como deudores aunque tengan deuda_usd > 0
+//     (a esos clientes no se les cobra el remanente en divisa).
+//   - Filtro Estado: aldia = canceladas; deudor/incompleto/sinpago
+//     excluyen canceladas. Aplica a Cartera y Cobranza (con y sin
+//     filtro de fechas).
+//   - Reporte DEUDORES: excluye canceladas y ahora muestra la
+//     Deuda (Bs) EN VIVO (factura - inicial - Σ pagos), igual que
+//     la lista del sistema. Antes mostraba la columna "deuda"
+//     almacenada, que esta OBSOLETA en varias facturas (0 o
+//     negativos que no coincidian con el sistema).
+//   - Filtros "Deuda Min/Max" ahora operan sobre deuda_usd ($),
+//     no sobre la columna Bs obsoleta.
+//   - CARTERA: nueva etiqueta de estado "Cancelada" cuando
+//     cancelada_fija >= 1; el resumen "al dia" incluye canceladas
+//     y se reporta su conteo aparte (clientesCanceladas).
 // Cambios v1.6:
 //   - FIX filtro "Sin Pago" con rango: la INICIAL (cuota 0) NO esta en
 //     la tabla de pagos (vive en inicial_bs/inicial_usd/fecha_inicial
@@ -53,6 +72,49 @@ const TABLAS_PAGOS = {
 
 const TIPOS_REPORTE = ['cartera', 'cobranza', 'deudores', 'cuotas'];
 const FORMATOS_SALIDA = ['json', 'excel', 'pdf'];
+
+// ------------------------------------------------------------
+// v1.7: regla unificada de CANCELADA (la misma que usa el sistema
+// en las listas y en routes/reportes.js):
+//   cancelada = (cancelada_fija >= 1) OR (deuda_usd <= 0.01)
+// cancelada_fija = 1 → congelada en la migracion v7.1 (INTOCABLE,
+//   no se le cobra remanente en divisa aunque deuda_usd > 0)
+// cancelada_fija = 2 → cancelada por divisa (reabrible)
+// La existencia de la columna se detecta una sola vez por proceso
+// para no romper nada si la migracion aun no se ha corrido.
+// ------------------------------------------------------------
+let _cacheColFija = null;
+async function existeColumnaCanceladaFija() {
+    if (_cacheColFija !== null) return _cacheColFija;
+    try {
+        const r = await pool.query(
+            `SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'tienda_caracas' AND column_name = 'cancelada_fija'`
+        );
+        _cacheColFija = r.rows.length > 0;
+    } catch (e) {
+        _cacheColFija = false;
+    }
+    return _cacheColFija;
+}
+
+// Expresion SQL "es cancelada" con alias opcional ('c', 't' o '')
+function sqlEsCancelada(alias, colFijaExiste) {
+    const p = alias ? `${alias}.` : '';
+    const partes = [];
+    if (colFijaExiste) partes.push(`COALESCE(${p}cancelada_fija, 0) >= 1`);
+    partes.push(`COALESCE(${p}deuda_usd, 0) <= 0.01`);
+    return '(' + partes.join(' OR ') + ')';
+}
+
+// v1.7: Deuda Bs EN VIVO (lo que realmente muestra el sistema):
+//   factura - inicial - Σ pagos (monto_bs > 0)
+// La columna almacenada "deuda" esta OBSOLETA en varias facturas
+// y NO se debe mostrar en reportes.
+function sqlDeudaVivaBs(alias, tablaPagos) {
+    const p = alias ? `${alias}.` : '';
+    return `(COALESCE(${p}monto_factura, 0) - COALESCE(${p}inicial_bs, 0) - COALESCE((SELECT SUM(p2.monto_bs) FROM ${tablaPagos} p2 WHERE p2.factura_id = ${p}id AND COALESCE(p2.monto_bs, 0) > 0), 0))`;
+}
 
 // ============================================================
 // ENDPOINT PRINCIPAL: POST /api/reportes/v1/generar
@@ -107,7 +169,7 @@ router.post('/generar', verificarToken, async (req, res) => {
             return res.status(403).json({ exito: false, error: 'No tiene acceso a esta tienda' });
         }
 
-        const { query, params, countQuery, countParams } = construirQuery(
+        const { query, params, countQuery, countParams } = await construirQuery(
             tipo, tabla, filtros, ordenarPor, orden, pagina, porPagina, tienda, false
         );
 
@@ -199,7 +261,7 @@ router.post('/generar-consolidado', verificarToken, async (req, res) => {
         const resultadosPorTienda = await Promise.all(
             tiendasValidas.map(async (tiendaKey) => {
                 const tabla = TIENDAS[tiendaKey];
-                const { query, params, countQuery, countParams } = construirQuery(
+                const { query, params, countQuery, countParams } = await construirQuery(
                     tipo, tabla, filtros, ordenarPor, orden, 1, 10000, tiendaKey, true
                 );
 
@@ -272,10 +334,13 @@ router.post('/generar-consolidado', verificarToken, async (req, res) => {
 // ============================================================
 // QUERY BUILDER
 // ============================================================
-function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagina, tiendaKey, sinPaginacion) {
+async function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagina, tiendaKey, sinPaginacion) {
     const where = ['1=1'];
     let params = [];
     let idx = 1;
+    // v1.7: existencia de cancelada_fija (detectada 1 vez por proceso)
+    const colFija = await existeColumnaCanceladaFija();
+    const esCanc = sqlEsCancelada('', colFija);
     // FIX v1.3: declarar AQUI (antes del switch). El caso 'cobranza'
     // con filtro de fechas las asigna dentro del switch; si se declaran
     // con let al final de la funcion, esa asignacion cae en la TDZ y
@@ -302,17 +367,20 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
     if (filtros.estado && filtros.estado !== 'todos') {
         switch (filtros.estado) {
             case 'aldia':
-                // v1.5: al dia = Deuda Pendiente ($) <= 0
-                where.push('COALESCE(deuda_usd, 0) <= 0');
+                // v1.7: al dia = CANCELADA (marca congelada >= 1 o deuda_usd <= 0.01)
+                where.push(esCanc);
                 break;
             case 'deudor':
-                // v1.5: deudor = Deuda Pendiente ($) > 0
-                where.push('COALESCE(deuda_usd, 0) > 0');
+                // v1.7: deudor = NO cancelada (excluye congeladas de la migracion)
+                where.push(`NOT ${esCanc}`);
                 break;
             case 'incompleto':
-                where.push('COALESCE(monto_depositados, 0) > 0 AND COALESCE(deuda_usd, 0) > 0');
+                // v1.7: incompleto = NO cancelada y con al menos un pago
+                where.push(`NOT ${esCanc} AND COALESCE(monto_depositados, 0) > 0`);
                 break;
             case 'sinpago':
+                // v1.7: una cancelada NUNCA es un "sin pago" pendiente
+                where.push(`NOT ${esCanc}`);
                 if (hayRangoFechas) {
                     // v1.4: sin pagos EN EL RANGO, verificado contra la
                     // tabla de pagos real (fuente de verdad).
@@ -356,13 +424,15 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
         }
     }
 
+    // v1.7: Deuda Min/Max operan sobre deuda_usd ($). La columna "deuda"
+    // en Bs esta obsoleta y no es criterio de cobranza.
     if (filtros.minDeuda !== undefined && filtros.minDeuda !== null && filtros.minDeuda !== '') {
-        where.push(`COALESCE(deuda, 0) >= $${idx++}`);
+        where.push(`COALESCE(deuda_usd, 0) >= $${idx++}`);
         params.push(parseFloat(filtros.minDeuda));
     }
 
     if (filtros.maxDeuda !== undefined && filtros.maxDeuda !== null && filtros.maxDeuda !== '') {
-        where.push(`COALESCE(deuda, 0) <= $${idx++}`);
+        where.push(`COALESCE(deuda_usd, 0) <= $${idx++}`);
         params.push(parseFloat(filtros.maxDeuda));
     }
 
@@ -378,7 +448,7 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
         id: 'id',
         nombre: 'nombre_apellido',
         fecha: 'fecha_factura',
-        deuda: 'deuda',
+        deuda: 'deuda_usd',
         monto: 'monto_factura',
         factura: 'nro_factura',
         cedula: 'cedula'
@@ -398,7 +468,9 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
                       monto_facturado_divisa, tasa_bcv_factura, cuotas,
                       monto_cuota_usd, inicial_bs, inicial_usd,
                       total_depositado_usd, deuda_usd, cuotas_pagadas, proxima_cuota,
-                      numero_cuenta, banco, created_at
+                      numero_cuenta, banco, created_at,
+                      ${colFija ? 'cancelada_fija' : '0 AS cancelada_fija'},
+                      ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey])} AS deuda_viva_bs
                       FROM ${tabla} WHERE ${whereClause} ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
             params.push(limit, offset);
             break;
@@ -427,12 +499,13 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
                 // original contradecia el filtro).
                 const esSinPagoRango = filtros.estado === 'sinpago';
 
+                const esCancC = sqlEsCancelada('c', colFija);
                 if (filtros.estado && filtros.estado !== 'todos' && !esSinPagoRango) {
                     switch (filtros.estado) {
-                        // v1.5: criterio por Deuda Pendiente ($)
-                        case 'aldia': whereCobranza.push('COALESCE(c.deuda_usd, 0) <= 0'); break;
-                        case 'deudor': whereCobranza.push('COALESCE(c.deuda_usd, 0) > 0'); break;
-                        case 'incompleto': whereCobranza.push('COALESCE(c.monto_depositados, 0) > 0 AND COALESCE(c.deuda_usd, 0) > 0'); break;
+                        // v1.7: criterio unificado de cancelada
+                        case 'aldia': whereCobranza.push(esCancC); break;
+                        case 'deudor': whereCobranza.push(`NOT ${esCancC}`); break;
+                        case 'incompleto': whereCobranza.push(`NOT ${esCancC} AND COALESCE(c.monto_depositados, 0) > 0`); break;
                     }
                 }
 
@@ -440,6 +513,8 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
                 // si cayo dentro del rango, el cliente SI pago y debe
                 // excluirse del reporte "sin pago".
                 if (esSinPagoRango) {
+                    // v1.7: una cancelada NUNCA es un "sin pago" pendiente
+                    whereCobranza.push(`NOT ${esCancC}`);
                     const iniConds = [
                         '(COALESCE(c.inicial_bs, 0) > 0 OR COALESCE(c.inicial_usd, 0) > 0)',
                         'c.fecha_inicial IS NOT NULL'
@@ -454,12 +529,13 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
                     }
                     whereCobranza.push(`NOT (${iniConds.join(' AND ')})`);
                 }
+                // v1.7: Deuda Min/Max en $ (deuda_usd), no en la columna Bs obsoleta
                 if (filtros.minDeuda !== undefined && filtros.minDeuda !== null && filtros.minDeuda !== '') {
-                    whereCobranza.push(`COALESCE(c.deuda, 0) >= $${cIdx++}`);
+                    whereCobranza.push(`COALESCE(c.deuda_usd, 0) >= $${cIdx++}`);
                     paramsCobranza.push(parseFloat(filtros.minDeuda));
                 }
                 if (filtros.maxDeuda !== undefined && filtros.maxDeuda !== null && filtros.maxDeuda !== '') {
-                    whereCobranza.push(`COALESCE(c.deuda, 0) <= $${cIdx++}`);
+                    whereCobranza.push(`COALESCE(c.deuda_usd, 0) <= $${cIdx++}`);
                     paramsCobranza.push(parseFloat(filtros.maxDeuda));
                 }
                 if (filtros.busqueda) {
@@ -492,7 +568,9 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
                       COALESCE(p.monto_total_usd, 0) as depositado_rango_usd,
                       c.deuda, c.deuda_usd, c.fecha_factura,
                       c.monto_depositados as total_depositado_historico,
-                      c.cuotas_pagadas as cuotas_pagadas_historico
+                      c.cuotas_pagadas as cuotas_pagadas_historico,
+                      ${colFija ? 'c.cancelada_fija' : '0 AS cancelada_fija'},
+                      ${sqlDeudaVivaBs('c', tablaPagos)} AS deuda_viva_bs
                     FROM ${tabla} c
                     ${joinTipo} pagos_filtrados p ON c.id = p.factura_id
                     WHERE ${whereCobranzaStr} ${condSinPago}
@@ -523,7 +601,9 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
                 // ── COBRANZA SIN FECHAS: comportamiento original ──
                 query = `SELECT id, nro_factura, nombre_apellido, cedula,
                           monto_depositados, deuda, fecha_factura, cuotas, cuotas_pagadas,
-                          monto_factura, monto_facturado_divisa, total_depositado_usd, deuda_usd
+                          monto_factura, monto_facturado_divisa, total_depositado_usd, deuda_usd,
+                          ${colFija ? 'cancelada_fija' : '0 AS cancelada_fija'},
+                          ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey])} AS deuda_viva_bs
                           FROM ${tabla} WHERE ${whereClause} ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
                 params.push(limit, offset);
             }
@@ -531,13 +611,22 @@ function construirQuery(tipo, tabla, filtros, ordenarPor, orden, pagina, porPagi
         }
 
         case 'deudores':
+            // v1.7: NOT esCanc ya implica deuda_usd > 0.01 Y excluye las
+            // congeladas (cancelada_fija >= 1). deuda_viva_bs = lo que el
+            // sistema muestra en vivo (factura - inicial - Σ pagos).
             query = `SELECT id, nro_factura, nombre_apellido, cedula,
                       monto_factura, monto_depositados, deuda, fecha_factura,
                       monto_facturado_divisa, total_depositado_usd, deuda_usd,
                       cuotas, monto_cuota_usd, cuotas_pagadas,
-                      telefono, numero_cuenta, banco
-                      FROM ${tabla} WHERE ${whereClause} AND COALESCE(deuda_usd, 0) > 0
+                      telefono, numero_cuenta, banco,
+                      ${colFija ? 'cancelada_fija' : '0 AS cancelada_fija'},
+                      ${sqlDeudaVivaBs('', TABLAS_PAGOS[tiendaKey])} AS deuda_viva_bs
+                      FROM ${tabla} WHERE ${whereClause} AND NOT ${esCanc}
                       ORDER BY ${colOrden} ${dirOrden} LIMIT $${idx++} OFFSET $${idx++}`;
+            // v1.7 FIX: el COUNT debe repetir el filtro de deudor,
+            // si no totalRegistros/paginas salen inflados.
+            countQuery = `SELECT COUNT(*) FROM ${tabla} WHERE ${whereClause} AND NOT ${esCanc}`;
+            countParams = params.slice();
             params.push(limit, offset);
             break;
 
@@ -588,7 +677,11 @@ function formatearReporte(tipo, rows) {
                 const montoUSD = parseFloat(r.monto_facturado_divisa) || 0;
                 const depositadoUSD = parseFloat(r.total_depositado_usd) || 0;
                 const deudaUSD = redondearDecimales(montoUSD - depositadoUSD);
-                const deudaBs = parseFloat(r.deuda) || 0;
+                // v1.7: deuda Bs EN VIVO (la columna "deuda" esta obsoleta)
+                const deudaBs = r.deuda_viva_bs !== undefined && r.deuda_viva_bs !== null
+                    ? parseFloat(r.deuda_viva_bs) || 0
+                    : parseFloat(r.deuda) || 0;
+                const fija = parseInt(r.cancelada_fija) || 0;
 
                 return {
                     id: r.id,
@@ -599,8 +692,10 @@ function formatearReporte(tipo, rows) {
                     montoBs: parseFloat(r.monto_factura) || 0,
                     depositadoBs: parseFloat(r.monto_depositados) || 0,
                     deudaBs: deudaBs,
-                    // v1.5: la etiqueta se decide por Deuda Pendiente ($)
-                    estado: deudaUSD <= 0 ? 'Al dia' : 'Deudor',
+                    // v1.7: Cancelada si tiene marca congelada; si no, se
+                    // decide por Deuda Pendiente ($) con tolerancia 0.01
+                    estado: fija >= 1 ? 'Cancelada' : (deudaUSD <= 0.01 ? 'Al dia' : 'Deudor'),
+                    canceladaFija: fija,
                     montoUSD: montoUSD,
                     tasaBCV: parseFloat(r.tasa_bcv_factura) || 0,
                     cuotas: parseInt(r.cuotas) || 0,
@@ -644,7 +739,10 @@ function formatearReporte(tipo, rows) {
                     porcentajePagado,
                     totalDepositadoBs: depositadoBs,
                     totalDepositadoUSD: depositadoUSD,
-                    deudaRestanteBs: parseFloat(r.deuda) || 0,
+                    // v1.7: deuda Bs EN VIVO (la columna "deuda" esta obsoleta)
+                    deudaRestanteBs: r.deuda_viva_bs !== undefined && r.deuda_viva_bs !== null
+                        ? parseFloat(r.deuda_viva_bs) || 0
+                        : parseFloat(r.deuda) || 0,
                     deudaRestanteUSD: parseFloat(r.deuda_usd) || 0,
                     montoFacturaBs: montoFactura,
                     fecha: r.fecha_factura
@@ -666,7 +764,10 @@ function formatearReporte(tipo, rows) {
                     montoTotalBs: parseFloat(r.monto_factura) || 0,
                     montoTotalUSD: parseFloat(r.monto_facturado_divisa) || 0,
                     depositadoBs: parseFloat(r.monto_depositados) || 0,
-                    deudaBs: parseFloat(r.deuda) || 0,
+                    // v1.7: deuda Bs EN VIVO (la columna "deuda" esta obsoleta)
+                    deudaBs: r.deuda_viva_bs !== undefined && r.deuda_viva_bs !== null
+                        ? parseFloat(r.deuda_viva_bs) || 0
+                        : parseFloat(r.deuda) || 0,
                     deudaUSD: deudaUSD,  // ✅ DIRECTO de la BD
                     cuotas: parseInt(r.cuotas) || 0,
                     montoCuotaUSD: parseFloat(r.monto_cuota_usd) || 0,
@@ -717,9 +818,11 @@ function calcularResumen(tipo, datos) {
         const totalFacturadoUSD = datos.reduce((s, d) => s + (d.montoUSD || 0), 0);
         const totalDepositadoUSD = datos.reduce((s, d) => s + (d.depositadoUSD || 0), 0);
         const totalDeudaUSD = datos.reduce((s, d) => s + (d.deudaUSD || 0), 0);
-        // v1.5: contadores por Deuda Pendiente ($)
-        const clientesAlDia = datos.filter(d => (d.deudaUSD || 0) <= 0).length;
-        const clientesDeudores = datos.filter(d => (d.deudaUSD || 0) > 0).length;
+        // v1.7: contadores por etiqueta de estado. "Al dia" incluye las
+        // canceladas (congeladas por migracion o pagadas en divisa).
+        const clientesAlDia = datos.filter(d => d.estado === 'Al dia' || d.estado === 'Cancelada').length;
+        const clientesDeudores = datos.filter(d => d.estado === 'Deudor').length;
+        const clientesCanceladas = datos.filter(d => d.estado === 'Cancelada').length;
 
         return {
             totalRegistros: datos.length,
@@ -731,6 +834,7 @@ function calcularResumen(tipo, datos) {
             totalDeudaUSD: parseFloat(totalDeudaUSD.toFixed(2)),
             clientesAlDia,
             clientesDeudores,
+            clientesCanceladas,
             porcentajeRecuperacion: totalFacturado > 0
                 ? parseFloat(((totalDepositado / totalFacturado) * 100).toFixed(2))
                 : 0

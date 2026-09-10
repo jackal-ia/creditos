@@ -232,16 +232,25 @@ function clearFilters() {
 }
 
 // ==================== DETERMINAR ESTADO ====================
+// v7.0 — cancelación evaluada en DIVISA (misma regla que el módulo principal)
+function esCanceladaDivisa(item) {
+    if (parseInt(item.cancelada_fija) >= 1) return true; // 1 = congelada por migración, 2 = cancelada por divisa
+    if (item.deuda_usd !== null && item.deuda_usd !== undefined && item.deuda_usd !== '') {
+        const d = parseFloat(item.deuda_usd);
+        if (!isNaN(d)) return d <= 0.01;
+    }
+    const deuda = item.deuda || 0;
+    return deuda <= 0;
+}
+
 function getEstado(item) {
     const cuotasPagadas = countCuotasPagadas(item);
     const totalCuotas = 9;
-    const deuda = item.deuda || 0;
 
-    if (deuda > 0) return 'deudor';
-    if (cuotasPagadas === totalCuotas) return 'cancelada';
+    if (esCanceladaDivisa(item)) return 'cancelada';
     if (cuotasPagadas === 0) return 'abierta';
     if (cuotasPagadas < totalCuotas) return 'incompleto';
-    return 'aldia';
+    return 'deudor';
 }
 
 function countCuotasPagadas(item) {

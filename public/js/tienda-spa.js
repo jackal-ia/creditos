@@ -528,9 +528,10 @@
                 const factura = tmN(c.monto_factura);
                 const depositado = (typeof c.monto_depositados === 'number') ? c.monto_depositados : tmN(c.monto_depositados);
                 const deudaC = (typeof c.deuda === 'number') ? c.deuda : Math.max(0, factura - depositado);
+                const esCanc = this.esCancelada(c); // v7.0: cancelación evaluada en divisa
                 cartera += factura;
                 cobradoTotal += depositado;
-                if (deudaC > 0) { deuda += deudaC; deudores++; }
+                if (!esCanc) { deuda += Math.max(0, deudaC); deudores++; }
 
                 let ultimaCuota = null, cuotasPagadas = 0, pagoEsteMes = false;
                 let tienePagosExtra = false;
@@ -585,13 +586,13 @@
                     }
                 }
                 if (pagoEsteMes) conCuotaMes++;
-                if (deudaC > 0 && !pagoEsteMes) porCobrar++;
+                if (!esCanc && !pagoEsteMes) porCobrar++;
 
-                if (deudaC <= 0) alDia++;
+                if (esCanc) alDia++;
                 else if (cuotasPagadas === 0) noPago++;
                 else incompleto++;
 
-                if (deudaC > 0) {
+                if (!esCanc) {
                     const ref = ultimaCuota || tmParseFecha(c.fecha_factura);
                     const mesesSinPagar = ref ? Math.max(0, (anioAct - ref.anio) * 12 + (mesAct - ref.mes)) : 999;
                     if (mesesSinPagar >= 2) morosos++;
@@ -1287,14 +1288,14 @@
 
             this.filteredData = this.allData.filter(item => {
                 if (this.currentFilter !== 'all') {
-                    const deuda = item.deuda || 0;
-                    if (this.currentFilter === 'deudores' && !(deuda > 0)) return false;
-                    if (this.currentFilter === 'incompletos' && !(item.cuotas_pagadas > 0 && item.cuotas_pagadas < item.total_cuotas)) return false;
-                    if (this.currentFilter === 'aldia' && !(deuda <= 0)) return false;
-                    if (this.currentFilter === 'abiertas' && !(deuda > 0)) return false;
-                    if (this.currentFilter === 'canceladas' && !(deuda <= 0)) return false;
+                    const cancelada = this.esCancelada(item); // v7.0: cancelación evaluada en divisa
+                    if (this.currentFilter === 'deudores' && cancelada) return false;
+                    if (this.currentFilter === 'incompletos' && (cancelada || !(item.cuotas_pagadas > 0 && item.cuotas_pagadas < item.total_cuotas))) return false;
+                    if (this.currentFilter === 'aldia' && !cancelada) return false;
+                    if (this.currentFilter === 'abiertas' && cancelada) return false;
+                    if (this.currentFilter === 'canceladas' && !cancelada) return false;
                     if (this.currentFilter === 'morosos') {
-                        if (deuda <= 0) return false;
+                        if (cancelada) return false;
                         let ultimaCuota = null;
                         let tienePagosExtra = false;
                         const pagosExtra = item.pagos_extra || [];
@@ -1330,7 +1331,7 @@
                         if (mesesSinPagar < 2) return false;
                     }
                     if (this.currentFilter === 'sin-cuota-mes') {
-                        if (deuda <= 0) return false;
+                        if (this.esCancelada(item)) return false;
                         const hoy = new Date();
                         const mesAct = hoy.getMonth() + 1, anioAct = hoy.getFullYear();
                         let pagoEsteMes = false;
@@ -1444,26 +1445,37 @@
             this.debounceTimer = setTimeout(() => this.applyFilters(), 300);
         }
 
+        // ============================================================
+        // v7.0 — CANCELACIÓN EN DIVISA
+        // Una factura está CANCELADA si:
+        //   1) cancelada_fija = 1 → CONGELADA (vieja cancelada en Bs o
+        //      llegó a su monto en divisa). No se reabre jamás.
+        //   2) deuda_usd <= 0.01 → llegó a su monto en divisa.
+        // Fallback: registros viejos sin deuda_usd usan el criterio Bs.
+        // ============================================================
+        esCancelada(item) {
+            if (parseInt(item.cancelada_fija) >= 1) return true; // 1 = congelada por migración, 2 = cancelada por divisa
+            if (item.deuda_usd !== null && item.deuda_usd !== undefined && item.deuda_usd !== '') {
+                const deudaUsd = parseFloat(item.deuda_usd);
+                if (!isNaN(deudaUsd)) return deudaUsd <= 0.01;
+            }
+            // Fallback legacy (sin deuda_usd calculada): criterio anterior en Bs
+            const deuda = parseNumberES(item.deuda) || 0;
+            const montoFactura = parseNumberES(item.monto_factura) || 0;
+            const montoDepositado = parseNumberES(item.monto_depositados) || 0;
+            return Math.abs(montoFactura - montoDepositado) < 0.01 || deuda === 0;
+        }
+
         getEstado(item) {
-            const deuda = item.deuda || 0;
+            if (this.esCancelada(item)) return 'cancelada';
             const cuotasPagadas = item.cuotas_pagadas || 0;
             const totalCuotas = item.total_cuotas || TOTAL_CUOTAS;
-            const montoFactura = item.monto_factura || 0;
-            const montoDepositado = item.monto_depositados || 0;
             const inicialBs = parseNumberES(item.inicial_bs);
 
-            if (Math.abs(montoFactura - montoDepositado) < 0.01 || deuda === 0) {
-                return 'cancelada';
-            }
-
-            if (deuda > 0) {
-                // Si pagó inicial pero no cuotas, es incompleto (no abierta)
-                if (cuotasPagadas === 0 && inicialBs <= 0) return 'abierta';
-                if (cuotasPagadas < totalCuotas) return 'incompleto';
-                return 'deudor';
-            }
-
-            return 'cancelada';
+            // Activa (no cancelada): clasificar por avance de pagos
+            if (cuotasPagadas === 0 && inicialBs <= 0) return 'abierta';
+            if (cuotasPagadas < totalCuotas) return 'incompleto';
+            return 'deudor';
         }
 
         updateSummary() {
@@ -1488,14 +1500,14 @@
             const sfx = this.cfg.sfx;
             const counts = {
                 all: this.allData.length,
-                deudores: this.allData.filter(item => (item.deuda || 0) > 0).length,
+                deudores: this.allData.filter(item => !this.esCancelada(item)).length,
                 incompletos: this.allData.filter(item => {
                     const cp = item.cuotas_pagadas || 0;
-                    return cp > 0 && cp < (item.total_cuotas || TOTAL_CUOTAS);
+                    return !this.esCancelada(item) && cp > 0 && cp < (item.total_cuotas || TOTAL_CUOTAS);
                 }).length,
-                aldia: this.allData.filter(item => (item.deuda || 0) <= 0).length,
-                abiertas: this.allData.filter(item => (item.deuda || 0) > 0).length,
-                canceladas: this.allData.filter(item => (item.deuda || 0) <= 0).length
+                aldia: this.allData.filter(item => this.esCancelada(item)).length,
+                abiertas: this.allData.filter(item => !this.esCancelada(item)).length,
+                canceladas: this.allData.filter(item => this.esCancelada(item)).length
             };
 
             const setCount = (domId, value) => {
@@ -2486,9 +2498,8 @@
             // Cargar historial de cuotas siempre (visible para info)
             this.cargarHistorialCuotas(cliente);
 
-            // Verificar si la deuda es 0 o menor
-            const deuda = parseNumberES(cliente.deuda);
-            if (deuda <= 0) {
+            // v7.0: cancelada se define en DIVISA (o congelada)
+            if (this.esCancelada(cliente)) {
                 // Factura cancelada - mostrar modal ANTES de permitir ingresar datos
                 mostrarModalCorporativo(
                     '¡Factura Cancelada!',
@@ -2884,7 +2895,8 @@
 
                 const deudaActual = this.concCliente.deuda || 0;
 
-                if (deudaActual <= 0) {
+                // v7.0: cancelada se define en DIVISA (o congelada)
+                if (this.esCancelada(this.concCliente)) {
                     this.ocultarFormularioCuota();
                     mostrarModalCorporativo(
                         '¡Factura Cancelada!',
@@ -3730,7 +3742,7 @@
                                 <label>Estado</label>
                                 <select id="${pfx}-rep-estado" onchange="Tiendas.get('${this.cfg.key}')._aplicarFiltroReporte('estado', this.value)">
                                     <option value="todos">Todos</option>
-                                    <option value="aldia">Al Dia</option>
+                                    <option value="aldia">Al Dia / Cancelada</option>
                                     <option value="deudor">Deudor</option>
                                     <option value="incompleto">Incompleto</option>
                                     <option value="sinpago">Sin Pago</option>
@@ -3759,11 +3771,11 @@
                                 </div>
                             </div>
                             <div class="filtro-group">
-                                <label>Deuda Min (Bs)</label>
+                                <label>Deuda Min ($)</label>
                                 <input type="number" id="${pfx}-rep-min-deuda" placeholder="0" onchange="Tiendas.get('${this.cfg.key}')._aplicarFiltroReporte('minDeuda', this.value)">
                             </div>
                             <div class="filtro-group">
-                                <label>Deuda Max (Bs)</label>
+                                <label>Deuda Max ($)</label>
                                 <input type="number" id="${pfx}-rep-max-deuda" placeholder="∞" onchange="Tiendas.get('${this.cfg.key}')._aplicarFiltroReporte('maxDeuda', this.value)">
                             </div>
                             <div class="filtro-group">
@@ -3882,6 +3894,7 @@
                 .estado-deudor { background: #fed7d7; color: #742a2a; }
                 .estado-incompleto { background: #feebc8; color: #744210; }
                 .estado-sinpago { background: #e2e8f0; color: #4a5568; }
+                .estado-cancelada { background: #e2e8f0; color: #2d3748; }
                 .reportes-tabla .acciones { display: flex; gap: 6px; }
                 .reportes-tabla .btn-icon { padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.8rem; }
                 .btn-ver { background: #ebf8ff; color: #3182ce; }
@@ -4041,7 +4054,7 @@
                         <div class="kpi-label">% Recuperacion</div>
                         <div class="kpi-value">${r.porcentajeRecuperacion}%</div>
                         <div class="kpi-porcentaje ${r.porcentajeRecuperacion >= 70 ? 'positivo' : 'negativo'}">
-                            ${r.clientesAlDia || 0} al dia / ${r.clientesDeudores || 0} deudores
+                            ${r.clientesAlDia || 0} al dia${r.clientesCanceladas ? ` (${r.clientesCanceladas} canceladas)` : ''} / ${r.clientesDeudores || 0} deudores
                         </div>
                     </div>
                 `;
@@ -4157,7 +4170,7 @@
                 </tr></thead>`;
 
                 datos.forEach((d, index) => {
-                    const estadoClass = d.estado === 'Al dia' ? 'estado-aldia' : 'estado-deudor';
+                    const estadoClass = d.estado === 'Cancelada' ? 'estado-cancelada' : (d.estado === 'Al dia' ? 'estado-aldia' : 'estado-deudor');
                     const numCorrelativo = (this.reportesState.pagina - 1) * this.reportesState.porPagina + index + 1;
                     const tiendaColor = d.tienda === 'caracas' ? '#27ae60' : d.tienda === 'maracay' ? '#7c5cbf' : '#e67e22';
                     const bancoDetectado = d.banco || (d.numeroCuenta ? this._detectarBanco(d.numeroCuenta) : '-');

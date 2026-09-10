@@ -465,6 +465,36 @@ async function actualizarCliente(req, res) {
     if (deudaPendienteBs < TOLERANCIA_CERO) deudaPendienteBs = 0;
     if (deudaPendienteUSD < TOLERANCIA_CERO) deudaPendienteUSD = 0;
 
+    // ============================================================
+    // v7.1: control de cancelada en DIVISA con marca cancelada_fija:
+    //   0 = activa (se evalúa en divisa)
+    //   1 = CONGELADA POR MIGRACIÓN (ya era cancelada en el sistema
+    //       viejo) → NUNCA se reabre, el cliente no se contacta más.
+    //   2 = CANCELADA POR DIVISA (llegó a su monto en $) → se muestra
+    //       cancelada, PERO si se borra/edita una cuota y vuelve a
+    //       deber, se REABRE automáticamente (vuelve a 0).
+    // (Si la columna aún no existe —migración no corrida— se omite
+    // silenciosamente y el sistema sigue como antes.)
+    // ============================================================
+    const tieneColumnaFija = Object.prototype.hasOwnProperty.call(cliente, 'cancelada_fija');
+    let canceladaFija = null;
+    if (tieneColumnaFija) {
+        const fijaActual = parseInt(cliente.cancelada_fija) || 0;
+        if (fijaActual === 1) {
+            canceladaFija = 1; // congelada por migración: intocable
+        } else if (montoFacturadoDivisa > 0 && deudaPendienteUSD <= TOLERANCIA_CERO) {
+            canceladaFija = 2; // pagó todo en divisa → cancelada (reabrible)
+            if (fijaActual !== 2) {
+                console.log(`[v7.1] Factura id=${id} llegó a su monto en divisa → cancelada_fija = 2 (CANCELADA POR DIVISA)`);
+            }
+        } else {
+            canceladaFija = 0; // vuelve a deber en divisa → activa
+            if (fijaActual === 2) {
+                console.log(`[v7.1] Factura id=${id} tenía cancelada_fija=2 pero vuelve a deber ${deudaPendienteUSD}$ → REABIERTA (0)`);
+            }
+        }
+    }
+
     // 6. Calcular proxima cuota
     const montoCuotaUSD = sanearNumero(cliente.monto_cuota_usd);
     const proximaCuota = Math.min(montoCuotaUSD, deudaPendienteUSD);
@@ -574,6 +604,13 @@ async function actualizarCliente(req, res) {
     paramCount++;
     fields.push(`proxima_cuota = $${paramCount}`);
     values.push(redondearDecimales(proximaCuota));
+
+    // v7.1: persistir la marca de cancelada (solo si la columna existe)
+    if (canceladaFija !== null) {
+        paramCount++;
+        fields.push(`cancelada_fija = $${paramCount}`);
+        values.push(canceladaFija);
+    }
 
     if (Object.keys(discrepancias).length > 0) {
       paramCount++;

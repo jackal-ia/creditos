@@ -20,6 +20,39 @@ const { verificarToken } = require('../middleware/auth');
 const { TIENDAS } = require('./tiendas');
 
 // ------------------------------------------------------------
+// v7.0 — Cancelación evaluada en DIVISA.
+// Una factura está CANCELADA si:
+//   - cancelada_fija = 1 (congelada: vieja cancelada en Bs, o llegó
+//     a su monto en divisa), o
+//   - deuda_usd <= 0.01 (evaluación en divisa), o
+//   - fallback legacy: si deuda_usd es NULL se usa el criterio Bs.
+// La existencia de la columna se detecta una sola vez por proceso
+// para no romper nada si la migración aún no se ha corrido.
+// ------------------------------------------------------------
+let _cacheColFija = null;
+async function existeColumnaCanceladaFija() {
+    if (_cacheColFija !== null) return _cacheColFija;
+    try {
+        const r = await pool.query(
+            `SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'tienda_caracas' AND column_name = 'cancelada_fija'`
+        );
+        _cacheColFija = r.rows.length > 0;
+    } catch (e) {
+        _cacheColFija = false;
+    }
+    return _cacheColFija;
+}
+
+function sqlEsCancelada(colFijaExiste) {
+    const partes = [];
+    if (colFijaExiste) partes.push(`cancelada_fija >= 1`);
+    partes.push(`(deuda_usd IS NOT NULL AND CAST(deuda_usd AS NUMERIC) <= 0.01)`);
+    partes.push(`(deuda_usd IS NULL AND (CAST(deuda AS NUMERIC) <= 0 OR CAST(monto_depositados AS NUMERIC) >= CAST(monto_factura AS NUMERIC)))`);
+    return '(' + partes.join(' OR ') + ')';
+}
+
+// ------------------------------------------------------------
 // Middleware: valida :tienda contra la whitelist
 // ------------------------------------------------------------
 function validarTienda(req, res, next) {
@@ -73,19 +106,23 @@ router.post('/:tienda', verificarToken, validarTienda, async (req, res) => {
         }
 
         // Filtro estado (calculado: pendiente/pagado/mora/abiertas/canceladas)
-        // CAST(... AS NUMERIC) para asegurar comparación numérica
+        // v7.0: "cancelada/pagado" se evalúa en DIVISA (ver sqlEsCancelada);
+        // los estados de deuda excluyen las canceladas/congeladas.
         if (estado && estado !== 'todos') {
             paramCount++;
+            const colFija = await existeColumnaCanceladaFija();
+            const esCanc = sqlEsCancelada(colFija);
+            const noCanc = `(NOT ${esCanc})`;
             if (estado === 'pendiente') {
-                query += ` AND CAST(deuda AS NUMERIC) > 0 AND CAST(monto_depositados AS NUMERIC) < CAST(monto_factura AS NUMERIC) AND fecha_factura >= NOW() - INTERVAL '30 days'`;
+                query += ` AND ${noCanc} AND CAST(monto_depositados AS NUMERIC) < CAST(monto_factura AS NUMERIC) AND fecha_factura >= NOW() - INTERVAL '30 days'`;
             } else if (estado === 'pagado') {
-                query += ` AND (CAST(deuda AS NUMERIC) <= 0 OR CAST(monto_depositados AS NUMERIC) >= CAST(monto_factura AS NUMERIC))`;
+                query += ` AND ${esCanc}`;
             } else if (estado === 'mora') {
-                query += ` AND CAST(deuda AS NUMERIC) > 0 AND fecha_factura < NOW() - INTERVAL '30 days'`;
+                query += ` AND ${noCanc} AND fecha_factura < NOW() - INTERVAL '30 days'`;
             } else if (estado === 'abiertas') {
-                query += ` AND CAST(deuda AS NUMERIC) > 0`;
+                query += ` AND ${noCanc}`;
             } else if (estado === 'canceladas') {
-                query += ` AND CAST(deuda AS NUMERIC) <= 0`;
+                query += ` AND ${esCanc}`;
             }
         }
 
