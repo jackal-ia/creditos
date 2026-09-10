@@ -4,6 +4,84 @@
 const token = localStorage.getItem('token');
 let usuario = {};
 
+// ============================================
+// FECHAS EN FORMATO DD/MM/AAAA
+// El input type="date" nativo muestra MM/DD/AAAA según el idioma
+// del navegador y NO se puede cambiar. Patrón: campo de texto
+// visible DD/MM/AAAA + input date invisible sobre el ícono de
+// calendario. El valor ISO (YYYY-MM-DD) queda en el input date
+// original, así el resto del código no cambia.
+// ============================================
+function fechaISOaDMA(iso) {
+    if (!iso) return '';
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+
+function fechaDMAaISO(dma) {
+    const m = String(dma || '').trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+    if (!m) return null;
+    const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), a = parseInt(m[3], 10);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(a, mo - 1, d);
+    if (dt.getFullYear() !== a || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return a + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+// Máscara automática mientras escribe: 01082026 -> 01/08/2026
+function fechaESMask(input) {
+    let v = input.value.replace(/\D/g, '').slice(0, 8);
+    if (v.length > 4) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+    else if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+    input.value = v;
+}
+
+// Texto -> ISO: actualiza el input date oculto y dispara su 'change'
+function fechaESChange(isoId, input) {
+    const isoEl = document.getElementById(isoId);
+    const valor = input.value.trim();
+    if (!valor) {
+        input.style.borderColor = '';
+        if (isoEl && isoEl.value !== '') {
+            isoEl.value = '';
+            isoEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return;
+    }
+    const iso = fechaDMAaISO(valor);
+    if (iso) {
+        input.value = fechaISOaDMA(iso);
+        input.style.borderColor = '';
+        if (isoEl) {
+            const cambio = isoEl.value !== iso;
+            isoEl.value = iso;
+            if (cambio) isoEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    } else {
+        input.style.borderColor = '#e53e3e';
+    }
+}
+
+// Calendario nativo -> texto visible
+function fechaESPicker(isoId, input) {
+    const txt = document.getElementById(isoId + '-txt');
+    if (txt) {
+        txt.value = fechaISOaDMA(input.value);
+        txt.style.borderColor = '';
+    }
+}
+
+// Set programático: actualiza ISO oculto + texto visible
+function fechaESSetISO(isoId, iso) {
+    const isoEl = document.getElementById(isoId);
+    if (isoEl) isoEl.value = iso || '';
+    const txt = document.getElementById(isoId + '-txt');
+    if (txt) {
+        txt.value = fechaISOaDMA(iso);
+        txt.style.borderColor = '';
+    }
+}
+
 // Función para sincronizar perfil desde backend
 async function sincronizarPerfilUsuario() {
     try {
@@ -74,6 +152,7 @@ let usuariosData = [];
 let usuarioEditando = null;
 let chartEvolucion = null;
 let chartDistribucion = null;
+let chartFiltro = null;
 
 // ============================================
 // AUTENTICACION
@@ -343,11 +422,13 @@ async function cargarTasaActual() {
             let usd = null, fecha = null, eur = null;
             let previousUsd = null, changePct = null;
 
-            // Formato NUEVO: data.tasa = { usd, date }
+            // Formato NUEVO: data.tasa = { usd, date, previousUsd, changePctUsd, ... }
             if (data.tasa.usd !== undefined) {
                 usd = parseFloat(data.tasa.usd);
                 fecha = data.tasa.date || data.fecha;
                 eur = data.tasa.eur !== undefined ? parseFloat(data.tasa.eur) : null;
+                previousUsd = data.tasa.previousUsd !== undefined ? parseFloat(data.tasa.previousUsd) : null;
+                changePct = data.tasa.changePctUsd !== undefined ? parseFloat(data.tasa.changePctUsd) : null;
             }
             // Formato ANTIGUO: data.tasa.current.usd
             else if (data.tasa.current && data.tasa.current.usd !== undefined) {
@@ -400,7 +481,7 @@ async function cargarTasaActual() {
 
 function consultarTasaFecha() {
     document.getElementById('modalFecha').classList.add('active');
-    document.getElementById('modalFechaInput').value = new Date().toISOString().split('T')[0];
+    fechaESSetISO('modalFechaInput', new Date().toISOString().split('T')[0]);
 }
 
 function cerrarModalFecha() {
@@ -1011,11 +1092,21 @@ function initEstadisticas(tiendaPredefinida) {
         console.log('[DEBUG] CAPA 1: tiendaPredefinida =', tiendaPredefinida);
         if (tiendaSelect) {
             tiendaSelect.value = tiendaPredefinida;
-            tiendaSelect.disabled = true;
-            tiendaSelect.style.background = '#e2e8f0';
-            tiendaSelect.style.cursor = 'not-allowed';
-            tiendaSelect.title = 'Tienda fijada desde el módulo de tienda';
-            console.log('[DEBUG] CAPA 1: Selector disabled for tienda:', tiendaPredefinida);
+            if (isAdmin()) {
+                // Admin: entra desde una tienda pero puede cambiar a otra
+                // o consolidar con "Todas las Tiendas"
+                tiendaSelect.disabled = false;
+                tiendaSelect.style.background = '';
+                tiendaSelect.style.cursor = '';
+                tiendaSelect.title = 'Puedes elegir otra tienda o Todas las Tiendas';
+                console.log('[DEBUG] CAPA 1: Selector enabled for admin (preselected:', tiendaPredefinida, ')');
+            } else {
+                tiendaSelect.disabled = true;
+                tiendaSelect.style.background = '#e2e8f0';
+                tiendaSelect.style.cursor = 'not-allowed';
+                tiendaSelect.title = 'Tienda fijada desde el módulo de tienda';
+                console.log('[DEBUG] CAPA 1: Selector disabled for tienda:', tiendaPredefinida);
+            }
         }
     } 
     // CAPA 2: Si no hay tienda predefinida, pero el usuario es OPERADOR, restringir a su tienda
@@ -1063,13 +1154,21 @@ function initEstadisticas(tiendaPredefinida) {
 async function cargarMesesDisponibles(tienda) {
     try {
         const tiendaSeleccionada = tienda || document.getElementById('filtro-tienda')?.value || 'caracas';
-        const tiendaValida = ['caracas', 'maracay', 'maracaibo'].includes(tiendaSeleccionada) ? tiendaSeleccionada : 'caracas';
-        const apiEndpoint = '/api/tiendas/' + tiendaValida;
 
-        const response = await fetch(apiEndpoint);
-        if (!response.ok) return;
-
-        const clientes = await response.json();
+        // 'todas': unir los meses con datos de las 3 tiendas
+        let clientes = [];
+        if (tiendaSeleccionada === 'todas') {
+            const resultados = await Promise.all(['caracas', 'maracay', 'maracaibo'].map(async (t) => {
+                const r = await fetch('/api/tiendas/' + t);
+                return r.ok ? await r.json() : [];
+            }));
+            clientes = resultados.flat();
+        } else {
+            const tiendaValida = ['caracas', 'maracay', 'maracaibo'].includes(tiendaSeleccionada) ? tiendaSeleccionada : 'caracas';
+            const response = await fetch('/api/tiendas/' + tiendaValida);
+            if (!response.ok) return;
+            clientes = await response.json();
+        }
         const mesesConDatos = new Set();
 
         clientes.forEach(c => {
@@ -1193,33 +1292,47 @@ function inicializarGraficos() {
 
 async function cargarDatosEstadisticasReales(tiendaPredefinida) {
     try {
+        // Si el select está habilitado (admin), manda lo que el usuario eligió;
+        // si está deshabilitado (operador), manda la tienda fijada.
+        const tiendaSelect = document.getElementById('filtro-tienda');
+        const tienda = (tiendaSelect && !tiendaSelect.disabled)
+            ? tiendaSelect.value
+            : (tiendaPredefinida || (tiendaSelect ? tiendaSelect.value : 'caracas'));
+
+        // Si cambió la tienda, recargar los meses disponibles ANTES de leer el mes
+        if (window._estTiendaCargada !== tienda) {
+            window._estTiendaCargada = tienda;
+            await cargarMesesDisponibles(tienda);
+        }
+
         const mes = parseInt(document.getElementById('filtro-mes')?.value || new Date().getMonth() + 1);
         const anio = parseInt(document.getElementById('filtro-anio')?.value || new Date().getFullYear());
         const tipo = document.getElementById('filtro-tipo')?.value || 'todos';
 
-        // PRIORIZAR la tienda predefinida si existe, de lo contrario leer el filtro selector
-        // Si el select está deshabilitado, su valor es la tienda fijada
-        const tiendaSelect = document.getElementById('filtro-tienda');
-        const tienda = tiendaPredefinida || (tiendaSelect ? tiendaSelect.value : 'caracas');
-
-        // Cargando estadisticas
-
-        // Endpoint genérico (refactor): el servidor valida la tienda
-        const tiendaValida = ['caracas', 'maracay', 'maracaibo'].includes(tienda) ? tienda : 'caracas';
-        const apiEndpoint = '/api/tiendas/' + tiendaValida;
-
-        const response = await fetch(apiEndpoint);
-        if (!response.ok) throw new Error('Error HTTP: ' + response.status);
-
-        const clientes = await response.json();
+        // Cargar clientes: una tienda o TODAS consolidadas
+        let clientes = [];
+        if (tienda === 'todas') {
+            const resultados = await Promise.all(['caracas', 'maracay', 'maracaibo'].map(async (t) => {
+                const r = await fetch('/api/tiendas/' + t);
+                if (!r.ok) throw new Error('Error HTTP: ' + r.status + ' en ' + t);
+                const arr = await r.json();
+                return arr.map(c => Object.assign({}, c, { _tienda: t }));
+            }));
+            clientes = resultados.flat();
+        } else {
+            const tiendaValida = ['caracas', 'maracay', 'maracaibo'].includes(tienda) ? tienda : 'caracas';
+            const response = await fetch('/api/tiendas/' + tiendaValida);
+            if (!response.ok) throw new Error('Error HTTP: ' + response.status);
+            clientes = (await response.json()).map(c => Object.assign({}, c, { _tienda: tiendaValida }));
+        }
         // Clientes cargados
 
         const estadisticas = procesarDatosEstadisticas(clientes, mes, anio, tipo, tienda);
         datosEstadisticasCache = estadisticas;
 
-        actualizarKPIsReales(estadisticas.kpis);
-        actualizarGraficosReales(estadisticas.evolucion, estadisticas.distribucion);
-        actualizarTablaDeudoresReales(estadisticas.deudores);
+        actualizarKPIsReales(estadisticas);
+        actualizarGraficosReales(estadisticas);
+        actualizarTablaDeudoresReales(estadisticas);
 
     } catch (error) {
         console.error('Error cargando estadisticas reales:', error);
@@ -1247,6 +1360,16 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
         evolucionMensual[m] = { canceladas: 0, incompletas: 0 };
     }
 
+    // Parseo de fecha seguro: 'YYYY-MM-DD' como fecha LOCAL (evita
+    // que new Date('YYYY-MM-DD') la interprete en UTC y cambie el mes)
+    const parseFechaLocal = (v) => {
+        if (!v) return null;
+        const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+        const d = new Date(v);
+        return isNaN(d) ? null : d;
+    };
+
     // Helper: contar cuotas pagadas desde pagos_extra + legacy
     const contarCuotasPagadas = (c) => {
         let count = 0;
@@ -1272,7 +1395,10 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
         return depositado;
     };
 
-    // Filtrar clientes según mes, año y tipo
+    // ============================================================
+    // VISTA "TODOS": KPIs clásicos sobre clientes FACTURADOS en el
+    // mes/año seleccionado + evolución + distribución + deudores
+    // ============================================================
     const clientesFiltrados = clientes.filter(c => {
         const fechaFactura = c.fecha_factura ? new Date(c.fecha_factura) : null;
         if (fechaFactura) {
@@ -1281,22 +1407,6 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             if (anioFactura !== anioFiltro) return false;
             if (mesFactura !== mesFiltro) return false;
         }
-
-        const cuotasPagadas = contarCuotasPagadas(c);
-
-        // Filtro por tipo
-        if (tipoFiltro === 'contado') {
-            const montoFactura = parseFloat(c.monto_factura) || 0;
-            const montoDepositado = calcularDepositado(c);
-            const deuda = montoFactura - montoDepositado;
-            if (deuda > 0) return false;
-        } else if (tipoFiltro === 'credito') {
-            const montoFactura = parseFloat(c.monto_factura) || 0;
-            const montoDepositado = calcularDepositado(c);
-            const deuda = montoFactura - montoDepositado;
-            if (deuda <= 0 && cuotasPagadas <= 1) return false;
-        }
-
         return true;
     });
 
@@ -1363,6 +1473,7 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             deudores.push({
                 nombre: c.nombre_apellido || 'Sin nombre',
                 cedula: c.cedula || '-',
+                tienda: c._tienda || '',
                 cuota: montoFactura / totalCuotas,
                 pagado: montoDepositado,
                 deuda: deuda,
@@ -1377,6 +1488,127 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             }
         }
     });
+
+    // ============================================================
+    // VISTAS POR TIPO (sin cuota / abonado / incompletas)
+    // Se calculan sobre los clientes de TODO el año seleccionado
+    // para no perder pagos hechos en ese mes por clientes de otros
+    // meses de facturación. Cada cliente trae _tienda (o se asume
+    // la tienda del filtro) para soportar "Todas las Tiendas".
+    // ============================================================
+    const clientesAnio = clientes.filter(c => {
+        const ff = parseFechaLocal(c.fecha_factura);
+        if (ff && ff.getFullYear() !== anioFiltro) return false;
+        return true;
+    });
+
+    const abonadosLista = [];
+    const sinCuotaLista = [];
+    const incompletasLista = [];
+
+    clientesAnio.forEach(c => {
+        const montoFactura = parseFloat(c.monto_factura) || 0;
+        const montoDepositadoC = calcularDepositado(c);
+        const deuda = montoFactura - montoDepositadoC;
+        const cuotasPagadas = contarCuotasPagadas(c);
+        const pagosExtra = Array.isArray(c.pagos_extra) ? c.pagos_extra : [];
+        const base = {
+            nombre: c.nombre_apellido || 'Sin nombre',
+            cedula: c.cedula || '-',
+            factura: c.nro_factura || '-',
+            tienda: c._tienda || (tiendaFiltro !== 'todas' ? tiendaFiltro : '') || ''
+        };
+
+        // Pagos hechos dentro del mes/año seleccionado
+        let montoMes = 0;
+        const procesarPagoMes = (monto, fechaVal) => {
+            if (!(monto > 0)) return;
+            const f = parseFechaLocal(fechaVal);
+            if (f && f.getFullYear() === anioFiltro && (f.getMonth() + 1) === mesFiltro) {
+                montoMes += monto;
+            }
+        };
+        for (const pago of pagosExtra) procesarPagoMes(parseFloat(pago.monto_bs) || 0, pago.fecha);
+        for (let i = 1; i <= 11; i++) procesarPagoMes(parseFloat(c['cuota_' + i]) || 0, c['fecha_cuota_' + i]);
+
+        // ABONADO en el mes: registró al menos un pago en ese mes
+        if (montoMes > 0) {
+            abonadosLista.push(Object.assign({}, base, {
+                montoMes: Math.round(montoMes * 100) / 100,
+                deuda: deuda > 0 ? deuda : 0
+            }));
+        }
+
+        // SIN CUOTA en el mes: con deuda, ya existía en ese mes y no pagó
+        if (deuda > 0 && montoMes <= 0) {
+            const ff = parseFechaLocal(c.fecha_factura);
+            const yaExistia = !ff || ff.getFullYear() < anioFiltro ||
+                (ff.getFullYear() === anioFiltro && (ff.getMonth() + 1) <= mesFiltro);
+            if (yaExistia) {
+                sinCuotaLista.push(Object.assign({}, base, { deuda: deuda }));
+            }
+        }
+
+        // CUOTAS INCOMPLETAS: facturados en ese mes con pago parcial
+        if (deuda > 0 && cuotasPagadas > 0 && cuotasPagadas < 11) {
+            const ff = parseFechaLocal(c.fecha_factura);
+            if (ff && ff.getFullYear() === anioFiltro && (ff.getMonth() + 1) === mesFiltro) {
+                incompletasLista.push(Object.assign({}, base, { deuda: deuda, pagado: montoDepositadoC }));
+            }
+        }
+    });
+
+    abonadosLista.sort((a, b) => b.montoMes - a.montoMes);
+    sinCuotaLista.sort((a, b) => b.deuda - a.deuda);
+    incompletasLista.sort((a, b) => b.deuda - a.deuda);
+
+    // ── Agregado por tienda (para el gráfico de "Todas las Tiendas") ──
+    const TIENDAS_ORDEN = ['caracas', 'maracay', 'maracaibo'];
+    const aggTienda = {};
+    TIENDAS_ORDEN.forEach(t => { aggTienda[t] = { sincuota: 0, abonado: 0, incompletas: 0 }; });
+    sinCuotaLista.forEach(c => { if (aggTienda[c.tienda]) aggTienda[c.tienda].sincuota++; });
+    abonadosLista.forEach(c => { if (aggTienda[c.tienda]) aggTienda[c.tienda].abonado += c.montoMes; });
+    incompletasLista.forEach(c => { if (aggTienda[c.tienda]) aggTienda[c.tienda].incompletas += c.deuda; });
+
+    const vistaChart = {
+        porTienda: {
+            categorias: TIENDAS_ORDEN.map(t => DG_NOMBRES_TIENDA[t] || t),
+            colores: TIENDAS_ORDEN.map(t => DG_COLORES_TIENDA[t] || '#667eea'),
+            sincuota: TIENDAS_ORDEN.map(t => aggTienda[t].sincuota),
+            abonado: TIENDAS_ORDEN.map(t => Math.round(aggTienda[t].abonado * 100) / 100),
+            incompletas: TIENDAS_ORDEN.map(t => Math.round(aggTienda[t].incompletas * 100) / 100)
+        }
+    };
+
+    // ── Tarjetas KPI dinámicas según el TIPO seleccionado ──
+    const mesesFull = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const nombreMes = mesesFull[(mesFiltro - 1 + 12) % 12];
+
+    const totAbonadoMes = abonadosLista.reduce((s, c) => s + c.montoMes, 0);
+    const totDeudaSinCuota = sinCuotaLista.reduce((s, c) => s + c.deuda, 0);
+    const totDeudaIncomp = incompletasLista.reduce((s, c) => s + c.deuda, 0);
+    const totalFacturadoAnio = clientesAnio.reduce((s, c) => s + (parseFloat(c.monto_factura) || 0), 0);
+
+    const cardSinCuota = { label: 'Sin Cuota en el Mes', valor: sinCuotaLista.length,    monto: totDeudaSinCuota,  sub: 'No pagaron en ' + nombreMes };
+    const cardAbonado  = { label: 'Cuotas Abonadas',     valor: abonadosLista.length,     monto: totAbonadoMes,    sub: 'Abonado en ' + nombreMes };
+    const cardIncomp   = { label: 'Cuotas Incompletas',  valor: incompletasLista.length,  monto: totDeudaIncomp,   sub: 'Facturadas en ' + nombreMes };
+    const cardActivos  = { label: 'Creditos Activos',    valor: clientesAnio.length,      monto: totalFacturadoAnio, sub: 'Total facturado ' + anioFiltro };
+
+    let kpisCards;
+    if (tipoFiltro === 'sincuota') {
+        kpisCards = [cardSinCuota, cardAbonado, cardIncomp, cardActivos];
+    } else if (tipoFiltro === 'abonado') {
+        kpisCards = [cardAbonado, cardSinCuota, cardIncomp, cardActivos];
+    } else if (tipoFiltro === 'incompletas') {
+        kpisCards = [cardIncomp, cardAbonado, cardSinCuota, cardActivos];
+    } else {
+        kpisCards = [
+            { label: 'Cuotas Canceladas',  valor: cuotasCanceladas,  monto: montoCanceladas,  sub: 'Clientes al dia' },
+            { label: 'Cuotas Incompletas', valor: cuotasIncompletas, monto: montoIncompletas, sub: 'Con deuda pendiente' },
+            { label: 'Deudores del Mes',   valor: totalDeudores,     monto: montoDeudores,    sub: 'Total en deuda' },
+            { label: 'Creditos Activos',   valor: creditosActivos,   monto: montoCreditos,    sub: 'Total facturado' }
+        ];
+    }
 
     const totalClientes = clientesFiltrados.length || 1;
     const distribucion = [
@@ -1405,36 +1637,57 @@ function procesarDatosEstadisticas(clientes, mesFiltro, anioFiltro, tipoFiltro, 
             deudores: { valor: totalDeudores, monto: montoDeudores, trend: 0 },
             creditos_activos: { valor: creditosActivos, monto: montoCreditos, trend: 0 }
         },
+        kpisCards: kpisCards,
         evolucion: {
             meses: mesesMostrar,
             canceladas: canceladasMostrar,
             incompletas: incompletasMostrar
         },
         distribucion: distribucion,
+        vistas: {
+            sincuota: sinCuotaLista,
+            abonado: abonadosLista,
+            incompletas: incompletasLista
+        },
+        vistaChart: vistaChart,
+        tipoVista: tipoFiltro,
+        tiendaVista: tiendaFiltro,
+        mesVista: mesFiltro,
+        anioVista: anioFiltro,
         deudores: deudores.sort((a, b) => b.deuda - a.deuda).slice(0, 50)
     };
 }
 
-function actualizarKPIsReales(kpis) {
-    document.getElementById('valor-cuotas-canceladas').textContent = kpis.cuotas_canceladas.valor;
-    document.getElementById('monto-cuotas-canceladas').textContent = formatearMoneda(kpis.cuotas_canceladas.monto);
-    document.getElementById('trend-cuotas-canceladas').innerHTML = '<span>Clientes al dia</span>';
-
-    document.getElementById('valor-cuotas-incompletas').textContent = kpis.cuotas_incompletas.valor;
-    document.getElementById('monto-cuotas-incompletas').textContent = formatearMoneda(kpis.cuotas_incompletas.monto);
-    document.getElementById('trend-cuotas-incompletas').innerHTML = '<span>Con deuda pendiente</span>';
-
-    document.getElementById('valor-deudores').textContent = kpis.deudores.valor;
-    document.getElementById('monto-deudores').textContent = formatearMoneda(kpis.deudores.monto);
-    document.getElementById('trend-deudores').innerHTML = '<span>Total en deuda</span>';
-
-    document.getElementById('valor-creditos').textContent = kpis.creditos_activos.valor;
-    document.getElementById('monto-creditos').textContent = formatearMoneda(kpis.creditos_activos.monto);
-    document.getElementById('trend-creditos').innerHTML = '<span>Total facturado</span>';
+// Las 4 tarjetas KPI cambian de etiqueta y valor según el TIPO
+// seleccionado. procesarDatosEstadisticas devuelve kpisCards:
+// un arreglo de 4 objetos { label, valor, monto, sub } ya ordenados.
+function actualizarKPIsReales(estadisticas) {
+    const cards = (estadisticas && estadisticas.kpisCards) || [];
+    const refs = [
+        { label: 'label-kpi-1', valor: 'valor-cuotas-canceladas',   monto: 'monto-cuotas-canceladas',   trend: 'trend-cuotas-canceladas' },
+        { label: 'label-kpi-2', valor: 'valor-cuotas-incompletas',  monto: 'monto-cuotas-incompletas',  trend: 'trend-cuotas-incompletas' },
+        { label: 'label-kpi-3', valor: 'valor-deudores',            monto: 'monto-deudores',            trend: 'trend-deudores' },
+        { label: 'label-kpi-4', valor: 'valor-creditos',            monto: 'monto-creditos',            trend: 'trend-creditos' }
+    ];
+    refs.forEach((r, i) => {
+        const card = cards[i];
+        if (!card) return;
+        const elLabel = document.getElementById(r.label);
+        const elValor = document.getElementById(r.valor);
+        const elMonto = document.getElementById(r.monto);
+        const elTrend = document.getElementById(r.trend);
+        if (elLabel) elLabel.textContent = card.label;
+        if (elValor) elValor.textContent = card.valor;
+        if (elMonto) elMonto.textContent = formatearMoneda(card.monto);
+        if (elTrend) elTrend.innerHTML = '<span>' + card.sub + '</span>';
+    });
 }
 
-function actualizarGraficosReales(evolucion, distribucion) {
-    if (chartEvolucion) {
+function actualizarGraficosReales(estadisticas) {
+    const evolucion = estadisticas.evolucion;
+    const distribucion = estadisticas.distribucion;
+
+    if (chartEvolucion && evolucion) {
         chartEvolucion.updateOptions({
             xaxis: { categories: evolucion.meses }
         });
@@ -1444,30 +1697,224 @@ function actualizarGraficosReales(evolucion, distribucion) {
         ]);
     }
 
-    if (chartDistribucion) {
+    if (chartDistribucion && distribucion) {
         const series = distribucion.map(d => parseFloat(d.porcentaje) || 0);
         chartDistribucion.updateSeries(series);
     }
+
+    // ── Gráfico dinámico por filtro (métrica + mes/año/tienda/tipo) ──
+    renderGraficoFiltro(estadisticas);
 }
 
-function actualizarTablaDeudoresReales(deudores) {
+// ============================================================
+// GRÁFICO DINÁMICO POR FILTRO (TIPO)
+// Un solo gráfico que cambia según el TIPO elegido y los filtros
+// de mes/año/tienda de la sección:
+//  - sincuota:    barras por cliente (deuda) o por tienda (N° clientes)
+//  - abonado:     barras por cliente (Bs abonados) o por tienda (Bs)
+//  - incompletas: barras por cliente (deuda) o por tienda (Bs deuda)
+// Con tipo "todos" el gráfico se oculta (solo KPIs/tabla clásicos).
+// Con tienda "Todas las Tiendas" las barras comparan las 3 tiendas.
+// ============================================================
+function renderGraficoFiltro(est) {
+    const container = document.querySelector('#chart-filtro');
+    if (!container) return;
+
+    const mesesFull = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const mesSel = (est && est.mesVista) || parseInt(document.getElementById('filtro-mes')?.value || (new Date().getMonth() + 1));
+    const anioSel = (est && est.anioVista) || document.getElementById('filtro-anio')?.value || new Date().getFullYear();
+    const nombreMes = mesesFull[(mesSel - 1 + 12) % 12];
+    const tipo = (est && est.tipoVista) || document.getElementById('filtro-tipo')?.value || 'todos';
+    const tiendaSel = (est && est.tiendaVista) || document.getElementById('filtro-tienda')?.value || 'caracas';
+    const esTodas = tiendaSel === 'todas';
+    const titulo = document.getElementById('titulo-grafico-filtro');
+    const cardEl = container.closest('.chart-card');
+
+    // Destruir instancia anterior (cambiar orientación requiere recrear)
+    if (chartFiltro) { try { chartFiltro.destroy(); } catch (e) {} chartFiltro = null; }
+    container.innerHTML = '';
+
+    // Con "Todos" no hay vista de lista: ocultar la tarjeta del gráfico
+    if (tipo === 'todos' || !est || !est.vistas) {
+        if (cardEl) cardEl.style.display = 'none';
+        return;
+    }
+    if (cardEl) cardEl.style.display = '';
+
+    const fmtBs = (v) => 'Bs ' + (parseFloat(v) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtCorto = (v) => v >= 1000000 ? (v / 1000000).toFixed(1).replace('.', ',') + ' M' : (v >= 1000 ? Math.round(v / 1000) + 'K' : String(Math.round(v)));
+    const paleta = ['#3b82f6','#ef4444','#f59e0b','#10b981','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
+    const base = {
+        chart: { height: 340, fontFamily: 'Segoe UI, system-ui, sans-serif', toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
+        dataLabels: { enabled: false },
+        grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }
+    };
+    const vacio = (msg) => {
+        container.innerHTML = '<div class="chart-vacio">' + msg + '</div>';
+    };
+
+    const nombreTiendaTxt = esTodas ? 'Todas las Tiendas' : (DG_NOMBRES_TIENDA[tiendaSel] || tiendaSel);
+    let options = null;
+
+    if (esTodas) {
+        // ── Barras comparativas por tienda ──
+        const pt = est.vistaChart.porTienda;
+        let datos, nombreSerie, esDinero;
+        if (tipo === 'sincuota') {
+            datos = pt.sincuota; nombreSerie = 'Clientes sin cuota'; esDinero = false;
+            const total = datos.reduce((a, b) => a + b, 0);
+            if (titulo) titulo.textContent = 'Sin cuota en ' + nombreMes + ' ' + anioSel + ' — ' + total + ' clientes · ' + nombreTiendaTxt;
+            if (total <= 0) { vacio('Todos los clientes con deuda pagaron en ' + nombreMes + ' 🎉'); return; }
+        } else if (tipo === 'abonado') {
+            datos = pt.abonado; nombreSerie = 'Abonado (Bs)'; esDinero = true;
+            const total = datos.reduce((a, b) => a + b, 0);
+            if (titulo) titulo.textContent = 'Abonado en ' + nombreMes + ' ' + anioSel + ' — Total: ' + fmtBs(total) + ' · ' + nombreTiendaTxt;
+            if (total <= 0) { vacio('Sin abonos registrados en ' + nombreMes + ' ' + anioSel); return; }
+        } else { // incompletas
+            datos = pt.incompletas; nombreSerie = 'Deuda (Bs)'; esDinero = true;
+            const total = datos.reduce((a, b) => a + b, 0);
+            if (titulo) titulo.textContent = 'Cuotas incompletas de ' + nombreMes + ' ' + anioSel + ' — Deuda: ' + fmtBs(total) + ' · ' + nombreTiendaTxt;
+            if (total <= 0) { vacio('Sin cuotas incompletas facturadas en ' + nombreMes + ' ' + anioSel); return; }
+        }
+        options = Object.assign({}, base, {
+            series: [{ name: nombreSerie, data: datos }],
+            chart: Object.assign({}, base.chart, { type: 'bar' }),
+            colors: pt.colores,
+            plotOptions: { bar: { horizontal: false, columnWidth: '45%', borderRadius: 6, borderRadiusApplication: 'end', distributed: true } },
+            legend: { show: false },
+            xaxis: { categories: pt.categorias, labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: 600 } }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' }, formatter: esDinero ? fmtCorto : (v) => String(Math.round(v)) } },
+            tooltip: { y: { formatter: esDinero ? fmtBs : (v) => v + ' clientes' } }
+        });
+    } else {
+        // ── Barras por cliente (colores variados) ──
+        const tope = 15;
+        let lista, campoValor, nombreSerie, fmtTooltip;
+        if (tipo === 'sincuota') {
+            lista = est.vistas.sincuota.slice(0, tope); campoValor = 'deuda'; nombreSerie = 'Deuda (Bs)'; fmtTooltip = fmtBs;
+            if (titulo) titulo.textContent = 'Sin cuota en ' + nombreMes + ' ' + anioSel + ' — ' + est.vistas.sincuota.length + ' clientes · ' + nombreTiendaTxt;
+            if (!lista.length) { vacio('Todos los clientes con deuda pagaron en ' + nombreMes + ' 🎉'); return; }
+        } else if (tipo === 'abonado') {
+            lista = est.vistas.abonado.slice(0, tope); campoValor = 'montoMes'; nombreSerie = 'Abonado (Bs)'; fmtTooltip = fmtBs;
+            const total = est.vistas.abonado.reduce((s, c) => s + c.montoMes, 0);
+            if (titulo) titulo.textContent = 'Abonado en ' + nombreMes + ' ' + anioSel + ' — Total: ' + fmtBs(total) + ' (' + est.vistas.abonado.length + ' clientes) · ' + nombreTiendaTxt;
+            if (!lista.length) { vacio('Sin abonos registrados en ' + nombreMes + ' ' + anioSel); return; }
+        } else { // incompletas
+            lista = est.vistas.incompletas.slice(0, tope); campoValor = 'deuda'; nombreSerie = 'Deuda (Bs)'; fmtTooltip = fmtBs;
+            const total = est.vistas.incompletas.reduce((s, c) => s + c.deuda, 0);
+            if (titulo) titulo.textContent = 'Cuotas incompletas de ' + nombreMes + ' ' + anioSel + ' — Deuda: ' + fmtBs(total) + ' (' + est.vistas.incompletas.length + ' clientes) · ' + nombreTiendaTxt;
+            if (!lista.length) { vacio('Sin cuotas incompletas facturadas en ' + nombreMes + ' ' + anioSel); return; }
+        }
+        options = Object.assign({}, base, {
+            series: [{ name: nombreSerie, data: lista.map(c => Math.round(c[campoValor] * 100) / 100) }],
+            chart: Object.assign({}, base.chart, { type: 'bar' }),
+            colors: paleta,
+            plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: '65%', distributed: true } },
+            legend: { show: false },
+            xaxis: { categories: lista.map(c => c.nombre), labels: { style: { colors: '#64748b', fontSize: '11px' }, formatter: fmtCorto } },
+            yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } },
+            tooltip: { y: { formatter: fmtTooltip } }
+        });
+    }
+
+    chartFiltro = new ApexCharts(container, options);
+    chartFiltro.render();
+}
+
+// La tabla cambia columnas y contenido según el TIPO seleccionado:
+//  - todos:        tabla clásica de deudores del mes (facturados ese mes)
+//  - sincuota:     N° | N° Factura | Nombre Completo | Cédula (+ Tienda)
+//  - abonado:      igual + columna Monto Abonado Bs
+//  - incompletas:  igual + columna Deuda
+function actualizarTablaDeudoresReales(est) {
     const tbody = document.getElementById('tbody-deudores');
+    const thead = document.getElementById('thead-deudores');
+    const titulo = document.getElementById('titulo-tabla-deudores');
     if (!tbody) return;
 
-    if (deudores.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay deudores registrados</td></tr>';
+    const tipo = (est && est.tipoVista) || 'todos';
+    const esTodas = (est && est.tiendaVista) === 'todas';
+    const mesesFull = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const nombreMes = mesesFull[(((est && est.mesVista) || 1) - 1 + 12) % 12];
+    const anioVista = (est && est.anioVista) || '';
+    const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const fmtBs = (v) => 'Bs ' + (parseFloat(v) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const nombreTienda = (t) => DG_NOMBRES_TIENDA[t] || t || '-';
+
+    // ── Vista clásica: deudores del mes (tipo "todos") ──
+    if (tipo === 'todos' || !est || !est.vistas) {
+        if (titulo) titulo.innerHTML = '&#128101; Deudores del Mes';
+        if (thead) {
+            thead.innerHTML = '<tr><th>Cliente</th><th>Cedula</th>' + (esTodas ? '<th>Tienda</th>' : '') +
+                '<th class="text-right">Cuota Mensual</th><th class="text-right">Pagado</th>' +
+                '<th class="text-right">Deuda</th><th>Estado</th><th>Acciones</th></tr>';
+        }
+        const deudores = (est && est.deudores) || [];
+        const nCols = esTodas ? 8 : 7;
+        if (deudores.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="' + nCols + '" class="text-center">No hay deudores registrados</td></tr>';
+            return;
+        }
+        tbody.innerHTML = deudores.map(d =>
+            '<tr>' +
+                '<td><strong>' + esc(d.nombre || '-') + '</strong></td>' +
+                '<td>' + esc(d.cedula || '-') + '</td>' +
+                (esTodas ? '<td>' + esc(nombreTienda(d.tienda)) + '</td>' : '') +
+                '<td class="text-right monto">' + formatearMoneda(d.cuota) + '</td>' +
+                '<td class="text-right monto">' + formatearMoneda(d.pagado) + '</td>' +
+                '<td class="text-right monto" style="color:' + (d.deuda > 0 ? '#ef4444' : '#10b981') + '">' + formatearMoneda(d.deuda) + '</td>' +
+                '<td><span class="badge ' + getBadgeClass(d.estado) + '">' + d.estado + '</span></td>' +
+                '<td><button class="btn-ver" onclick="verCliente(' + "'" + esc(d.cedula) + "'" + ')">Ver</button></td>' +
+            '</tr>'
+        ).join('');
         return;
     }
 
-    tbody.innerHTML = deudores.map(d => 
+    // ── Vistas por tipo (lista numerada) ──
+    let lista, colExtraHead, colExtraCell, tituloTxt, msgVacio;
+    if (tipo === 'sincuota') {
+        lista = est.vistas.sincuota;
+        colExtraHead = '';
+        colExtraCell = () => '';
+        tituloTxt = '&#128203; Clientes sin cuota en ' + nombreMes + ' ' + anioVista + ' (' + lista.length + ')';
+        msgVacio = 'Todos los clientes con deuda pagaron en ' + nombreMes + ' &#127881;';
+    } else if (tipo === 'abonado') {
+        lista = est.vistas.abonado;
+        colExtraHead = '<th class="text-right">Monto Abonado Bs</th>';
+        colExtraCell = (d) => '<td class="text-right monto" style="color:#10b981">' + fmtBs(d.montoMes) + '</td>';
+        const total = lista.reduce((s, c) => s + c.montoMes, 0);
+        tituloTxt = '&#128176; Abonos de ' + nombreMes + ' ' + anioVista + ' — Total: ' + fmtBs(total) + ' (' + lista.length + ' clientes)';
+        msgVacio = 'Sin abonos registrados en ' + nombreMes + ' ' + anioVista;
+    } else { // incompletas
+        lista = est.vistas.incompletas;
+        colExtraHead = '<th class="text-right">Deuda</th>';
+        colExtraCell = (d) => '<td class="text-right monto" style="color:#ef4444">' + fmtBs(d.deuda) + '</td>';
+        const total = lista.reduce((s, c) => s + c.deuda, 0);
+        tituloTxt = '&#9888;&#65039; Cuotas incompletas de ' + nombreMes + ' ' + anioVista + ' — Deuda: ' + fmtBs(total) + ' (' + lista.length + ' clientes)';
+        msgVacio = 'Sin cuotas incompletas facturadas en ' + nombreMes + ' ' + anioVista;
+    }
+
+    if (titulo) titulo.innerHTML = tituloTxt;
+    const tiendaHead = esTodas ? '<th>Tienda</th>' : '';
+    if (thead) {
+        thead.innerHTML = '<tr><th>N°</th><th>N° Factura</th><th>Nombre Completo</th><th>Cedula</th>' +
+            tiendaHead + colExtraHead + '</tr>';
+    }
+
+    const nCols = 4 + (esTodas ? 1 : 0) + (colExtraHead ? 1 : 0);
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="' + nCols + '" class="text-center">' + msgVacio + '</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = lista.map((d, i) =>
         '<tr>' +
-            '<td><strong>' + (d.nombre || '-') + '</strong></td>' +
-            '<td>' + (d.cedula || '-') + '</td>' +
-            '<td class="text-right monto">' + formatearMoneda(d.cuota) + '</td>' +
-            '<td class="text-right monto">' + formatearMoneda(d.pagado) + '</td>' +
-            '<td class="text-right monto" style="color:' + (d.deuda > 0 ? '#ef4444' : '#10b981') + '">' + formatearMoneda(d.deuda) + '</td>' +
-            '<td><span class="badge ' + getBadgeClass(d.estado) + '">' + d.estado + '</span></td>' +
-            '<td><button class="btn-ver" onclick="verCliente(' + "'" + d.cedula + "'" + ')">Ver</button></td>' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td>' + esc(d.factura || '-') + '</td>' +
+            '<td><strong>' + esc(d.nombre || '-') + '</strong></td>' +
+            '<td>' + esc(d.cedula || '-') + '</td>' +
+            (esTodas ? '<td>' + esc(nombreTienda(d.tienda)) + '</td>' : '') +
+            colExtraCell(d) +
         '</tr>'
     ).join('');
 }
@@ -1513,9 +1960,9 @@ function filtrarDeudores() {
     const texto = document.getElementById('buscar-deudor')?.value.toLowerCase() || '';
     const filas = document.querySelectorAll('#tbody-deudores tr');
     filas.forEach(fila => {
-        const nombre = fila.cells[0]?.textContent.toLowerCase() || '';
-        const cedula = fila.cells[1]?.textContent.toLowerCase() || '';
-        fila.style.display = (nombre.includes(texto) || cedula.includes(texto)) ? '' : 'none';
+        // Buscar en TODA la fila (la tabla cambia de columnas según el tipo)
+        const contenido = fila.textContent.toLowerCase();
+        fila.style.display = contenido.includes(texto) ? '' : 'none';
     });
 }
 
@@ -1537,11 +1984,27 @@ function exportarReporte() {
         return;
     }
 
-    const tienda = document.getElementById('filtro-tienda')?.value || 'caracas';
-    const headers = ['Cliente', 'Cedula', 'Cuota Mensual', 'Pagado', 'Deuda', 'Estado'];
-    const rows = datosEstadisticasCache.deudores.map(d => [
-        d.nombre, d.cedula, d.cuota, d.pagado, d.deuda, d.estado
-    ]);
+    const est = datosEstadisticasCache;
+    const tipo = est.tipoVista || 'todos';
+    const tienda = est.tiendaVista || document.getElementById('filtro-tienda')?.value || 'caracas';
+    const nombreTienda = (t) => DG_NOMBRES_TIENDA[t] || t || '-';
+    let headers, rows;
+
+    if (tipo === 'sincuota' && est.vistas) {
+        headers = ['N', 'N Factura', 'Nombre Completo', 'Cedula', 'Tienda'];
+        rows = est.vistas.sincuota.map((d, i) => [i + 1, d.factura, d.nombre, d.cedula, nombreTienda(d.tienda)]);
+    } else if (tipo === 'abonado' && est.vistas) {
+        headers = ['N', 'N Factura', 'Nombre Completo', 'Cedula', 'Tienda', 'Monto Abonado Bs'];
+        rows = est.vistas.abonado.map((d, i) => [i + 1, d.factura, d.nombre, d.cedula, nombreTienda(d.tienda), d.montoMes]);
+    } else if (tipo === 'incompletas' && est.vistas) {
+        headers = ['N', 'N Factura', 'Nombre Completo', 'Cedula', 'Tienda', 'Deuda'];
+        rows = est.vistas.incompletas.map((d, i) => [i + 1, d.factura, d.nombre, d.cedula, nombreTienda(d.tienda), d.deuda]);
+    } else {
+        headers = ['Cliente', 'Cedula', 'Tienda', 'Cuota Mensual', 'Pagado', 'Deuda', 'Estado'];
+        rows = (est.deudores || []).map(d => [
+            d.nombre, d.cedula, nombreTienda(d.tienda), d.cuota, d.pagado, d.deuda, d.estado
+        ]);
+    }
 
     const csv = [headers, ...rows]
         .map(row => row.map(cell => '"' + cell + '"').join(','))
@@ -1551,7 +2014,7 @@ function exportarReporte() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'estadisticas_tienda_caracas_' + new Date().toISOString().split('T')[0] + '.csv';
+    a.download = 'estadisticas_' + tipo + '_' + tienda + '_' + new Date().toISOString().split('T')[0] + '.csv';
     a.click();
     URL.revokeObjectURL(url);
 }

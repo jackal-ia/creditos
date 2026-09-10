@@ -33,11 +33,26 @@ async function obtenerTasaActualReal() {
     const data = await response.json();
     // Normalizar a formato plano
     if (data.current) {
-        return {
+        const tasa = {
             date: data.current.date,
             usd: parseFloat(data.current.usd),
             eur: parseFloat(data.current.eur)
         };
+        // Incluir tasa anterior y variación (la API externa sí las provee)
+        if (data.previous && data.previous.usd !== undefined) {
+            tasa.previousDate = data.previous.date;
+            tasa.previousUsd = parseFloat(data.previous.usd);
+            if (data.previous.eur !== undefined) {
+                tasa.previousEur = parseFloat(data.previous.eur);
+            }
+        }
+        if (data.changePercentage && data.changePercentage.usd !== undefined) {
+            tasa.changePctUsd = parseFloat(data.changePercentage.usd);
+            if (data.changePercentage.eur !== undefined) {
+                tasa.changePctEur = parseFloat(data.changePercentage.eur);
+            }
+        }
+        return tasa;
     }
     if (data.usd !== undefined) {
         return {
@@ -120,6 +135,12 @@ router.get('/fechas', verificarToken, async (req, res) => {
 router.get('/fecha/:fecha', verificarToken, async (req, res) => {
     try {
         const fecha = req.params.fecha; // YYYY-MM-DD
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+            return res.status(400).json({
+                exito: false,
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD'
+            });
+        }
         const partes = fecha.split('-');
         const year = parseInt(partes[0]);
         const month = parseInt(partes[1]);

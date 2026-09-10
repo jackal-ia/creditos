@@ -430,7 +430,11 @@
 
                 <div class="tm2-grid tm2-g-2-1">
                     <div class="tm2-panel">
-                        <h3>Cobranza del mes</h3>
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <h3>Cobranza del mes</h3>
+                            <select id="${id('cm-mes')}" class="tm2-select-mes" title="Seleccionar mes"
+                                onchange="Tiendas.get('${this.cfg.key}')._cambiarMesCobranza(this.value)"></select>
+                        </div>
                         <div class="tm2-sub">Clientes con al menos una cuota pagada en el mes</div>
                         <div class="tm2-prog"><div id="${id('prog')}" style="width:0%"></div></div>
                         <div class="tm2-prog-nums"><span><b id="${id('cm-cuotas')}">—</b> clientes cobrados</span><span><b id="${id('cm-pct')}">—</b> del mes</span></div>
@@ -501,6 +505,12 @@
             } catch (e) {
                 console.error(`[${this.cfg.nombre}] Error en dashboard del menú:`, e);
             }
+        }
+
+        // Cambio de mes en el panel "Cobranza del mes"
+        _cambiarMesCobranza(valor) {
+            this._mesCobranzaSel = valor;
+            this.renderMenuDashboard();
         }
 
         // Cálculo puro (testeable): recibe clientes crudos o procesados
@@ -632,6 +642,32 @@
             const setTxt = (n, v) => { const e = el(n); if (e) e.textContent = v; };
             const setHtml = (n, v) => { const e = el(n); if (e) e.innerHTML = v; };
 
+            // --- Selector de mes (panel Cobranza del mes) ---
+            const selMes = el('cm-mes');
+            if (selMes && !selMes.options.length) {
+                const hoyD = new Date();
+                for (let k = 0; k < 12; k++) {
+                    let m = hoyD.getMonth() + 1 - k, a = hoyD.getFullYear();
+                    while (m <= 0) { m += 12; a--; }
+                    const op = document.createElement('option');
+                    op.value = a + '-' + m;
+                    op.textContent = TM_MESES[m - 1] + ' ' + a;
+                    selMes.appendChild(op);
+                }
+                selMes.value = this._mesCobranzaSel || selMes.options[0].value;
+            }
+            // Mes de referencia para el panel de cobranza
+            let fechaRefMes = new Date(), esMesActual = true;
+            const mesSelVal = (selMes && selMes.value) || this._mesCobranzaSel || null;
+            if (mesSelVal) {
+                const partes = String(mesSelVal).split('-');
+                const aS = parseInt(partes[0], 10), mS = parseInt(partes[1], 10);
+                const hoyD2 = new Date();
+                esMesActual = (aS === hoyD2.getFullYear() && mS === hoyD2.getMonth() + 1);
+                if (!esMesActual) fechaRefMes = new Date(aS, mS - 1, 15);
+            }
+            const rMes = this.tmCalcularMenu(this.allData, fechaRefMes);
+
             // --- KPIs ---
             setTxt('k-cartera', 'Bs ' + TM_FMT.format(r.cartera));
             setHtml('k-creditos', '<b>' + r.creditos + '</b> créditos activos');
@@ -653,15 +689,16 @@
             setTxt('badge-rep', '›');
             setHtml('met-rep', 'Excel · PDF');
 
-            // --- Cobranza del mes ---
-            const pct = r.creditos > 0 ? Math.round(r.conCuotaMes / r.creditos * 100) : 0;
+            // --- Cobranza del mes (según el mes seleccionado) ---
+            const pct = rMes.creditos > 0 ? Math.round(rMes.conCuotaMes / rMes.creditos * 100) : 0;
             const prog = el('prog');
             if (prog) prog.style.width = pct + '%';
-            setTxt('cm-cuotas', r.conCuotaMes + ' / ' + r.creditos);
+            setTxt('cm-cuotas', rMes.conCuotaMes + ' / ' + rMes.creditos);
             setTxt('cm-pct', pct + '%');
-            setTxt('cm-hoy', 'Bs ' + TM_FMT.format(r.cobradoHoy));
-            setTxt('cm-pagos-hoy', String(r.pagosHoy));
-            setTxt('cm-faltan', String(r.porCobrar));
+            // "Hoy" solo aplica cuando el mes seleccionado es el actual
+            setTxt('cm-hoy', esMesActual ? 'Bs ' + TM_FMT.format(rMes.cobradoHoy) : '—');
+            setTxt('cm-pagos-hoy', esMesActual ? String(rMes.pagosHoy) : '—');
+            setTxt('cm-faltan', String(rMes.porCobrar));
 
             // --- Alertas ---
             let alertas = '';
@@ -774,9 +811,23 @@
                         </div>
                         <div class="search-row">
                             <div class="search-field date-field">
-                                <input type="date" id="fecha-desde${sfx}" data-action-change="apply-filters">
+                                <div class="fecha-ddmmyyyy">
+                                    <input type="text" id="fecha-desde${sfx}-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
+                                        oninput="Tiendas.get('${this.cfg.key}')._onFechaGenInput(this)"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaGenChange('fecha-desde${sfx}', this)">
+                                    <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    <input type="date" id="fecha-desde${sfx}" class="fecha-overlay" tabindex="-1" title="Abrir calendario" data-action-change="apply-filters"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaGenPicker('fecha-desde${sfx}', this)">
+                                </div>
                                 <span>a</span>
-                                <input type="date" id="fecha-hasta${sfx}" data-action-change="apply-filters">
+                                <div class="fecha-ddmmyyyy">
+                                    <input type="text" id="fecha-hasta${sfx}-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
+                                        oninput="Tiendas.get('${this.cfg.key}')._onFechaGenInput(this)"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaGenChange('fecha-hasta${sfx}', this)">
+                                    <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    <input type="date" id="fecha-hasta${sfx}" class="fecha-overlay" tabindex="-1" title="Abrir calendario" data-action-change="apply-filters"
+                                        onchange="Tiendas.get('${this.cfg.key}')._onFechaGenPicker('fecha-hasta${sfx}', this)">
+                                </div>
                             </div>
                             <div class="search-field">
                                 <input type="number" id="monto-min${sfx}" placeholder="Monto minimo" data-action-input="debounced-filter">
@@ -876,7 +927,16 @@
                                     <div class="form-group"><label>N° Cuota</label><input type="number" id="${c}-cuota-numero" readonly style="background:#f7fafc;font-weight:700;"></div>
                                     <div class="form-group"><label>Monto (Bs) *</label><input type="number" id="${c}-cuota-monto" step="0.01" oninput="window.Tiendas.get('${this.cfg.key}').calcularDolar()"></div>
                                     <div class="form-group"><label>Referencia *</label><input type="text" id="${c}-cuota-ref"></div>
-                                    <div class="form-group"><label>Fecha *</label><input type="date" id="${c}-cuota-fecha" onchange="window.Tiendas.get('${this.cfg.key}').obtenerTasaPorFecha()"></div>
+                                    <div class="form-group"><label>Fecha *</label>
+                                        <div class="fecha-ddmmyyyy">
+                                            <input type="text" id="${c}-cuota-fecha-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
+                                                oninput="window.Tiendas.get('${this.cfg.key}')._onFechaGenInput(this)"
+                                                onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenChange('${c}-cuota-fecha', this)">
+                                            <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                            <input type="date" id="${c}-cuota-fecha" class="fecha-overlay" tabindex="-1" title="Abrir calendario"
+                                                onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenPicker('${c}-cuota-fecha', this); window.Tiendas.get('${this.cfg.key}').obtenerTasaPorFecha()">
+                                        </div>
+                                    </div>
                                     <div class="form-group"><label>Tasa BCV *</label><input type="number" id="${c}-cuota-tasa" step="0.0001" oninput="window.Tiendas.get('${this.cfg.key}').calcularDolar()"></div>
                                     <div class="form-group"><label>Monto ($)</label><input type="number" id="${c}-cuota-dolar" readonly style="background:#ebf8ff;font-weight:600;"></div>
                                 </div>
@@ -925,7 +985,16 @@
                                         <h4 style="margin:0 0 16px 0;font-size:14px;color:#1a365d;">&#128196; Datos de la Factura</h4>
                                         <div class="form-grid-2">
                                             <div class="form-group"><label>N° Factura *</label><input type="text" id="${c}-nueva-factura" required></div>
-                                            <div class="form-group"><label>Fecha Factura *</label><input type="date" id="${c}-nueva-fecha-factura" required></div>
+                                            <div class="form-group"><label>Fecha Factura *</label>
+                                                <div class="fecha-ddmmyyyy">
+                                                    <input type="text" id="${c}-nueva-fecha-factura-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
+                                                        oninput="window.Tiendas.get('${this.cfg.key}')._onFechaGenInput(this)"
+                                                        onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenChange('${c}-nueva-fecha-factura', this)">
+                                                    <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                                    <input type="date" id="${c}-nueva-fecha-factura" class="fecha-overlay" tabindex="-1" title="Abrir calendario" required
+                                                        onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenPicker('${c}-nueva-fecha-factura', this)">
+                                                </div>
+                                            </div>
                                             <div class="form-group"><label>Nombre y Apellido *</label><input type="text" id="${c}-nueva-nombre" required></div>
                                             <div class="form-group"><label>Cedula</label><input type="text" id="${c}-nueva-cedula"></div>
                                             <div class="form-group"><label>Telefono</label><input type="text" id="${c}-nueva-telefono" placeholder="0412-1234567"></div>
@@ -947,7 +1016,17 @@
                                             <div class="form-group"><label>Inicial (Bs) *</label><input type="number" id="${c}-nueva-inicial-bs" min="0" step="0.01" required><div class="form-error" id="${c}-error-inicial"></div></div>
                                             <div class="form-group"><label>Inicial ($)</label><input type="number" id="${c}-nueva-inicial-usd" readonly class="calculado"></div>
                                             <div class="form-group"><label>Referencia Inicial *</label><input type="text" id="${c}-nueva-ref-inicial" required></div>
-                                            <div class="form-group"><label>Fecha Inicial *</label><input type="date" id="${c}-nueva-fecha-inicial" required><div class="form-error" id="${c}-error-fecha-inicial"></div></div>
+                                            <div class="form-group"><label>Fecha Inicial *</label>
+                                                <div class="fecha-ddmmyyyy">
+                                                    <input type="text" id="${c}-nueva-fecha-inicial-txt" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" autocomplete="off"
+                                                        oninput="window.Tiendas.get('${this.cfg.key}')._onFechaGenInput(this)"
+                                                        onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenChange('${c}-nueva-fecha-inicial', this)">
+                                                    <svg class="fecha-icono" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                                    <input type="date" id="${c}-nueva-fecha-inicial" class="fecha-overlay" tabindex="-1" title="Abrir calendario" required
+                                                        onchange="window.Tiendas.get('${this.cfg.key}')._onFechaGenPicker('${c}-nueva-fecha-inicial', this)">
+                                                </div>
+                                                <div class="form-error" id="${c}-error-fecha-inicial"></div>
+                                            </div>
                                             <div class="form-group"><label>Tasa BCV Inicial *</label><input type="number" id="${c}-nueva-tasa-inicial" min="0.0001" step="0.0001" required placeholder="Auto"></div>
                                         </div>
                                         <div style="display:flex;justify-content:space-between;margin-top:16px;">
@@ -1345,6 +1424,9 @@
                     const el = this.el(base + sfx);
                     if (el) el.value = '';
                 });
+            // Limpiar también los campos de texto visibles DD/MM/AAAA
+            this._setFechaISO('fecha-desde' + sfx, '');
+            this._setFechaISO('fecha-hasta' + sfx, '');
 
             this.currentFilter = 'abiertas';
             const root = this.el(this.cfg.contentId);
@@ -2443,9 +2525,8 @@
             const cuotasPagadasReal = pagos.filter(p => parseFloat(p.monto_bs) > 0).length;
             const siguienteCuota = cuotasPagadasReal + 1;
             const numEl = this.el(this.concId('cuota-numero'));
-            const fechaEl = this.el(this.concId('cuota-fecha'));
             if (numEl) numEl.value = siguienteCuota;
-            if (fechaEl) fechaEl.value = new Date().toISOString().split('T')[0];
+            this._setFechaISO(this.concId('cuota-fecha'), new Date().toISOString().split('T')[0]);
             this.limpiarFormularioConciliacion();
             this.obtenerTasaPorFecha();
 
@@ -2549,8 +2630,9 @@
                 mensaje.style.color = '#ed8936';
 
                 try {
+                    const tk = localStorage.getItem('token');
                     const response = await fetch('/api/bcv/actual', {
-                        headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                        headers: tk ? { 'Authorization': 'Bearer ' + tk } : {}
                     });
                     if (response.ok) {
                         data = await response.json();
@@ -3006,8 +3088,8 @@
             const ff = document.getElementById(c + '-nueva-fecha-factura');
             const fi = document.getElementById(c + '-nueva-fecha-inicial');
             const fFact = document.getElementById(c + '-nueva-factura');
-            if (ff && !ff.value) ff.value = hoy;
-            if (fi && !fi.value) fi.value = hoy;
+            if (ff && !ff.value) this._setFechaISO(c + '-nueva-fecha-factura', hoy);
+            if (fi && !fi.value) this._setFechaISO(c + '-nueva-fecha-inicial', hoy);
             if (fFact && nroFactura) fFact.value = nroFactura;
 
             this.inicializarCalculosNuevoRegistro();
@@ -3555,7 +3637,7 @@
             setVal('nueva-nombre', '');
             setVal('nueva-cedula', '');
             setVal('nueva-monto', '');
-            setVal('nueva-fecha-factura', new Date().toISOString().split('T')[0]);
+            this._setFechaISO(this.concId('nueva-fecha-factura'), new Date().toISOString().split('T')[0]);
             setVal('nueva-cuota-monto', '');
             setVal('nueva-cuota-ref', '');
             setVal('nueva-cuota-tasa', '');
@@ -4364,6 +4446,72 @@
                 txt.style.borderColor = '';
             }
             this._aplicarFiltroReporte(campo, iso);
+        }
+
+        // ============================================================
+        // FECHAS DD/MM/AAAA — helpers GENÉRICOS por id (filtros de
+        // base de datos, registrar cuota, nuevo registro). Mismo
+        // patrón que reportes: texto visible DD/MM/AAAA + input date
+        // invisible sobre el ícono. El valor ISO (YYYY-MM-DD) queda
+        // en el input date original, así el resto del código no cambia.
+        // ============================================================
+
+        // Máscara automática mientras escribe: 01082026 -> 01/08/2026
+        _onFechaGenInput(input) {
+            let v = input.value.replace(/\D/g, '').slice(0, 8);
+            if (v.length > 4) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+            else if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+            input.value = v;
+        }
+
+        // Texto -> ISO: actualiza el input date oculto y dispara su
+        // evento 'change' para que corran los handlers ya existentes
+        // (obtenerTasaPorFecha, apply-filters, calcularMontoUSD, etc.)
+        _onFechaGenChange(isoId, input) {
+            const isoEl = document.getElementById(isoId);
+            const valor = input.value.trim();
+
+            if (!valor) {
+                input.style.borderColor = '';
+                if (isoEl && isoEl.value !== '') {
+                    isoEl.value = '';
+                    isoEl.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                return;
+            }
+
+            const iso = this._fechaDMAaISO(valor);
+            if (iso) {
+                input.value = this._fechaISOaDMA(iso);
+                input.style.borderColor = '';
+                if (isoEl) {
+                    const cambio = isoEl.value !== iso;
+                    isoEl.value = iso;
+                    if (cambio) isoEl.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            } else {
+                input.style.borderColor = '#e53e3e';
+            }
+        }
+
+        // Calendario nativo -> texto visible
+        _onFechaGenPicker(isoId, input) {
+            const txt = document.getElementById(isoId + '-txt');
+            if (txt) {
+                txt.value = this._fechaISOaDMA(input.value);
+                txt.style.borderColor = '';
+            }
+        }
+
+        // Set programático: actualiza ISO oculto + texto visible
+        _setFechaISO(isoId, iso) {
+            const isoEl = document.getElementById(isoId);
+            if (isoEl) isoEl.value = iso || '';
+            const txt = document.getElementById(isoId + '-txt');
+            if (txt) {
+                txt.value = this._fechaISOaDMA(iso);
+                txt.style.borderColor = '';
+            }
         }
 
         _debounceBusqueda(valor) {
