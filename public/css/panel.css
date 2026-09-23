@@ -3888,6 +3888,214 @@ body {
     box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1);
 }
 
+
+/* ====== CONCILIACIONES - MARACAY (v7.3: replica del bloque de Maracaibo;
+   faltaba desde la unificacion, por eso la barra de busqueda y las
+   tarjetas se veian distintas en Maracay) ====== */
+#tm-conciliaciones .card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+#tm-conciliaciones .section-header {
+    margin-bottom: 20px;
+}
+
+#tm-conciliaciones .section-header h3 {
+    color: #1a365d;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+#tm-conciliaciones .section-header p {
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+#tm-conciliaciones .card input[type="text"],
+#tm-conciliaciones .card input[type="number"],
+#tm-conciliaciones .card input[type="date"] {
+    padding: 10px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    width: 100%;
+    max-width: 300px;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#tm-conciliaciones .card input:focus {
+    outline: none;
+    border-color: #2c5282;
+    box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1);
+}
+
+#tm-conciliaciones .card button {
+    padding: 10px 20px;
+    background: #1a3a5c;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#tm-conciliaciones .card button:hover {
+    background: #2c5282;
+}
+
+#tm-conciliaciones #concm-mensaje-inicial {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* Resultado encontrado */
+#concm-resultado-encontrada .card {
+    margin-bottom: 20px;
+}
+
+#concm-resultado-encontrada h4 {
+    color: #1a3a5c;
+    margin-bottom: 15px;
+    font-size: 1rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+#concm-resultado-encontrada .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+#concm-resultado-encontrada .info-row:last-child {
+    border-bottom: none;
+}
+
+#concm-resultado-encontrada .info-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+#concm-resultado-encontrada .info-value {
+    font-weight: 600;
+    color: #343a40;
+}
+
+/* Tabla de cuotas en conciliaciones */
+#concm-tabla-cuotas {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#concm-tabla-cuotas th {
+    background: #1a3a5c;
+    color: #ffffff;
+    padding: 10px;
+    text-align: left;
+    font-size: 0.8rem;
+}
+
+#concm-tabla-cuotas td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.85rem;
+}
+
+/* Formulario de cuota */
+#concm-resultado-encontrada .form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+#concm-resultado-encontrada .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+#concm-resultado-encontrada .form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+#concm-resultado-encontrada .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#concm-resultado-encontrada .form-group input:focus {
+    outline: none;
+    border-color: #2c5282;
+    box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1);
+}
+
+#concm-tasa-mensaje,
+#concm-nueva-tasa-mensaje {
+    font-size: 0.85rem;
+    margin-top: 8px;
+    min-height: 20px;
+}
+
+/* Nuevo registro */
+#concm-resultado-nueva .form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+#concm-resultado-nueva .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+#concm-resultado-nueva .form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+#concm-resultado-nueva .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#concm-resultado-nueva .form-group input:focus {
+    outline: none;
+    border-color: #2c5282;
+    box-shadow: 0 0 0 3px rgba(26, 58, 92, 0.1);
+}
+
 /* ====== ESTADOS ====== */
 .estado-badge {
     display: inline-flex;
