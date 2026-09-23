@@ -1,5 +1,11 @@
 // ============================================================
-// RUTAS GENERICAS DE TIENDAS - CRUD unificado  (v6.11 → v7.2)
+// RUTAS GENERICAS DE TIENDAS - CRUD unificado  (v6.11 → v7.3)
+// ============================================================
+// Cambios v7.3 (23-09-2026):
+//   - NUEVO GET /exportar-respaldo/:tienda: descarga un Excel PLANO
+//     (formato viejo, cuotas en columnas) con TODAS las facturas y
+//     TODOS los pagos de la tienda, totales calculados en vivo.
+//     Respaldo de contingencia para los operarios. Requiere exceljs.
 // ============================================================
 // Cambios v7.2 (11-09-2026):
 //   - FIX crearCliente: al registrar una factura NUEVA el backend calcula
@@ -18,6 +24,7 @@
 // ============================================================
 
 const express = require('express');
+const ExcelJS = require('exceljs');
 const pool = require('../config/database');
 const { verificarToken, soloAdmin } = require('../middleware/auth');
 const { validarTienda } = require('../middleware/validarTienda');
@@ -713,9 +720,122 @@ async function eliminarCliente(req, res) {
 }
 
 // ------------------------------------------------------------
+// EXPORTAR RESPALDO EXCEL PLANO  (v7.3 — 23-09-2026)
+// GET /api/tiendas/exportar-respaldo/:tienda
+// Respaldo de contingencia: TODAS las facturas de la tienda
+// (activas, canceladas y congeladas, sin excepcion) + TODOS sus
+// pagos, en el formato Excel plano viejo (una fila por factura,
+// cuotas en columnas cuota_N/ref/fecha/tasa/divisas).
+// Los totales (monto depositados, monto pendiente, TOTAL DIVISAS)
+// se calculan EN VIVO: inicial + pagos reales de pagos_*.
+// Columnas de cuotas dinamicas: tantas como la factura con mas
+// pagos (no se corta en 7; hay facturas con 14+).
+// Solo lectura: no modifica ninguna tabla.
+// ------------------------------------------------------------
+async function exportarRespaldoExcel(req, res) {
+  try {
+    const tabla = req.tablaTienda;
+    const tablaPagos = req.tablaPagos;
+    const tienda = req.params.tienda;
+
+    const { rows: facturas } = await pool.query(
+      `SELECT * FROM ${tabla} ORDER BY numero NULLS LAST, id`);
+    const { rows: pagos } = await pool.query(
+      `SELECT p.* FROM ${tablaPagos} p
+       JOIN ${tabla} t ON t.id = p.factura_id
+       ORDER BY p.factura_id, p.nro_cuota`);
+
+    // Agrupar pagos por factura y medir el maximo de cuotas
+    const pagosPor = {};
+    let maxCuotas = 7; // minimo 7, como el formato viejo
+    for (const p of pagos) {
+      (pagosPor[p.factura_id] = pagosPor[p.factura_id] || []).push(p);
+      if (pagosPor[p.factura_id].length > maxCuotas) maxCuotas = pagosPor[p.factura_id].length;
+    }
+
+    const fmtFecha = (v) => {
+      if (!v) return null;
+      if (v instanceof Date) {
+        const dd = String(v.getUTCDate()).padStart(2, '0');
+        const mm = String(v.getUTCMonth() + 1).padStart(2, '0');
+        return `${dd}/${mm}/${v.getUTCFullYear()}`;
+      }
+      const s = String(v).slice(0, 10);
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+    };
+    const num2 = (v) => (v === null || v === undefined || v === '') ? null : Number(Number(v).toFixed(2));
+    const num4 = (v) => (v === null || v === undefined || v === '') ? null : Number(Number(v).toFixed(4));
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(tienda.toUpperCase());
+
+    const heads = ['numero ', 'nro _factura', 'nombre_apellido ', 'cedula', 'telefono ',
+      'monto_factura ', 'fecha_factura ', 'dólar_facturado ', 'monto_facturado _divisa ',
+      'monto depositados', 'monto pendiente', 'TOTAL DIVISAS',
+      'inicial bolivares ', 'ref inicial ', 'FECHA INICIAL ', 'TASA_inicial', 'inicial usd'];
+    for (let n = 1; n <= maxCuotas; n++) {
+      heads.push(`couta_${n}`, `ref_couta_${n}`, `fecha_couta_${n}`, `TASA_cuota_${n}`, ` DIVISAS_cuota_${n}`);
+    }
+    ws.addRow(heads);
+    const hRow = ws.getRow(1);
+    hRow.font = { bold: true };
+    hRow.alignment = { horizontal: 'center' };
+    hRow.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }; });
+
+    for (const t of facturas) {
+      const iniBs = Number(t.inicial_bs) || 0;
+      const iniUsd = Number(t.inicial_usd) || 0;
+      const plist = pagosPor[t.id] || [];
+      const sumBs = plist.reduce((a, p) => a + (Number(p.monto_bs) || 0), 0);
+      const sumUsd = plist.reduce((a, p) => a + (Number(p.monto_usd) || 0), 0);
+      const montoBs = Number(t.monto_factura) || 0;
+      const depositados = Math.round((iniBs + sumBs) * 100) / 100;
+      const pendiente = Math.round((montoBs - depositados) * 100) / 100;
+      const totDiv = Math.round((iniUsd + sumUsd) * 100) / 100;
+
+      const fila = [
+        t.numero !== null && t.numero !== undefined ? Number(t.numero) : null,
+        t.nro_factura, t.nombre_apellido, t.cedula, t.telefono || null,
+        num2(t.monto_factura), fmtFecha(t.fecha_factura), num4(t.dolar_facturado),
+        num2(t.monto_facturado_divisa),
+        depositados || null, pendiente, totDiv || null,
+        num2(t.inicial_bs), t.ref_inicial || null, fmtFecha(t.fecha_inicial),
+        num4(t.tasa_inicial), num2(t.inicial_usd)
+      ];
+      for (let n = 0; n < maxCuotas; n++) {
+        if (n < plist.length) {
+          const p = plist[n];
+          fila.push(num2(p.monto_bs), p.referencia || null, fmtFecha(p.fecha),
+                    num4(p.tasa_bcv), num2(p.monto_usd));
+        } else {
+          fila.push(null, null, null, null, null);
+        }
+      }
+      ws.addRow(fila);
+    }
+    ws.views = [{ state: 'frozen', xSplit: 2, ySplit: 1 }];
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="respaldo-${tienda}-${hoy}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error(`Error al exportar respaldo Excel (${req.tablaTienda}):`, error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error al generar el respaldo Excel', details: error.message });
+    }
+  }
+}
+
+// ------------------------------------------------------------
 // Router parametrico
 // ------------------------------------------------------------
 const router = express.Router();
+// v7.3: va ANTES de '/:tienda/:id' para que 'exportar-respaldo'
+// no se interprete como una tienda
+router.get('/exportar-respaldo/:tienda', verificarToken, validarTienda, validarTiendaInterno, exportarRespaldoExcel);
 router.get('/:tienda', verificarToken, validarTienda, validarTiendaInterno, listarClientes);
 router.get('/:tienda/:id', verificarToken, validarTienda, validarTiendaInterno, obtenerCliente);
 router.post('/:tienda', verificarToken, validarTienda, validarTiendaInterno, crearCliente);

@@ -416,6 +416,7 @@
                     <button class="tm2-qbtn acento" data-action="qa-nuevo-cliente">＋ Nuevo cliente</button>
                     <button class="tm2-qbtn" data-action="show-conciliaciones">Registrar pago</button>
                     <button class="tm2-qbtn" data-action="export-excel">Exportar cartera</button>
+                    <button class="tm2-qbtn" data-action="descargar-respaldo" title="Descarga TODA la data de la tienda (formato Excel plano)">Respaldo Excel</button>
                     <button class="tm2-qbtn" data-action="show-reportes">Ver reportes</button>
                 </div>
 
@@ -4669,6 +4670,38 @@
         // EXPORTACION
         // ============================================================
 
+        // v7.3 — Respaldo de contingencia: descarga TODA la data de la
+        // tienda (facturas + pagos, calculados en vivo al momento de la
+        // descarga) en el formato Excel plano viejo. Ruta: backend
+        // GET /api/tiendas/exportar-respaldo/:tienda
+        async _descargarRespaldoExcel() {
+            try {
+                const token = localStorage.getItem('token');
+                notificar('Generando respaldo Excel de la tienda...', 'info');
+                const response = await fetch('/api/tiendas/exportar-respaldo/' + this.cfg.key, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || 'Error al generar el respaldo');
+                }
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const hoy = new Date().toISOString().split('T')[0];
+                a.href = url;
+                a.download = `respaldo-${this.cfg.key}-${hoy}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                notificar('Respaldo Excel descargado (data completa al dia de hoy)', 'success');
+            } catch (error) {
+                console.error('[Respaldo Excel] Error:', error);
+                notificar('Error al descargar respaldo: ' + error.message, 'error');
+            }
+        }
+
         async _exportarReporteExcel() {
             const state = this.reportesState;
             const btn = event.target.closest('button');
@@ -5129,6 +5162,7 @@
                     case 'ver-detalle': if (id) this.verDetalle(id); break;
                     case 'confirmar-eliminar': if (id) this.confirmarEliminarCliente(id); break;
                     case 'export-excel': this.exportToExcel(); break;
+                    case 'descargar-respaldo': this._descargarRespaldoExcel(); break;
                     case 'export-pdf': this.exportToPDF(); break;
                     case 'print-table': this.printTable(); break;
 
