@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a365d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>IPSFA Ventas — Vendedor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Segoe UI', Roboto, Arial, sans-serif; background:#f6f4f0; color:#2d3748; min-height:100vh; }
+  button { font-family:inherit; }
+  input, select, textarea { font-family:inherit; font-size:16px; } /* 16px evita zoom automático en iPhone */
+
+  /* ---------- LOGIN ---------- */
+  #mv-login { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(180deg,#1a365d 0%,#2c5282 100%); padding:24px; }
+  #mv-login .logo-caja { background:#fff; border-radius:18px; padding:18px 26px; margin-bottom:26px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  #mv-login .logo-caja img { width:150px; display:block; }
+  #mv-login h1 { color:#fff; font-size:20px; margin-bottom:4px; text-align:center; }
+  #mv-login p.sub { color:#bee3f8; font-size:13px; margin-bottom:22px; text-align:center; }
+  .login-card { background:#fff; border-radius:16px; padding:22px; width:100%; max-width:360px;
+    box-shadow:0 10px 30px rgba(0,0,0,.2); }
+  .login-card label { display:block; font-size:13px; font-weight:600; color:#4a5568; margin:12px 0 5px; }
+  .login-card input { width:100%; padding:13px 14px; border:1.5px solid #cbd5e0; border-radius:10px; }
+  .login-card input:focus { outline:none; border-color:#2c5282; }
+  #mv-btn-login { width:100%; margin-top:18px; padding:15px; background:#2c5282; color:#fff; border:none;
+    border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; }
+  #mv-btn-login:disabled { opacity:.6; }
+  #mv-login-error { display:none; background:#fff5f5; border:1px solid #fc8181; color:#c53030;
+    border-radius:10px; padding:10px 12px; font-size:13px; margin-top:14px; white-space:pre-line; }
+
+  /* ---------- APP SHELL ---------- */
+  #mv-app { display:none; min-height:100vh; padding-bottom:78px; }
+  .mv-header { background:#1a365d; color:#fff; padding:12px 16px; display:flex; align-items:center; gap:10px;
+    position:sticky; top:0; z-index:50; box-shadow:0 2px 8px rgba(0,0,0,.18); }
+  .mv-header img { width:34px; height:34px; border-radius:8px; background:#fff; padding:2px; }
+  .mv-header .tit { flex:1; }
+  .mv-header .tit b { display:block; font-size:14px; }
+  .mv-header .tit span { font-size:11px; color:#bee3f8; }
+  .mv-header button { background:rgba(255,255,255,.14); color:#fff; border:none; border-radius:8px;
+    padding:8px 10px; font-size:12px; font-weight:600; cursor:pointer; }
+
+  .mv-tab { display:none; padding:14px; }
+  .mv-tab.activo { display:block; }
+
+  .mv-card { background:#fff; border-radius:14px; padding:16px; margin-bottom:14px;
+    border:1px solid #e8e4dc; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .mv-card h3 { font-size:15px; color:#1a365d; margin-bottom:4px; }
+  .mv-card .nota { font-size:12px; color:#8a94a6; margin-bottom:10px; }
+
+  .mv-input { width:100%; padding:13px 14px; border:1.5px solid #cbd5e0; border-radius:10px; margin-bottom:10px; }
+  .mv-input:focus { outline:none; border-color:#2c5282; }
+  .mv-label { display:block; font-size:13px; font-weight:600; color:#4a5568; margin:6px 0 5px; }
+  .mv-fila2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .mv-btn { display:block; width:100%; padding:15px; border:none; border-radius:12px; font-size:16px;
+    font-weight:700; cursor:pointer; margin-top:10px; }
+  .mv-btn-pri { background:#2c5282; color:#fff; }
+  .mv-btn-ok { background:#38a169; color:#fff; }
+  .mv-btn-neutro { background:#e2e8f0; color:#2d3748; }
+  .mv-btn-peligro { background:#e53e3e; color:#fff; }
+  .mv-btn:disabled { opacity:.55; }
+  .mv-btn-mini { border:none; border-radius:9px; padding:9px 13px; font-size:13px; font-weight:700; cursor:pointer; }
+
+  /* pasos del asistente */
+  .mv-pasos { display:flex; gap:6px; margin-bottom:14px; }
+  .mv-pasos div { flex:1; text-align:center; font-size:11px; font-weight:700; padding:8px 4px;
+    border-radius:9px; background:#e8e4dc; color:#8a94a6; }
+  .mv-pasos div.actual { background:#1a365d; color:#fff; }
+  .mv-pasos div.listo { background:#c6f6d5; color:#276749; }
+
+  /* resultados de búsqueda */
+  .mv-res { border:1.5px solid #e2e8f0; border-radius:12px; overflow:hidden; margin-bottom:10px; }
+  .mv-res .item { padding:12px 14px; border-bottom:1px solid #edf2f7; background:#fff; font-size:14px; cursor:pointer; }
+  .mv-res .item:last-child { border-bottom:none; }
+  .mv-res .item:active { background:#ebf5ff; }
+  .mv-res .item small { display:block; color:#8a94a6; font-size:12px; margin-top:2px; }
+  .mv-res .vacio { padding:12px 14px; font-size:13px; color:#a0aec0; }
+
+  .mv-sel { background:#f0fff4; border:1.5px solid #9ae6b4; border-radius:12px; padding:12px 14px;
+    font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .mv-sel b { color:#276749; }
+
+  /* carrito */
+  .mv-item-car { background:#fff; border:1px solid #e8e4dc; border-radius:12px; padding:12px 14px;
+    margin-bottom:10px; }
+  .mv-item-car .desc { font-size:14px; font-weight:600; color:#1a365d; }
+  .mv-item-car .precio { font-size:12px; color:#718096; margin:2px 0 8px; }
+  .mv-cant { display:flex; align-items:center; gap:12px; }
+  .mv-cant button { width:44px; height:44px; border:none; border-radius:10px; font-size:20px; font-weight:800;
+    background:#e2e8f0; color:#2d3748; cursor:pointer; }
+  .mv-cant .n { font-size:18px; font-weight:800; min-width:30px; text-align:center; }
+  .mv-cant .sub { margin-left:auto; font-size:15px; font-weight:700; color:#1a365d; }
+
+  .mv-total { background:#1a365d; color:#fff; border-radius:14px; padding:16px; text-align:center; margin-top:6px; }
+  .mv-total .big { font-size:26px; font-weight:800; }
+  .mv-total .small { font-size:12px; color:#bee3f8; margin-top:2px; }
+
+  /* historial */
+  .mv-cot { background:#fff; border:1px solid #e8e4dc; border-radius:14px; padding:14px; margin-bottom:12px; }
+  .mv-cot .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .mv-cot .num { font-weight:800; color:#1a365d; font-size:15px; }
+  .mv-cot .cli { font-size:14px; }
+  .mv-cot .meta { font-size:12px; color:#8a94a6; margin:4px 0 8px; }
+  .mv-cot .acciones { display:flex; gap:8px; flex-wrap:wrap; }
+  .badge { border-radius:10px; padding:4px 10px; font-size:11px; font-weight:700; text-transform:uppercase; color:#fff; }
+  .b-borrador { background:#718096; } .b-enviada { background:#3182ce; }
+  .b-aprobada { background:#38a169; } .b-rechazada { background:#e53e3e; }
+
+  /* barra inferior */
+  .mv-nav { position:fixed; bottom:0; left:0; right:0; background:#fff; display:flex; z-index:60;
+    border-top:1px solid #e8e4dc; box-shadow:0 -2px 10px rgba(0,0,0,.06); padding-bottom:env(safe-area-inset-bottom); }
+  .mv-nav button { flex:1; background:none; border:none; padding:10px 4px 8px; font-size:11px; font-weight:700;
+    color:#8a94a6; cursor:pointer; }
+  .mv-nav button .ico { display:block; font-size:22px; margin-bottom:2px; }
+  .mv-nav button.activo { color:#1a365d; }
+
+  /* modal nota de entrega */
+  #mv-nota-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:100;
+    align-items:flex-end; justify-content:center; }
+  #mv-nota-overlay.abierto { display:flex; }
+  .mv-sheet { background:#fff; border-radius:20px 20px 0 0; width:100%; max-width:480px; max-height:92vh;
+    overflow-y:auto; padding:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
+  .mv-sheet h3 { color:#1a365d; font-size:17px; margin-bottom:10px; }
+
+  /* toast */
+  #mv-toast { position:fixed; top:14px; left:14px; right:14px; z-index:200; display:none; padding:14px 16px;
+    border-radius:12px; font-size:14px; font-weight:600; color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  #mv-toast.success { background:#38a169; display:block; }
+  #mv-toast.error { background:#e53e3e; display:block; }
+  #mv-toast.info { background:#2c5282; display:block; }
+  #mv-toast.warning { background:#dd6b20; display:block; }
+
+  .mv-cargando { text-align:center; color:#8a94a6; font-size:13px; padding:18px; }
+</style>
+</head>
+<body>
+
+<div id="mv-toast"></div>
+
+<!-- ============ LOGIN ============ -->
+<div id="mv-login">
+  <div class="logo-caja"><img src="assets/logo.png" alt="Inversora IPSFA"></div>
+  <h1>Ventas en Campo</h1>
+  <p class="sub">Cotizaciones y notas de entrega desde tu teléfono</p>
+  <div class="login-card">
+    <label for="mv-email">Correo electrónico</label>
+    <input id="mv-email" type="email" autocomplete="username" placeholder="tu@correo.com">
+    <label for="mv-password">Contraseña</label>
+    <input id="mv-password" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button id="mv-btn-login" onclick="Movil.login()">Ingresar</button>
+    <div id="mv-login-error"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="mv-app">
+  <div class="mv-header">
+    <img src="assets/icon-192.png" alt="">
+    <div class="tit">
+      <b>IPSFA Ventas</b>
+      <span id="mv-usuario-nombre">—</span>
+    </div>
+    <button onclick="Movil.salir()">Salir</button>
+  </div>
+
+  <!-- ===== PESTAÑA: COTIZAR ===== -->
+  <div class="mv-tab activo" id="mv-tab-cotizar">
+    <div class="mv-pasos">
+      <div id="mv-p1" class="actual">1 · Cliente</div>
+      <div id="mv-p2">2 · Artículos</div>
+      <div id="mv-p3">3 · Confirmar</div>
+    </div>
+
+    <!-- Paso 1: cliente -->
+    <div id="mv-paso1">
+      <div class="mv-card">
+        <h3>¿Quién es el cliente?</h3>
+        <p class="nota">Búscalo por nombre, apellido o cédula/RIF. Si es nuevo, regístralo abajo.</p>
+        <input id="mv-buscar-cli" class="mv-input" placeholder="🔍 Buscar cliente…" oninput="Movil.buscarCliente(this.value)">
+        <div id="mv-res-cli"></div>
+        <div id="mv-cli-sel"></div>
+      </div>
+      <div class="mv-card" id="mv-cli-nuevo-card">
+        <h3>Cliente nuevo</h3>
+        <p class="nota">Se guarda automáticamente al crear la cotización.</p>
+        <div class="mv-fila2">
+          <div><label class="mv-label">Nombres *</label><input id="mv-cn-nombres" class="mv-input"></div>
+          <div><label class="mv-label">Apellidos *</label><input id="mv-cn-apellidos" class="mv-input"></div>
+        </div>
+        <label class="mv-label">Cédula o RIF *</label><input id="mv-cn-cedula" class="mv-input">
+        <div class="mv-fila2">
+          <div><label class="mv-label">Teléfono</label><input id="mv-cn-telefono" class="mv-input" type="tel"></div>
+          <div><label class="mv-label">Ocupación</label>
+            <select id="mv-cn-ocupacion" class="mv-input">
+              <option value="No militar">No militar</option>
+              <option value="Militar">Militar</option>
+            </select></div>
+        </div>
+        <label class="mv-label">Dirección</label><textarea id="mv-cn-direccion" class="mv-input" rows="2"></textarea>
+      </div>
+      <button class="mv-btn mv-btn-pri" onclick="Movil.irPaso(2)">Siguiente: Artículos →</button>
+    </div>
+
+    <!-- Paso 2: artículos -->
+    <div id="mv-paso2" style="display:none;">
+      <div class="mv-card">
+        <h3>Agregar artículos</h3>
+        <label class="mv-label">Tipo de precio</label>
+        <select id="mv-tipo-precio" class="mv-input" onchange="Movil.cambiarTipoPrecio(this.value)">
+          <option value="contado">Precio al contado</option>
+          <option value="credito">Precio a crédito</option>
+        </select>
+        <input id="mv-buscar-art" class="mv-input" placeholder="🔍 Buscar por código o descripción…" oninput="Movil.buscarArticulo(this.value)">
+        <div id="mv-res-art"></div>
+      </div>
+      <div id="mv-carrito"></div>
+      <div style="display:flex;gap:10px;">
+        <button class="mv-btn mv-btn-neutro" style="flex:1;" onclick="Movil.irPaso(1)">← Cliente</button>
+        <button class="mv-btn mv-btn-pri" style="flex:2;" onclick="Movil.irPaso(3)">Siguiente: Confirmar →</button>
+      </div>
+    </div>
+
+    <!-- Paso 3: confirmar -->
+    <div id="mv-paso3" style="display:none;">
+      <div class="mv-card" id="mv-resumen"></div>
+      <div class="mv-card">
+        <label class="mv-label">Tasa del día (Bs/USD)</label>
+        <input id="mv-tasa" type="number" step="0.0001" class="mv-input" oninput="Movil.recalcular()">
+        <label class="mv-label">Observaciones</label>
+        <textarea id="mv-obs" class="mv-input" rows="2"></textarea>
+      </div>
+      <div class="mv-total">
+        <div class="small">Total de la cotización</div>
+        <div class="big" id="mv-total-usd">0.00 $</div>
+        <div class="small" id="mv-total-bs">Bs 0,00</div>
+      </div>
+      <button class="mv-btn mv-btn-ok" id="mv-btn-guardar" onclick="Movil.guardarCotizacion()">💾 Guardar cotización</button>
+      <button class="mv-btn mv-btn-neutro" onclick="Movil.irPaso(2)">← Volver a artículos</button>
+    </div>
+  </div>
+
+  <!-- ===== PESTAÑA: CLIENTES ===== -->
+  <div class="mv-tab" id="mv-tab-clientes">
+    <div class="mv-card">
+      <h3>Clientes</h3>
+      <p class="nota">Busca por nombre, apellido o cédula/RIF. Toca uno para editarlo.</p>
+      <input id="mv-buscar-cli2" class="mv-input" placeholder="🔍 Buscar cliente…" oninput="Movil.listarClientes(this.value)">
+      <div id="mv-lista-cli"><div class="mv-cargando">Cargando…</div></div>
+    </div>
+  </div>
+
+  <!-- ===== PESTAÑA: HISTORIAL ===== -->
+  <div class="mv-tab" id="mv-tab-historial">
+    <div class="mv-card">
+      <h3>Cotizaciones</h3>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button id="mv-filtro-mias" class="mv-btn-mini" style="background:#1a365d;color:#fff;" onclick="Movil.filtroHistorial(true)">Mías</button>
+        <button id="mv-filtro-todas" class="mv-btn-mini" style="background:#e2e8f0;color:#2d3748;" onclick="Movil.filtroHistorial(false)">Todas</button>
+      </div>
+      <div id="mv-lista-cot"><div class="mv-cargando">Cargando…</div></div>
+    </div>
+  </div>
+
+  <!-- barra inferior -->
+  <div class="mv-nav">
+    <button id="mv-nav-cotizar" class="activo" onclick="Movil.irTab('cotizar')"><span class="ico">📝</span>Cotizar</button>
+    <button id="mv-nav-clientes" onclick="Movil.irTab('clientes')"><span class="ico">👥</span>Clientes</button>
+    <button id="mv-nav-historial" onclick="Movil.irTab('historial')"><span class="ico">🗂️</span>Historial</button>
+  </div>
+</div>
+
+<!-- ============ SHEET: NOTA DE ENTREGA ============ -->
+<div id="mv-nota-overlay">
+  <div class="mv-sheet">
+    <h3>📦 Generar nota de entrega</h3>
+    <div id="mv-nota-resumen" style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;font-size:13px;margin-bottom:14px;"></div>
+    <label class="mv-label">Forma de pago</label>
+    <select id="mv-ne-forma" class="mv-input" onchange="Movil.toggleCredito(this.value)">
+      <option value="contado">Contado</option>
+      <option value="credito">Crédito</option>
+    </select>
+    <div id="mv-ne-credito" style="display:none;">
+      <label class="mv-label">Inicial (USD)</label>
+      <input id="mv-ne-inicial" type="number" step="0.01" min="0" class="mv-input">
+      <div id="mv-ne-hint" style="font-size:12px;color:#718096;margin:-4px 0 10px;"></div>
+      <div class="mv-fila2">
+        <div><label class="mv-label">Cuotas quincenales (1-8)</label>
+          <input id="mv-ne-cuotas" type="number" min="1" max="8" value="4" class="mv-input"></div>
+        <div><label class="mv-label">Primera cuota</label>
+          <input id="mv-ne-fecha" type="date" class="mv-input"></div>
+      </div>
+    </div>
+    <button class="mv-btn mv-btn-ok" id="mv-btn-nota" onclick="Movil.generarNota()">📦 Generar nota de entrega</button>
+    <button class="mv-btn mv-btn-neutro" onclick="Movil.cerrarNota()">Cancelar</button>
+  </div>
+</div>
+
+<script src="js/movil.js"></script>
+<script>
+  // Instalable como app (PWA): registrar el service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
+</script>
+</body>
+</html>

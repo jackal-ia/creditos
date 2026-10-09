@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restablecer contraseña — IPSFA</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',Roboto,Arial,sans-serif; background:linear-gradient(180deg,#1a365d,#2c5282);
+         min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .card { background:#fff; border-radius:16px; padding:32px; width:100%; max-width:380px;
+          box-shadow:0 10px 30px rgba(0,0,0,.25); text-align:center; }
+  h1 { color:#1a365d; font-size:20px; margin-bottom:6px; }
+  p.sub { color:#718096; font-size:13px; margin-bottom:22px; }
+  label { display:block; text-align:left; font-size:13px; font-weight:600; color:#4a5568; margin:12px 0 5px; }
+  input { width:100%; padding:13px 14px; border:1.5px solid #cbd5e0; border-radius:10px; font-size:15px; }
+  input:focus { outline:none; border-color:#2c5282; }
+  button { width:100%; margin-top:20px; padding:14px; background:#2c5282; color:#fff; border:none;
+           border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.6; }
+  .msg { display:none; margin-top:16px; padding:12px; border-radius:10px; font-size:14px; }
+  .msg.ok { display:block; background:#f0fff4; border:1px solid #9ae6b4; color:#276749; }
+  .msg.err { display:block; background:#fff5f5; border:1px solid #fc8181; color:#c53030; }
+  a.volver { display:inline-block; margin-top:18px; color:#2c5282; font-size:14px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Restablecer contraseña</h1>
+    <p class="sub">Sistema de Créditos Inversora IPSFA</p>
+    <div id="formulario">
+      <label for="p1">Nueva contraseña (mínimo 8 caracteres)</label>
+      <input type="password" id="p1" autocomplete="new-password">
+      <label for="p2">Confirmar nueva contraseña</label>
+      <input type="password" id="p2" autocomplete="new-password">
+      <button id="btn" onclick="restablecer()">Guardar contraseña</button>
+    </div>
+    <div id="ok" class="msg ok">
+      ✅ Contraseña actualizada. <a class="volvelink" href="/" style="color:#276749;font-weight:700;">Inicia sesión aquí</a>
+    </div>
+    <div id="err" class="msg err"></div>
+    <a class="volver" href="/">← Volver al inicio de sesión</a>
+  </div>
+<script>
+  // El token viaja en la URL (?token=...) — se toma una sola vez
+  const token = new URLSearchParams(location.search).get('token');
+  if (!token) {
+    document.getElementById('formulario').style.display = 'none';
+    const e = document.getElementById('err');
+    e.textContent = 'Enlace inválido o incompleto. Solicita uno nuevo desde "¿Olvidaste tu contraseña?".';
+    e.className = 'msg err';
+  }
+  async function restablecer() {
+    const p1 = document.getElementById('p1').value;
+    const p2 = document.getElementById('p2').value;
+    const err = document.getElementById('err');
+    err.className = 'msg err'; err.style.display = 'none';
+    if (p1.length < 8) { err.textContent = 'La contraseña debe tener mínimo 8 caracteres.'; err.style.display = 'block'; return; }
+    if (p1 !== p2) { err.textContent = 'Las contraseñas no coinciden.'; err.style.display = 'block'; return; }
+    const btn = document.getElementById('btn');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      const r = await fetch('/api/usuarios/restablecer-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password_nuevo: p1 })
+      });
+      const data = await r.json();
+      if (r.ok) {
+        document.getElementById('formulario').style.display = 'none';
+        document.getElementById('ok').style.display = 'block';
+      } else {
+        err.textContent = data.error || 'No se pudo restablecer. El enlace pudo expirar (válido 1 hora).';
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Guardar contraseña';
+      }
+    } catch (e) {
+      err.textContent = 'Error de conexión con el servidor.';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Guardar contraseña';
+    }
+  }
+</script>
+</body>
+</html>

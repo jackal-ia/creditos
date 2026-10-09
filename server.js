@@ -5,6 +5,12 @@ const path = require('path');
 
 const app = express();
 
+// v9.2: cuando Caddy (proxy local) sea la puerta de entrada, Express debe
+// tomar la IP real del header X-Forwarded-For — pero SOLO de conexiones
+// locales (loopback), para que un cliente de internet no pueda falsificarla.
+// Hoy, sin proxy activo, el comportamiento es idéntico al de siempre.
+app.set('trust proxy', 'loopback');
+
 // FIX (v6.1): el pool de este archivo ya no se usa (las rutas usan
 // config/database.js). Se elimina para tener UNA sola configuración
 // de conexión en todo el sistema.
@@ -32,17 +38,32 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(require('cookie-parser')());  // v9.6 — parsea cookies (fase 1 httpOnly)
 
-// FIX: Content Security Policy
+// v9.5 — CABECERAS DE SEGURIDAD (CSP + HSTS + anti-MitM/hardening)
 app.use((req, res, next) => {
+    // v9.6 — CSP endurecida: se elimina 'unsafe-eval' (cierra la puerta de
+    // eval()/Function constructor). Se mantiene 'unsafe-inline' en script/style
+    // porque el código actual usa handlers onclick en línea (migrarlos a
+    // addEventListener es parte del proyecto v10). Extras: bloqueo de
+    // plugins (object), <base> hijacking y framing.
     res.setHeader('Content-Security-Policy',
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
         "img-src 'self' data: blob:; " +
         "font-src 'self' https://cdnjs.cloudflare.com; " +
-        "connect-src 'self' http://localhost:* https://localhost:* https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;"
+        "connect-src 'self' http://localhost:* https://localhost:* https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
+        "object-src 'none'; " +
+        "base-uri 'self'; " +
+        "frame-ancestors 'none'; " +
+        "form-action 'self';"
     );
+    // Fuerza HTTPS por 1 año (solo se aplica bajo HTTPS; seguro con Caddy)
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
 });
 
@@ -62,6 +83,15 @@ app.use('/api/estadisticas', require('./routes/estadisticas'));
 
 // RUTA: Actividades Pendientes
 app.use('/api/actividades', require('./routes/actividades'));
+// v7.5: bandeja de incidencias del administrador (inicial > monto, etc.)
+app.use('/api/incidencias', require('./routes/incidencias'));
+
+// v9.1: respaldo y restauración de la base de datos (solo administrador)
+app.use('/api/respaldo', require('./routes/respaldo'));
+
+// v8.0: Fase Vendedores (solo Caracas) — clientes, inventario,
+// cotizaciones y notas de entrega. Roles: administrador y vendedor.
+app.use('/api/vendedores', require('./routes/vendedores').router);
 
 // ============================================================
 // NUEVA RUTA: API de Reportes Dinámicos v1.0
@@ -102,13 +132,16 @@ app.get('/panel', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'panel.html'));
 });
 
-app.get('/tienda-caracas', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'tienda-caracas.html'));
+// v9.0: vista móvil del vendedor (PWA "Ventas en Campo")
+app.get('/movil', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'movil.html'));
 });
 
-app.get('/estadisticas', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'estadisticas.html'));
-});
+// v9.7 — LIMPIEZA: se eliminaron las rutas /tienda-caracas y /estadisticas.
+// Eran páginas sueltas de una versión anterior; nadie las enlaza (grep 2026-10-06)
+// y con el token en cookie httpOnly quedaron rotas. La funcionalidad vive
+// completa dentro de /panel (secciones de tienda y estadísticas).
+// Los archivos .html/.js quedan en disco sin ruta que los sirva (inaccesibles).
 
 // ============================================================
 // MANEJO DE ERRORES

@@ -225,10 +225,12 @@ async function crearCliente(req, res) {
       if (inicialBs <= 0) {
         return res.status(400).json({ error: 'Inicial debe ser mayor a cero' });
       }
-      if (inicialBs > montoFactura) {
-        return res.status(400).json({ error: 'Inicial no puede superar el monto total' });
-      }
     }
+
+    // v7.5: inicial MAYOR al monto (cliente pagó de más) ya no se rechaza.
+    // El frontend pide confirmación explícita al operario y aquí se
+    // registra una INCIDENCIA para la bandeja del administrador.
+    const inicialExcede = inicialBs !== null && inicialBs > montoFactura;
 
     const cuotas = parseInt(data.cuotas);
     if (isNaN(cuotas) || cuotas < 1 || cuotas > 30) {
@@ -385,11 +387,50 @@ async function crearCliente(req, res) {
       console.warn('Error registrando auditoria:', auditErr.message);
     }
 
+    // ============================================================
+    // v7.5: INCIDENCIA — inicial mayor al monto (pago en exceso).
+    // Se notifica a la bandeja del administrador (tabla notificaciones,
+    // usuario_id NULL = visible para todos los admins). NUNCA debe
+    // bloquear la creación del registro si falla.
+    // ============================================================
+    if (inicialExcede) {
+      try {
+        const excesoBs = redondearDecimales(iniBsIns - montoBsIns);
+        const excesoUsd = redondearDecimales(iniUsdIns - montoUsdIns);
+        await pool.query(`
+          INSERT INTO notificaciones (usuario_id, tipo, mensaje, datos, leida, created_at)
+          VALUES (NULL, 'incidencia_inicial_excedida', $1, $2, false, NOW())
+        `, [
+          `Inicial mayor al monto — Factura ${data.nro_factura} (${req.tienda})`,
+          JSON.stringify({
+            tienda: req.tienda,
+            factura_id: registroId,
+            nro_factura: data.nro_factura,
+            nombre_apellido: data.nombre_apellido || null,
+            cedula: data.cedula || null,
+            monto_factura: montoBsIns,
+            inicial_bs: iniBsIns,
+            exceso_bs: excesoBs,
+            monto_facturado_divisa: montoUsdIns,
+            inicial_usd: iniUsdIns,
+            exceso_usd: excesoUsd,
+            ref_inicial: data.ref_inicial || null,
+            operario: req.usuario.nombre || req.usuario.email || 'desconocido',
+            operario_id: req.usuario.id
+          })
+        ]);
+        console.log(`[v7.5] INCIDENCIA: inicial ${iniBsIns} > monto ${montoBsIns} en factura ${data.nro_factura} (${req.tienda}) — notificada al admin`);
+      } catch (notifErr) {
+        console.warn('Error registrando incidencia de inicial excedida:', notifErr.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Cliente creado',
       data: result.rows[0],
-      advertencia: cedulaAdvertencia
+      advertencia: cedulaAdvertencia,
+      incidencia_inicial_excedida: inicialExcede || false
     });
 
   } catch (error) {
@@ -495,16 +536,25 @@ async function actualizarCliente(req, res) {
     }
 
     // 4. Incluir inicial en totales
-    const inicialBs = sanearNumero(cliente.inicial_bs);
-    const inicialUSD = sanearNumero(cliente.inicial_usd);
+    // v7.6: preferir la inicial que viene en el payload (edicion admin de
+    // iniciales); si no viene, usar la de la BD. Antes se usaba SIEMPRE la
+    // vieja de BD y los totales quedaban inconsistentes al corregir inicial.
+    const _hayIniBs = data.inicial_bs !== undefined && data.inicial_bs !== '' && data.inicial_bs !== null;
+    const _hayIniUsd = data.inicial_usd !== undefined && data.inicial_usd !== '' && data.inicial_usd !== null;
+    const inicialBs = sanearNumero(_hayIniBs ? data.inicial_bs : cliente.inicial_bs);
+    const inicialUSD = sanearNumero(_hayIniUsd ? data.inicial_usd : cliente.inicial_usd);
     if (inicialBs > 0 || inicialUSD > 0) {
       totalDepositadoBs += inicialBs;
       totalDepositadoUSD += inicialUSD;
     }
 
     // 5. Calcular deuda pendiente (NUNCA negativa)
-    const montoFactura = sanearNumero(cliente.monto_factura);
-    const montoFacturadoDivisa = sanearNumero(cliente.monto_facturado_divisa);
+    // v7.6: preferir valores del payload para que el recalculo sea
+    // consistente con lo que se esta guardando
+    const _hayMonto = data.monto_factura !== undefined && data.monto_factura !== '' && data.monto_factura !== null;
+    const _hayMontoDiv = data.monto_facturado_divisa !== undefined && data.monto_facturado_divisa !== '' && data.monto_facturado_divisa !== null;
+    const montoFactura = sanearNumero(_hayMonto ? data.monto_factura : cliente.monto_factura);
+    const montoFacturadoDivisa = sanearNumero(_hayMontoDiv ? data.monto_facturado_divisa : cliente.monto_facturado_divisa);
     
     let deudaPendienteBs = redondearDecimales(montoFactura - totalDepositadoBs);
     let deudaPendienteUSD = redondearDecimales(montoFacturadoDivisa - totalDepositadoUSD);
@@ -546,11 +596,15 @@ async function actualizarCliente(req, res) {
     }
 
     // 6. Calcular proxima cuota
-    const montoCuotaUSD = sanearNumero(cliente.monto_cuota_usd);
+    // v7.6: preferir valor del payload si viene
+    const _hayMcu = data.monto_cuota_usd !== undefined && data.monto_cuota_usd !== '' && data.monto_cuota_usd !== null;
+    const montoCuotaUSD = sanearNumero(_hayMcu ? data.monto_cuota_usd : cliente.monto_cuota_usd);
     const proximaCuota = Math.min(montoCuotaUSD, deudaPendienteUSD);
 
     // 7. Calcular discrepancias
-    const totalCuotas = parseInt(cliente.cuotas) || 4;
+    // v7.6: preferir valor del payload si viene
+    const _hayCuotas = data.cuotas !== undefined && data.cuotas !== '' && data.cuotas !== null;
+    const totalCuotas = parseInt(_hayCuotas ? data.cuotas : cliente.cuotas) || 4;
     let discrepancias = {};
 
     try {
@@ -745,10 +799,39 @@ async function exportarRespaldoExcel(req, res) {
        JOIN ${tabla} t ON t.id = p.factura_id
        ORDER BY p.factura_id, p.nro_cuota`);
 
+    // ------------------------------------------------------------
+    // v7.7: filtro opcional ?estado=todas|abiertas|canceladas
+    // Misma regla de cancelada del sistema (USD manda):
+    //   cancelada_fija >= 1  O  deuda_usd <= 0.01
+    //   (fallback en Bs para registros viejos sin deuda_usd)
+    // Sin parametro → 'todas' (comportamiento anterior intacto).
+    // ------------------------------------------------------------
+    const estado = String(req.query.estado || 'todas').toLowerCase();
+    const esCanceladaRow = (t) => {
+      const fija = parseInt(t.cancelada_fija) || 0;
+      if (fija >= 1) return true;
+      if (t.deuda_usd !== null && t.deuda_usd !== undefined && t.deuda_usd !== '') {
+        const d = parseFloat(t.deuda_usd);
+        if (!isNaN(d)) return d <= 0.01;
+      }
+      const deuda = parseFloat(t.deuda) || 0;
+      const monto = parseFloat(t.monto_factura) || 0;
+      const dep = parseFloat(t.monto_depositados) || 0;
+      return Math.abs(monto - dep) < 0.01 || deuda === 0;
+    };
+    let facturasOut = facturas;
+    if (estado === 'abiertas') {
+      facturasOut = facturas.filter(t => !esCanceladaRow(t));
+    } else if (estado === 'canceladas') {
+      facturasOut = facturas.filter(t => esCanceladaRow(t));
+    }
+    const idsIncluidos = new Set(facturasOut.map(t => t.id));
+    const pagosOut = pagos.filter(p => idsIncluidos.has(p.factura_id));
+
     // Agrupar pagos por factura y medir el maximo de cuotas
     const pagosPor = {};
     let maxCuotas = 7; // minimo 7, como el formato viejo
-    for (const p of pagos) {
+    for (const p of pagosOut) {
       (pagosPor[p.factura_id] = pagosPor[p.factura_id] || []).push(p);
       if (pagosPor[p.factura_id].length > maxCuotas) maxCuotas = pagosPor[p.factura_id].length;
     }
@@ -783,7 +866,7 @@ async function exportarRespaldoExcel(req, res) {
     hRow.alignment = { horizontal: 'center' };
     hRow.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }; });
 
-    for (const t of facturas) {
+    for (const t of facturasOut) {
       const iniBs = Number(t.inicial_bs) || 0;
       const iniUsd = Number(t.inicial_usd) || 0;
       const plist = pagosPor[t.id] || [];
@@ -817,8 +900,9 @@ async function exportarRespaldoExcel(req, res) {
     ws.views = [{ state: 'frozen', xSplit: 2, ySplit: 1 }];
 
     const hoy = new Date().toISOString().slice(0, 10);
+    const sufijoEstado = (estado === 'abiertas' || estado === 'canceladas') ? `-${estado}` : '';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="respaldo-${tienda}-${hoy}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="respaldo-${tienda}${sufijoEstado}-${hoy}.xlsx"`);
     await wb.xlsx.write(res);
     res.end();
   } catch (error) {

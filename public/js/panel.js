@@ -1,7 +1,11 @@
 // ============================================
 // VARIABLES GLOBALES
 // ============================================
-const token = localStorage.getItem('token');
+// v9.7 — FASE 2: el token vive SOLO en la cookie httpOnly (la envía el
+// navegador automáticamente). Aquí solo se conserva una bandera local y el
+// objeto usuario (sin credenciales). XSS ya no puede robar el token.
+const token = null;
+function sesionLocalActiva() { return localStorage.getItem('sesion_activa') === '1'; }
 let usuario = {};
 
 // ============================================
@@ -85,12 +89,9 @@ function fechaESSetISO(isoId, iso) {
 // Función para sincronizar perfil desde backend
 async function sincronizarPerfilUsuario() {
     try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        if (!sesionLocalActiva()) return;
 
-        const response = await fetch('/api/usuarios/perfil/me', {
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
+        const response = await fetch('/api/usuarios/perfil/me');
 
         if (response.ok) {
             const data = await response.json();
@@ -147,6 +148,29 @@ try {
 sincronizarPerfilUsuario().then(() => {
     // Después de sincronizar, ajustar menú según rol
     ocultarMenuSegunRol();
+    // FIX (v9.2.1): re-aplicar la vista móvil/rol con el perfil YA fresco —
+    // si el rol real difiere de lo que había en localStorage, la vista se
+    // corrige sola sin necesidad de recargar la página.
+    if (typeof ajustarVistaMovil === 'function') ajustarVistaMovil();
+    // v9.2.5 — GARANTÍA FINAL: el rol ya se confirmó desde el servidor;
+    // quitar el velo inicial pase lo que pase (evita panel en blanco).
+    if (document.documentElement) document.documentElement.classList.remove('rol-pendiente');
+    // v9.3.3 — GARANTÍA SIDEBAR: en el flujo login → panel (sobre todo con
+    // rol vendedor) el sidebar podía quedar con un transform inline oculto
+    // ("translateX(-100%)") hasta que se recargaba la página. Se fuerza
+    // visible en desktop una vez confirmado el rol.
+    if (typeof esMovil === 'function' && !esMovil()) {
+        const sb = document.getElementById('sidebar');
+        if (sb) {
+            sb.style.transform = 'translateX(0)';
+            sb.style.width = '250px';
+            sb.style.position = '';
+        }
+    }
+    // v8.0: el rol vendedor aterriza directo en su sección (no en el dashboard)
+    if (typeof getUserRole === 'function' && getUserRole() === 'vendedor') {
+        mostrarSeccion('vend-clientes');
+    }
 });
 let usuariosData = [];
 let usuarioEditando = null;
@@ -157,7 +181,7 @@ let chartFiltro = null;
 // ============================================
 // AUTENTICACION
 // ============================================
-if (!token && !window.location.pathname.includes('login.html') && window.location.pathname !== '/') {
+if (!sesionLocalActiva() && !window.location.pathname.includes('login.html') && window.location.pathname !== '/') {
     window.location.href = '/';
 }
 
@@ -169,18 +193,13 @@ document.getElementById('userRole').textContent = rolDetectado.charAt(0).toUpper
 document.getElementById('userInitials').textContent = (usuario.nombre || 'U').charAt(0).toUpperCase();
 
 function cerrarSesion() {
-    // FIX (v6.1): logout REAL — invalida el token en el servidor
-    // (incrementa token_version). Antes solo se borraba del navegador
-    // y el token seguía válido 24h para quien lo tuviera copiado.
-    const t = localStorage.getItem('token');
-    if (t) {
-        fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + t },
-            keepalive: true
-        }).catch(() => {});
+    // v9.7 — logout REAL: la cookie httpOnly autentica la petición; el
+    // servidor desactiva la sesión (y limpia la cookie en su respuesta).
+    if (sesionLocalActiva()) {
+        fetch('/api/auth/logout', { method: 'POST', keepalive: true }).catch(() => {});
     }
-    localStorage.removeItem('token');
+    localStorage.removeItem('sesion_activa');
+    localStorage.removeItem('token'); // restos de fases anteriores
     localStorage.removeItem('usuario');
     localStorage.removeItem('user');
     window.location.href = '/';
@@ -200,17 +219,10 @@ function cerrarSesion() {
         const esApi = typeof url === 'string' && url.startsWith('/api/');
         opts = opts || {};
 
-        if (esApi) {
-            const t = localStorage.getItem('token');
-            if (t) {
-                opts.headers = Object.assign({}, opts.headers, {
-                    'Authorization': 'Bearer ' + t
-                });
-            }
-        }
+        // v9.7: la cookie httpOnly autentica sola; no se inyecta header.
 
         return _fetch(url, opts).then(async (res) => {
-            if (esApi && res.status === 401 && localStorage.getItem('token')
+            if (esApi && res.status === 401 && sesionLocalActiva()
                 && !url.includes('/api/auth/logout')) {
                 // Distinguir "sesión inválida" de otros 401 (ej. clave actual incorrecta)
                 try {
@@ -237,6 +249,7 @@ function toggleSidebar() {
         // En móvil: deslizar desde el costado
         const isOpen = sidebar.style.transform === 'translateX(0px)' || sidebar.style.transform === 'translateX(0)';
         if (isOpen) {
+            console.warn('[sidebar-hide] toggleSidebar CERRAR | width=', window.innerWidth);
             sidebar.style.transform = 'translateX(-100%)';
         } else {
             sidebar.style.transform = 'translateX(0)';
@@ -272,13 +285,25 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
     if (esMovil()) {
         const sidebar = document.getElementById('sidebar');
         if (sidebar) {
+            console.warn('[sidebar-hide] mostrarSeccion MOBILE | width=', window.innerWidth, '| UA=', navigator.userAgent.slice(0, 70));
             sidebar.style.transform = 'translateX(-100%)';
         }
     }
 
     // Proteger módulos según rol y tienda
+    const esSeccionVend = ['vend-clientes', 'vend-inventario', 'vend-cotizaciones', 'vend-notas'].includes(seccion);
     if (!isAdmin()) {
         const tiendaUsuario = getTiendaUsuario();
+        const rolUsr = (typeof getUserRole === 'function') ? getUserRole() : (usuario.rol || 'operador');
+
+        // v8.0 — VENDEDOR: solo la sección Vendedores, Tasas BCV y su perfil
+        if (rolUsr === 'vendedor') {
+            const permitidasVendedor = esSeccionVend || seccion === 'tasas' || seccion === 'perfil';
+            if (!permitidasVendedor) {
+                mostrarAlerta('Tu rol de vendedor solo tiene acceso a la sección Vendedores y Tasas BCV', 'warning');
+                return;
+            }
+        }
 
         // Actividades Pendientes: solo admin
         if (seccion === 'reportes') {
@@ -303,13 +328,35 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
             mostrarAlerta('No tienes permiso para gestionar usuarios', 'warning');
             return;
         }
+
+        // Incidencias: solo admin (v7.5)
+        if (seccion === 'incidencias') {
+            mostrarAlerta('No tienes permiso para ver la bandeja de incidencias', 'warning');
+            return;
+        }
+
+        // Respaldo BD: solo admin
+        if (seccion === 'respaldo') {
+            mostrarAlerta('No tienes permiso para gestionar respaldos', 'warning');
+            return;
+        }
+
+        // Sección Vendedores: operador no entra (solo admin y vendedor)
+        if (esSeccionVend && rolUsr !== 'vendedor') {
+            mostrarAlerta('No tienes permiso para acceder a la sección Vendedores', 'warning');
+            return;
+        }
     }
 
     document.querySelectorAll('.content-area').forEach(el => el.classList.add('hidden'));
     // FIX (refactor tiendas): 'creditos' = Tienda Maracay y vive en
     // contentMaracay. Antes apuntaba a contentCreditos, un placeholder
     // "En desarrollo": el módulo real de Maracay nunca se mostraba.
-    const contentIdMap = { 'creditos': 'contentMaracay' };
+    const contentIdMap = { 'creditos': 'contentMaracay',
+        'vend-clientes': 'contentVendClientes',
+        'vend-inventario': 'contentVendInventario',
+        'vend-cotizaciones': 'contentVendCotizaciones',
+        'vend-notas': 'contentVendNotas' };
     const contentId = contentIdMap[seccion] || ('content' + seccion.charAt(0).toUpperCase() + seccion.slice(1));
     const content = document.getElementById(contentId);
     if (content) { content.classList.remove('hidden'); content.style.removeProperty('display'); }
@@ -330,8 +377,14 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
         'reportes': 'Actividades Pendientes',
         'tasas': 'Tasas BCV',
         'usuarios': 'Gestion de Usuarios',
+        'incidencias': 'Bandeja de Incidencias',
+        'respaldo': 'Respaldo de Base de Datos',
         'perfil': 'Mi Perfil',
-        'estadisticas': 'Estadisticas'
+        'estadisticas': 'Estadisticas',
+        'vend-clientes': 'Clientes — Vendedores',
+        'vend-inventario': 'Inventario — Vendedores',
+        'vend-cotizaciones': 'Cotización — Vendedores',
+        'vend-notas': 'Nota de Entrega — Vendedores'
     };
 
     const subtitulos = {
@@ -342,8 +395,14 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
         'reportes': 'Actividades Pendientes - En desarrollo',
         'tasas': 'Consulta de tasas del Banco Central de Venezuela',
         'usuarios': 'Administracion de usuarios del sistema',
+        'incidencias': 'Registros cargados por operarios aceptando advertencias',
+        'respaldo': 'Descarga o restaura la base de datos',
         'perfil': 'Gestion de tu cuenta y seguridad',
-        'estadisticas': 'Analisis de cuotas, pagos y deudores'
+        'estadisticas': 'Analisis de cuotas, pagos y deudores',
+        'vend-clientes': 'Registro de clientes del área de vendedores — Caracas',
+        'vend-inventario': 'Artículos disponibles para cotización — Caracas',
+        'vend-cotizaciones': 'Gestión de cotizaciones — Caracas',
+        'vend-notas': 'Notas de entrega generadas — Caracas'
     };
 
     document.getElementById('pageTitle').textContent = titulos[seccion] || seccion;
@@ -363,11 +422,15 @@ function mostrarSeccion(seccion, tiendaPredefinida) {
     }
 
     if (seccion === 'tasas') cargarHistorial();
+    if (esSeccionVend && window.Vendedores && typeof window.Vendedores.mostrar === 'function') {
+        window.Vendedores.mostrar(seccion);
+    }
     if (seccion === 'usuarios') {
         cargarUsuarios();
         cargarEstadisticasUsuarios();
     }
     if (seccion === 'perfil') cargarPerfil();
+    if (seccion === 'incidencias') cargarIncidencias();
     
     // Ocultar actividades pendientes paristradores
     ocultarMenuSegunRol();
@@ -413,7 +476,7 @@ actualizarReloj();
 async function cargarTasaActual() {
     try {
         const response = await fetch('/api/bcv/actual', {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
 
@@ -495,7 +558,7 @@ async function buscarTasaModal() {
     if (!fecha) return;
     try {
         const response = await fetch('/api/bcv/fecha/' + fecha, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
         const resultado = document.getElementById('modalResultado');
@@ -540,7 +603,7 @@ async function cargarHistorial() {
     try {
         const anio = new Date().getFullYear();
         const response = await fetch('/api/bcv/historial/' + anio, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
         if (data.exito && data.historial) {
@@ -570,7 +633,7 @@ function consultarTasa() {
 async function buscarTasaPorFecha(fecha) {
     try {
         const response = await fetch('/api/bcv/fecha/' + fecha, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
         const resultado = document.getElementById('resultadoTasa');
@@ -611,7 +674,7 @@ function verHistorial() {
 async function cargarEstadisticasUsuarios() {
     try {
         const response = await fetch('/api/usuarios/estadisticas/resumen', {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
         // FIX: la API devuelve campos directos, no {exito, estadisticas}
@@ -640,7 +703,7 @@ async function cargarUsuarios() {
         if (busqueda) url += 'busqueda=' + encodeURIComponent(busqueda) + '&';
         if (rol) url += 'rol=' + encodeURIComponent(rol) + '&';
         if (estado !== '') url += 'activo=' + encodeURIComponent(estado) + '&';
-        const response = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        const response = await fetch(url, { headers: {} });
         const data = await response.json();
         // FIX: la API devuelve array directo, no {exito, usuarios}
         if (Array.isArray(data)) {
@@ -668,7 +731,7 @@ function renderizarUsuarios() {
     }
     empty.style.display = 'none';
     tbody.innerHTML = usuariosData.map(u => {
-        const badgeRol = u.rol === 'administrador' ? 'badge-admin' : 'badge-operador';
+        const badgeRol = u.rol === 'administrador' ? 'badge-admin' : (u.rol === 'vendedor' ? 'badge-vendedor' : 'badge-operador');
         const badgeEstado = u.activo ? 'badge-activo' : 'badge-inactivo';
         const estadoTexto = u.activo ? 'Activo' : 'Inactivo';
         let ipBadge;
@@ -690,10 +753,11 @@ function renderizarUsuarios() {
             '<td data-label="Acciones">' +
                 '<button class="btn-icon btn-edit" onclick="editarUsuario(' + u.id + ')" title="Editar">&#9998;</button>' +
                 '<button class="btn-icon btn-audit" onclick="verAuditoria(' + u.id + ')" title="Auditoria">&#128196;</button>' +
-                (u.activo 
+                (u.activo
                     ? '<button class="btn-icon btn-delete" onclick="confirmarEliminar(' + u.id + ', \'' + u.nombre + '\')" title="Desactivar">&#128465;</button>'
                     : '<button class="btn-icon btn-reactivate" onclick="confirmarReactivar(' + u.id + ', \'' + u.nombre + '\')" title="Reactivar">&#9851;</button>'
                 ) +
+                '<button class="btn-icon" style="background:#fed7d7;color:#c53030;" onclick="confirmarEliminarPermanente(' + u.id + ', \'' + u.nombre + '\')" title="Eliminar permanentemente">&#10060;</button>' +
             '</td>' +
         '</tr>';
     }).join('');
@@ -721,6 +785,9 @@ function abrirModalUsuario() {
     const passwordInputNew = document.getElementById('usuarioPassword');
         passwordInputNew.required = true;
         passwordInputNew.value = '';
+        passwordInputNew.placeholder = '';
+        const lblPassNew = document.querySelector('#grupoPassword label');
+        if (lblPassNew) lblPassNew.innerHTML = 'Contrasena <span style="color:#e53e3e;">*</span>';
         document.getElementById('grupoPassword').style.display = 'block';
     document.getElementById('grupoEstado').style.display = 'none';
     document.getElementById('grupoIp').style.display = 'block';
@@ -750,20 +817,25 @@ document.getElementById('usuarioRol')?.addEventListener('change', function() {
         tiendaHelp.textContent = 'Obligatoria para operadores';
         tiendaHelp.style.color = '#e53e3e';
     } else {
+        const esVend = rol === 'vendedor';
         ipInput.required = false;
         ipLabel.innerHTML = 'IP Asignada <span style="font-weight:400;color:#a0aec0;font-size:12px;">(opcional)</span>';
-        ipHelp.textContent = 'Opcional para administradores';
+        ipHelp.textContent = esVend ? 'No aplica para vendedores' : 'Opcional para administradores';
         ipHelp.style.color = '#718096';
         tiendaInput.required = false;
-        tiendaHelp.textContent = 'Opcional para administradores';
+        tiendaHelp.textContent = esVend ? 'No aplica para vendedores (solo sección Vendedores)' : 'Opcional para administradores';
         tiendaHelp.style.color = '#718096';
+        // v8.1: vendedor NO usa IP ni tienda — campos bloqueados y vacíos
+        ipInput.disabled = esVend;
+        tiendaInput.disabled = esVend;
+        if (esVend) { ipInput.value = ''; tiendaInput.value = ''; }
     }
 });
 
 async function editarUsuario(id) {
     try {
         const response = await fetch('/api/usuarios/' + id, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
         // FIX: manejar respuesta directa o envuelta
@@ -793,18 +865,25 @@ async function editarUsuario(id) {
                 tiendaHelp.textContent = 'Obligatoria para operadores';
                 tiendaHelp.style.color = '#e53e3e';
             } else {
+                const esVendEdit = rol === 'vendedor';
                 ipInput.required = false;
                 ipLabel.innerHTML = 'IP Asignada <span style="font-weight:400;color:#a0aec0;font-size:12px;">(opcional)</span>';
-                ipHelp.textContent = 'Opcional para administradores';
+                ipHelp.textContent = esVendEdit ? 'No aplica para vendedores' : 'Opcional para administradores';
                 ipHelp.style.color = '#718096';
                 tiendaInput.required = false;
-                tiendaHelp.textContent = 'Opcional para administradores';
+                tiendaHelp.textContent = esVendEdit ? 'No aplica para vendedores (solo sección Vendedores)' : 'Opcional para administradores';
                 tiendaHelp.style.color = '#718096';
+                ipInput.disabled = esVendEdit;
+                tiendaInput.disabled = esVendEdit;
+                if (esVendEdit) { ipInput.value = ''; tiendaInput.value = ''; }
             }
             const passwordInputEdit = document.getElementById('usuarioPassword');
-        passwordInputEdit.required = false;
-        passwordInputEdit.value = '';
-        document.getElementById('grupoPassword').style.display = 'none';
+            passwordInputEdit.required = false;
+            passwordInputEdit.value = '';
+            passwordInputEdit.placeholder = 'Dejar en blanco para no cambiarla';
+            const lblPassEdit = document.querySelector('#grupoPassword label');
+            if (lblPassEdit) lblPassEdit.innerHTML = 'Nueva contraseña <span style="font-weight:400;color:#a0aec0;font-size:12px;">(opcional)</span>';
+            document.getElementById('grupoPassword').style.display = 'block';
             document.getElementById('grupoEstado').style.display = 'block';
             document.getElementById('grupoIp').style.display = 'block';
             document.getElementById('grupoTienda').style.display = 'block';
@@ -842,6 +921,16 @@ async function guardarUsuario(event) {
         mostrarAlerta('Nombre y email son obligatorios', 'error');
         return;
     }
+    if (!id && password.length < 8) {
+        mostrarAlerta('La contraseña debe tener mínimo 8 caracteres', 'error');
+        document.getElementById('usuarioPassword').focus();
+        return;
+    }
+    if (id && password && password.length < 8) {
+        mostrarAlerta('La contraseña debe tener mínimo 8 caracteres', 'error');
+        document.getElementById('usuarioPassword').focus();
+        return;
+    }
 
     const datos = { nombre, email, rol };
     if (password) datos.password = password;
@@ -850,13 +939,15 @@ async function guardarUsuario(event) {
     if (tienda) datos.tienda = tienda;
     if (rol === 'administrador' && !ip_asignada) datos.ip_asignada = null;
     if (rol === 'administrador' && !tienda) datos.tienda = null;
+    // v8.1: vendedor NUNCA lleva IP ni tienda (igual tratamiento que administración)
+    if (rol === 'vendedor') { datos.ip_asignada = null; datos.tienda = null; }
 
     try {
         const url = id ? '/api/usuarios/' + id : '/api/usuarios';
         const method = id ? 'PUT' : 'POST';
         const response = await fetch(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(datos)
         });
         const data = await response.json();
@@ -866,7 +957,10 @@ async function guardarUsuario(event) {
             cerrarModalUsuario();
             setTimeout(() => { cargarUsuarios(); cargarEstadisticasUsuarios(); }, 500);
         } else {
-            mostrarAlerta(data.error || 'Error al guardar usuario', 'error');
+            const msgError = data.error
+                || (data.errors && data.errors[0] && data.errors[0].msg)
+                || 'Error al guardar usuario';
+            mostrarAlerta(msgError, 'error');
         }
     } catch (err) {
         console.error('Error:', err);
@@ -912,7 +1006,7 @@ async function ejecutarAccionPendiente() {
             url = '/api/usuarios/' + usuarioPendiente + '/reactivar';
             method = 'PATCH';
         }
-        const response = await fetch(url, { method: method, headers: { 'Authorization': 'Bearer ' + token } });
+        const response = await fetch(url, { method: method, headers: {} });
         const data = await response.json();
         // FIX: manejar respuesta directa o envuelta
         if (response.ok || data.exito || data.message || data.id) {
@@ -929,10 +1023,47 @@ async function ejecutarAccionPendiente() {
     }
 }
 
+// v9.3.1 — ELIMINAR USUARIO PERMANENTEMENTE (con confirmación)
+function confirmarEliminarPermanente(id, nombre) {
+    mostrarModalCorporativo(
+        '¿Eliminar permanentemente?',
+        'El usuario <strong>' + escapeHtml(nombre) + '</strong> se eliminará DEFINITIVAMENTE de la base de datos.<br><br>⚠️ Esta acción <strong>NO se puede deshacer</strong>. Si solo quieres quitarle el acceso, usa "Desactivar" en su lugar.',
+        'warning',
+        [
+            {
+                texto: 'Cancelar',
+                estilo: 'padding: 10px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;'
+            },
+            {
+                texto: 'Sí, eliminar para siempre',
+                estilo: 'padding: 10px 24px; background: linear-gradient(135deg, #e53e3e, #c53030); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;',
+                accion: function () { ejecutarEliminarPermanente(id); }
+            }
+        ]
+    );
+}
+
+async function ejecutarEliminarPermanente(id) {
+    try {
+        const res = await fetch('/api/usuarios/' + id + '/permanente', { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarAlerta(data.message || 'Usuario eliminado permanentemente', 'success');
+            cargarUsuarios();
+            cargarEstadisticasUsuarios();
+        } else {
+            mostrarAlerta(data.error || 'No se pudo eliminar', 'error');
+        }
+    } catch (e) {
+        console.error('Error eliminando usuario:', e);
+        mostrarAlerta('Error de conexión', 'error');
+    }
+}
+
 async function verAuditoria(usuarioId) {
     try {
         const response = await fetch('/api/usuarios/auditoria/' + usuarioId, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
         // FIX: manejar respuesta directa o envuelta
@@ -966,7 +1097,7 @@ function cerrarModalAuditoria() {
 async function cargarPerfil() {
     try {
         const response = await fetch('/api/usuarios/perfil/me', {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
         const data = await response.json();
         // FIX: manejar respuesta directa o envuelta
@@ -980,6 +1111,17 @@ async function cargarPerfil() {
             document.getElementById('perfilFecha').textContent = p.fecha_creacion;
             document.getElementById('perfilActualizado').textContent = p.fecha_actualizacion;
             document.getElementById('perfilEstado').textContent = p.activo ? 'Activo' : 'Inactivo';
+            // v9.5 — estado del 2FA
+            const mfaEstadoEl = document.getElementById('mfaEstado');
+            if (mfaEstadoEl) {
+                if (p.mfa_enabled) {
+                    mfaEstadoEl.innerHTML = '<span style="color:#27ae60;font-weight:700;">✔ 2FA ACTIVADO</span> — tu cuenta pide código de la app al iniciar sesión.';
+                    document.getElementById('mfaBtnIniciar').style.display = 'none';
+                    document.getElementById('mfaBtnDesactivar').style.display = '';
+                } else {
+                    mfaEstadoEl.innerHTML = 'El doble factor está <strong>desactivado</strong>. Actívalo para proteger tu cuenta aunque roben tu contraseña.';
+                }
+            }
             const ipEl = document.getElementById('perfilIp');
             if (ipEl) {
                 if (p.ip_asignada) {
@@ -1027,7 +1169,7 @@ document.getElementById('formCambiarPassword')?.addEventListener('submit', async
     try {
         const response = await fetch('/api/usuarios/' + usuario.id + '/password', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ passwordActual: actual, passwordNuevo: nuevo })
         });
         const data = await response.json();
@@ -2175,7 +2317,7 @@ async function cargarActividadesAPI() {
         }
 
         const response = await fetch(url, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
 
         if (!response.ok) {
@@ -2219,22 +2361,13 @@ function cargarActividadesLocalStorageFallback() {
 }
 
 function getUserRole() {
-    // Obtener el rol del usuario desde localStorage
+    // v9.7: sin JWT en el navegador. El objeto 'usuario' se refresca desde
+    // el servidor en cada carga (sincronizarPerfilUsuario), así que es fresco.
     const userData = localStorage.getItem('usuario');
     if (userData) {
         try {
             const user = JSON.parse(userData);
             return user.rol || 'operador';
-        } catch (e) {
-            return 'operador';
-        }
-    }
-    // Fallback: leer del token JWT
-    const token = localStorage.getItem('token');
-    if (token) {
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.rol || payload.role || 'operador';
         } catch (e) {
             return 'operador';
         }
@@ -2247,7 +2380,7 @@ function isAdmin() {
 }
 
 function getTiendaUsuario() {
-    // Obtener la tienda del usuario desde localStorage
+    // v9.7: mismo criterio que getUserRole — objeto usuario (refrescado del servidor).
     const userData = localStorage.getItem('usuario');
     if (userData) {
         try {
@@ -2259,18 +2392,6 @@ function getTiendaUsuario() {
             console.warn('Error parseando usuario:', e);
         }
     }
-    // Fallback: leer del token JWT
-    const token = localStorage.getItem('token');
-    if (token) {
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload.tienda) {
-                return payload.tienda;
-            }
-        } catch (e) {
-            console.warn('Error parseando token:', e);
-        }
-    }
     return null;
 }
 
@@ -2279,8 +2400,7 @@ async function guardarActividadAPI(actividad) {
         const response = await fetch('/api/actividades', {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token 
+                'Content-Type': 'application/json' 
             },
             body: JSON.stringify(actividad)
         });
@@ -2358,8 +2478,7 @@ async function agregarActividad() {
         const response = await fetch('/api/actividades', {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token 
+                'Content-Type': 'application/json' 
             },
             body: JSON.stringify(actividad)
         });
@@ -2410,8 +2529,7 @@ async function toggleActividad(id) {
         const response = await fetch('/api/actividades/' + id, {
             method: 'PUT',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token 
+                'Content-Type': 'application/json' 
             },
             body: JSON.stringify({ estado: nuevoEstado })
         });
@@ -2467,7 +2585,7 @@ async function eliminarActividad(id) {
                     try {
                         const response = await fetch('/api/actividades/' + id, {
                             method: 'DELETE',
-                            headers: { 'Authorization': 'Bearer ' + token }
+                            headers: {}
                         });
 
                         if (!response.ok) {
@@ -2565,8 +2683,7 @@ async function guardarEdicionActividad(id) {
         const response = await fetch('/api/actividades/' + id, {
             method: 'PUT',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token 
+                'Content-Type': 'application/json' 
             },
             body: JSON.stringify({ descripcion: descripcion })
         });
@@ -2815,7 +2932,7 @@ async function cargarSemanaAgenda() {
         const tiendaUsuario = getTiendaUsuario();
         if (tiendaUsuario && !isAdmin()) url += '&tienda=' + tiendaUsuario;
 
-        const response = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        const response = await fetch(url, { headers: {} });
         const datos = [0, 0, 0, 0, 0, 0, 0];
         if (response.ok) {
             const data = await response.json();
@@ -2927,7 +3044,7 @@ async function cargarHistorialActividades() {
         }
 
         const response = await fetch(url, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
 
         if (response.ok) {
@@ -3132,11 +3249,36 @@ function ajustarVistaMovil() {
         const navActividades = document.getElementById('nav-actividades-pendientes');
         if (navActividades) navActividades.style.display = 'none';
 
-        // 3. Mostrar solo Dashboard, Usuarios y Tasas
-        ['nav-dashboard', 'nav-usuarios', 'nav-tasas'].forEach(id => {
+        // 3. Visibilidad según ROL en móvil (FIX v9.2): antes se forzaba
+        //    'Dashboard, Usuarios y Tasas' para TODOS y los vendedores/
+        //    operadores veían ítems de administración. Ahora se ocultan
+        //    los administrativos y se muestran solo los del rol.
+        ['nav-dashboard', 'nav-usuarios', 'nav-incidencias', 'nav-respaldo'].forEach(id => {
             const nav = document.getElementById(id);
-            if (nav) nav.style.display = 'flex';
+            if (nav) nav.style.display = 'none';
         });
+        const rolMovil = (typeof getUserRole === 'function') ? getUserRole() : 'operador';
+        if (rolMovil === 'vendedor') {
+            ['nav-vend-clientes', 'nav-vend-inventario', 'nav-vend-cotizaciones', 'nav-vend-notas', 'nav-tasas'].forEach(id => {
+                const nav = document.getElementById(id);
+                if (nav) nav.style.display = 'flex';
+            });
+        } else if (rolMovil === 'administrador') {
+            ['nav-dashboard', 'nav-usuarios', 'nav-tasas', 'nav-incidencias', 'nav-respaldo'].forEach(id => {
+                const nav = document.getElementById(id);
+                if (nav) nav.style.display = 'flex';
+            });
+        } else {
+            // operador: solo lo esencial
+            ['nav-dashboard', 'nav-tasas'].forEach(id => {
+                const nav = document.getElementById(id);
+                if (nav) nav.style.display = 'flex';
+            });
+        }
+
+        // 3b. Incidencias (v7.5): en móvil solo visible para admin
+        const navIncMovil = document.getElementById('nav-incidencias');
+        if (navIncMovil) navIncMovil.style.display = isAdmin() ? 'flex' : 'none';
 
         // 4. Si estamos en una sección de tienda, redirigir a dashboard
         const seccionActual = localStorage.getItem('seccion_actual');
@@ -3146,6 +3288,7 @@ function ajustarVistaMovil() {
 
         // 5. Ocultar sidebar por defecto en móvil (mostrar hamburguesa)
         if (sidebar) {
+            console.warn('[sidebar-hide] ajustarVistaMovil MOBILE | width=', window.innerWidth, '| UA=', navigator.userAgent.slice(0, 70));
             sidebar.classList.add('sidebar-mobile');
             sidebar.style.transform = 'translateX(-100%)';
             sidebar.style.transition = 'transform 0.3s ease';
@@ -3174,11 +3317,29 @@ function ajustarVistaMovil() {
             mainContent.style.width = 'calc(100% - 250px)';
         }
     }
+
+    // v9.2.2: el rol ya se aplicó — quitar el velo inicial (anti-flash)
+    if (document.documentElement) document.documentElement.classList.remove('rol-pendiente');
 }
 
 // Escuchar cambios de tamaño de pantalla
 window.addEventListener('resize', () => {
     ajustarVistaMovil();
+    // v9.4 — AUTO-CORRECCIÓN EN RESIZE: abrir/cerrar DevTools, hacer zoom
+    // o restaurar la ventana dispara resize; si el viewport quedó en modo
+    // desktop, el sidebar se fuerza visible (corrige el "F12 esconde el menú").
+    setTimeout(function () {
+        if (typeof esMovil !== 'function' || esMovil()) return;
+        var sb = document.getElementById('sidebar');
+        if (!sb) return;
+        var t = sb.style.transform || '';
+        if (t.indexOf('-100') !== -1 || sb.classList.contains('sidebar-mobile')) {
+            sb.classList.remove('sidebar-mobile');
+            sb.style.transform = 'translateX(0)';
+            sb.style.width = '250px';
+            console.warn('[sidebar-resize] corregido a desktop. width=', window.innerWidth);
+        }
+    }, 60);
 });
 
 // ============================================
@@ -3196,7 +3357,29 @@ function ocultarMenuSegunRol() {
     }
 
     if (isAdmin()) {
-        // Administrador ve todo, no ocultar nada
+        // Administrador ve todo, no ocultar nada.
+        // v9.2.5: el rol YA se confirmó — quitar el velo inicial aquí mismo,
+        // porque este return temprano se saltaba la limpieza del final.
+        if (document.documentElement) document.documentElement.classList.remove('rol-pendiente');
+        return;
+    }
+
+    // --- v8.0 VENDEDOR: solo sección Vendedores + Tasas BCV (+ perfil en footer) ---
+    if (getUserRole() === 'vendedor') {
+        // Ocultar TODOS los módulos de tiendas y administración
+        ['nav-caracas', 'nav-maracay', 'nav-maracaibo', 'nav-actividades-pendientes',
+         'nav-usuarios', 'nav-incidencias', 'nav-dashboard', 'nav-respaldo'].forEach(id => {
+            const nav = document.getElementById(id);
+            if (nav) nav.style.display = 'none';
+        });
+        // Mostrar solo: sección Vendedores y Tasas BCV
+        ['nav-vend-clientes', 'nav-vend-inventario', 'nav-vend-cotizaciones', 'nav-vend-notas', 'nav-tasas'].forEach(id => {
+            const nav = document.getElementById(id);
+            if (nav) nav.style.display = 'flex';
+        });
+        // Widgets del dashboard que no le aplican
+        const widgetLinks = document.querySelectorAll('.actividades-widget-link');
+        widgetLinks.forEach(link => link.style.display = 'none');
         return;
     }
 
@@ -3225,6 +3408,14 @@ function ocultarMenuSegunRol() {
     const navUsuarios = document.getElementById('nav-usuarios');
     if (navUsuarios) navUsuarios.style.display = 'none';
 
+    // 3b. Ocultar Bandeja de Incidencias (solo admin) — v7.5
+    const navIncidencias = document.getElementById('nav-incidencias');
+    if (navIncidencias) navIncidencias.style.display = 'none';
+
+    // 3c. Ocultar Respaldo BD (solo admin)
+    const navRespaldo = document.getElementById('nav-respaldo');
+    if (navRespaldo) navRespaldo.style.display = 'none';
+
     // 4. Ocultar enlace "Ver todas →" del widget (no pueden acceder al módulo)
     const widgetLinks = document.querySelectorAll('.actividades-widget-link');
     widgetLinks.forEach(link => link.style.display = 'none');
@@ -3236,6 +3427,9 @@ function ocultarMenuSegunRol() {
             if (nav) nav.style.display = 'none';
         });
     }
+
+    // v9.2.2: el rol ya se aplicó — quitar el velo inicial (anti-flash)
+    if (document.documentElement) document.documentElement.classList.remove('rol-pendiente');
 }
 
 // Alias para compatibilidad con código anterior
@@ -3279,7 +3473,7 @@ async function actualizarWidgetActividades() {
         }
 
         const response = await fetch(url, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
 
         if (response.ok) {
@@ -3417,8 +3611,7 @@ async function completarActividadDesdeWidget(id) {
         const response = await fetch('/api/actividades/' + id, {
             method: 'PUT',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token 
+                'Content-Type': 'application/json' 
             },
             body: JSON.stringify({ estado: 'completada' })
         });
@@ -3498,7 +3691,7 @@ async function abrirModalDescripcionWidget(id) {
     // Cargar desde API primero
     try {
         const response = await fetch('/api/actividades/' + id, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
 
         if (response.ok) {
@@ -3592,8 +3785,7 @@ async function guardarDescripcionWidget(id) {
         const response = await fetch('/api/actividades/' + id, {
             method: 'PUT',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token 
+                'Content-Type': 'application/json' 
             },
             body: JSON.stringify({ descripcion_extra: descripcion_extra })
         });
@@ -3645,7 +3837,7 @@ async function mostrarModalTodasActividadesOperador() {
         }
 
         const response = await fetch(url, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: {}
         });
 
         if (response.ok) {
@@ -4530,8 +4722,17 @@ const DomiciliacionModule = (() => {
         refs.fileSize.textContent = formatFileSize(file.size) + " • " + excelData.length + " empleados";
     }
 
+    // v7.8: el total MOSTRADO debe ser el mismo que llevara el TXT.
+    // El banco no puede debitar fracciones de centavo: cada monto se
+    // redondea a centavos enteros POR EMPLEADO (mismo criterio de
+    // generarTXT) y luego se suma. Sumar los montos crudos daba un
+    // total distinto al del archivo (ej: ,51 en pantalla vs ,54 en TXT).
+    function calcularTotalComoTXT() {
+        return excelData.reduce((sum, r) => sum + Math.round(r.monto * 100), 0) / 100;
+    }
+
     function mostrarResumen() {
-        const totalMonto = excelData.reduce((sum, r) => sum + r.monto, 0);
+        const totalMonto = calcularTotalComoTXT();
         const totalLineas = excelData.length * CUOTAS;
         refs.resumen.style.display = "grid";
         refs.statRegistros.textContent = excelData.length;
@@ -4673,7 +4874,7 @@ const DomiciliacionModule = (() => {
 
         const fechaNomina = refs.fechaNomina.value;
         const fechaFormateada = formatDateVenezuela(fechaNomina);
-        const totalMonto = excelData.reduce((sum, r) => sum + r.monto, 0);
+        const totalMonto = calcularTotalComoTXT(); // v7.8: mismo total que el TXT
         const totalLineas = excelData.length * CUOTAS;
         const outputFilename = "domiciliacion_" + fechaNomina.replace(/-/g, "") + ".txt";
 
@@ -4780,3 +4981,352 @@ document.addEventListener("DOMContentLoaded", () => {
 /* ============================================================
    FIN MODULO DOMICILIACION BANCARIA
    ============================================================ */
+
+
+// ============================================================
+// BANDEJA DE INCIDENCIAS (v7.5) — solo administrador
+// Muestra los registros que los operarios cargaron aceptando
+// una advertencia del sistema (ej: inicial mayor al monto).
+// ============================================================
+
+function fmtFechaIncidencia(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    if (isNaN(d)) return '-';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return dd + '/' + mm + '/' + yy + ' ' + hh + ':' + mi;
+}
+
+function fmtMontoIncidencia(v) {
+    const n = parseFloat(v);
+    if (isNaN(n)) return '-';
+    return n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function cargarIncidencias() {
+    const tbody = document.querySelector('#tablaIncidencias tbody');
+    const empty = document.getElementById('tablaIncidenciasEmpty');
+    if (!tbody) return;
+
+    const soloNoLeidas = document.getElementById('filtroIncidencias')?.value === '1';
+    try {
+        const resp = await fetch('/api/incidencias' + (soloNoLeidas ? '?solo_no_leidas=1' : ''));
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const lista = await resp.json();
+
+        // Estadísticas
+        const sinLeer = lista.filter(i => !i.leida).length;
+        document.getElementById('statIncTotal').textContent = lista.length;
+        document.getElementById('statIncSinLeer').textContent = sinLeer;
+        document.getElementById('statIncLeidas').textContent = lista.length - sinLeer;
+
+        if (lista.length === 0) {
+            tbody.innerHTML = '';
+            if (empty) empty.style.display = 'block';
+            actualizarBadgeIncidencias();
+            return;
+        }
+        if (empty) empty.style.display = 'none';
+
+        tbody.innerHTML = lista.map(inc => {
+            const d = inc.datos || {};
+            const tienda = (d.tienda || '-').toString();
+            const tiendaCap = tienda.charAt(0).toUpperCase() + tienda.slice(1);
+            const filaStyle = inc.leida ? '' : ' style="background:#fff8f0; font-weight:600;"';
+            const estadoBadge = inc.leida
+                ? '<span class="badge badge-operador">Revisada</span>'
+                : '<span class="badge badge-admin">Sin leer</span>';
+            const boton = inc.leida
+                ? '-'
+                : '<button class="btn-icon btn-edit" title="Marcar como revisada" onclick="marcarIncidenciaLeida(' + inc.id + ')">&#10003;</button>';
+            return '<tr' + filaStyle + '>' +
+                '<td>' + fmtFechaIncidencia(inc.created_at) + '</td>' +
+                '<td>' + escapeHtml(tiendaCap) + '</td>' +
+                '<td><strong>' + escapeHtml(d.nro_factura || '-') + '</strong></td>' +
+                '<td>' + escapeHtml(d.nombre_apellido || '-') + (d.cedula ? '<br><small style="color:#888;">CI: ' + escapeHtml(d.cedula) + '</small>' : '') + '</td>' +
+                '<td class="monto">' + fmtMontoIncidencia(d.monto_factura) + '</td>' +
+                '<td class="monto">' + fmtMontoIncidencia(d.inicial_bs) + '</td>' +
+                '<td class="monto" style="color:#dd6b20; font-weight:700;">+' + fmtMontoIncidencia(d.exceso_bs) + '</td>' +
+                '<td>' + escapeHtml(d.operario || '-') + '</td>' +
+                '<td>' + estadoBadge + '</td>' +
+                '<td>' + boton + '</td>' +
+            '</tr>';
+        }).join('');
+
+        actualizarBadgeIncidencias();
+    } catch (e) {
+        console.error('Error cargando incidencias:', e);
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#e53e3e;">Error al cargar las incidencias</td></tr>';
+    }
+}
+
+async function marcarIncidenciaLeida(id) {
+    try {
+        const resp = await fetch('/api/incidencias/' + id + '/leida', { method: 'PUT' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        cargarIncidencias();
+    } catch (e) {
+        mostrarAlerta('No se pudo marcar la incidencia', 'error');
+    }
+}
+
+async function marcarTodasIncidencias() {
+    try {
+        const resp = await fetch('/api/incidencias/leer-todas', { method: 'PUT' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        mostrarAlerta('Todas las incidencias fueron marcadas como revisadas', 'success');
+        cargarIncidencias();
+    } catch (e) {
+        mostrarAlerta('No se pudieron marcar las incidencias', 'error');
+    }
+}
+
+// Badge del menú lateral con el conteo de incidencias sin leer
+async function actualizarBadgeIncidencias() {
+    if (!isAdmin()) return;
+    try {
+        const resp = await fetch('/api/incidencias/sin-leer');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const badge = document.getElementById('badgeIncidencias');
+        if (badge) {
+            badge.textContent = data.total;
+            badge.style.display = data.total > 0 ? 'inline-flex' : 'none';
+        }
+    } catch (e) { /* silencioso: el badge no es crítico */ }
+}
+
+// Actualizar el badge al cargar el panel y cada 60 segundos (solo admin)
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(actualizarBadgeIncidencias, 800);
+    setInterval(actualizarBadgeIncidencias, 60000);
+});
+
+
+// ============================================================
+// RESPALDO DE BASE DE DATOS (solo admin)
+// ============================================================
+async function descargarRespaldoBD() {
+    mostrarAlerta('Generando respaldo... espera unos segundos', 'success');
+    try {
+        const res = await fetch('/api/respaldo/exportar');
+        if (!res.ok) {
+            const data = await res.json().catch(function () { return {}; });
+            mostrarAlerta(data.error || 'Error al generar el respaldo', 'error');
+            return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const fecha = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = 'respaldo_creditos_' + fecha + '.sql';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+        mostrarAlerta('Respaldo descargado correctamente', 'success');
+    } catch (e) {
+        console.error('Error descargando respaldo:', e);
+        mostrarAlerta('Error de conexion al generar el respaldo', 'error');
+    }
+}
+
+function restaurarRespaldoBD() {
+    const chk = document.getElementById('confirmarRestaurar');
+    const input = document.getElementById('archivoRespaldo');
+    const file = input.files[0];
+    if (!file) { mostrarAlerta('Selecciona un archivo .sql o .dump', 'warning'); return; }
+    if (!chk.checked) { mostrarAlerta('Debes marcar la casilla de confirmacion', 'warning'); return; }
+
+    mostrarModalCorporativo(
+        'Restaurar base de datos?',
+        'Se reemplazara TODA la informacion actual con el contenido de:<br><strong>' + escapeHtml(file.name) + '</strong><br><br>Esta accion NO se puede deshacer.',
+        'warning',
+        [
+            {
+                texto: 'Cancelar',
+                estilo: 'padding:10px 20px;background:#f0f0f0;color:#666;border:none;border-radius:8px;cursor:pointer;font-weight:600;'
+            },
+            {
+                texto: 'Si, restaurar',
+                estilo: 'padding:10px 24px;background:linear-gradient(135deg,#e53e3e,#c53030);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;',
+                accion: function () { ejecutarRestauracionBD(file); }
+            }
+        ]
+    );
+}
+
+async function ejecutarRestauracionBD(file) {
+    const resultado = document.getElementById('resultadoRestaurar');
+    resultado.innerHTML = '<p style="color:#3182ce;">Restaurando... <strong>NO cierres ni uses el sistema</strong> hasta que termine (puede tardar varios minutos).</p>';
+    mostrarAlerta('Restaurando base de datos, espera...', 'warning');
+    try {
+        const res = await fetch('/api/respaldo/importar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: file
+        });
+        const data = await res.json();
+        if (res.ok && data.exito) {
+            let html = '<p style="color:#27ae60;font-weight:600;">&#10004; ' + escapeHtml(data.mensaje || 'Restaurada correctamente') + '</p>';
+            if (data.respaldoAutomatico) {
+                html += '<p style="color:#718096;font-size:0.8rem;">Respaldo automatico previo: ' + escapeHtml(data.respaldoAutomatico) + '</p>';
+            }
+            resultado.innerHTML = html;
+            mostrarAlerta('Base de datos restaurada. Recarga la pagina (F5).', 'success');
+        } else {
+            resultado.innerHTML = '<p style="color:#e53e3e;font-weight:600;">&#10008; ' + escapeHtml(data.error || 'Error al restaurar') + '</p>';
+            mostrarAlerta(data.error || 'Error al restaurar', 'error');
+        }
+    } catch (e) {
+        console.error('Error restaurando:', e);
+        resultado.innerHTML = '<p style="color:#e53e3e;">&#10008; Error de conexion con el servidor</p>';
+        mostrarAlerta('Error de conexion al restaurar', 'error');
+    }
+}
+
+
+// ============================================================
+// HEARTBEAT DE SESIÓN (v9.3)
+// Avisa al servidor cada 60 s que la sesión sigue viva. Sin esto, el
+// servidor no puede distinguir "navegador cerrado" de "sesión activa"
+// y el bloqueo de sesión única se basaría en tiempos fijos. Con el ping,
+// cerrar el navegador libera la sesión en ~3 minutos.
+// ============================================================
+(function () {
+    function pingSesion() {
+        if (!sesionLocalActiva()) return;
+        fetch('/api/auth/ping', { method: 'POST' }).catch(function () {});
+    }
+    // Ping al cargar + cada 60 segundos
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            pingSesion();
+            setInterval(pingSesion, 60000);
+        });
+    } else {
+        pingSesion();
+        setInterval(pingSesion, 60000);
+    }
+})();
+
+
+// ============================================================
+// v9.3.9 — CORRECCIÓN FINAL DE SIDEBAR (desktop)
+// Se ejecuta cuando la página terminó de cargar TODO (evento load, más
+// tardío que DOMContentLoaded). Cualquier ocultamiento del sidebar que
+// haya ocurrido durante el arranque queda corregido aquí. En consola
+// se verá '[sidebar-final] corregido' si aplica.
+// ============================================================
+window.addEventListener('load', function () {
+    setTimeout(function () {
+        if (typeof esMovil !== 'function' || esMovil()) return;
+        var sb = document.getElementById('sidebar');
+        if (!sb) return;
+        var t = sb.style.transform || '';
+        if (t.indexOf('-100') !== -1) {
+            sb.style.transform = 'translateX(0)';
+            sb.style.width = '250px';
+            console.warn('[sidebar-final] corregido. Antes:', t);
+        }
+    }, 800);
+});
+
+
+// ============================================================
+// v9.4.1 — RED DE SEGURIDAD DEL SIDEBAR (MutationObserver)
+// Vigila el atributo style/class del sidebar y revierte CUALQUIER
+// ocultamiento inline (translateX(-100...)) en desktop al momento,
+// sin importar qué código lo haya escrito — funciones conocidas,
+// tienda-spa.js, o cualquier otro script. En móvil no interviene
+// (el modo móvil legítimo sigue funcionando con la hamburguesa).
+// ============================================================
+(function () {
+    function correccion() {
+        if (typeof esMovil !== 'function' || esMovil()) return;
+        var sb = document.getElementById('sidebar');
+        if (!sb) return;
+        var t = sb.style.transform || '';
+        if (t.indexOf('-100') !== -1 || sb.classList.contains('sidebar-mobile')) {
+            sb.classList.remove('sidebar-mobile');
+            sb.style.transform = 'translateX(0)';
+            sb.style.width = '250px';
+            console.warn('[sidebar-observer] ocultamiento revertido en desktop');
+        }
+    }
+    function armar() {
+        var sb = document.getElementById('sidebar');
+        if (!sb || typeof MutationObserver === 'undefined') return;
+        var mo = new MutationObserver(function () {
+            // setTimeout(0) para no interferir con el escritor mientras trabaja
+            setTimeout(correccion, 0);
+        });
+        mo.observe(sb, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', armar);
+    } else {
+        armar();
+    }
+})();
+
+
+// ============================================================
+// MFA (2FA) — Mi Perfil (v9.5)
+// ============================================================
+async function iniciarSetupMfa() {
+    try {
+        const res = await fetch('/api/usuarios/mfa/setup', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) { mostrarAlerta(data.error || 'Error al generar el QR', 'error'); return; }
+        document.getElementById('mfaQr').src = data.qr;
+        document.getElementById('mfaSetup').style.display = 'block';
+        document.getElementById('mfaBtnIniciar').style.display = 'none';
+    } catch (e) {
+        mostrarAlerta('Error de conexión', 'error');
+    }
+}
+
+async function activarMfa() {
+    const codigo = (document.getElementById('mfaCodigo').value || '').trim();
+    if (!/^\d{6}$/.test(codigo)) { mostrarAlerta('Ingresa el código de 6 dígitos', 'warning'); return; }
+    try {
+        const res = await fetch('/api/usuarios/mfa/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarAlerta('2FA activado. Tu cuenta ahora pide código de la app al entrar.', 'success');
+            document.getElementById('mfaSetup').style.display = 'none';
+            cargarPerfil();
+        } else {
+            mostrarAlerta(data.error || 'Código incorrecto', 'error');
+        }
+    } catch (e) { mostrarAlerta('Error de conexión', 'error'); }
+}
+
+async function desactivarMfa() {
+    const password = prompt('Confirma tu contraseña para desactivar el 2FA:');
+    if (!password) return;
+    try {
+        const res = await fetch('/api/usuarios/mfa/disable', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarAlerta('2FA desactivado. Se cerraron tus sesiones por seguridad.', 'success');
+            cargarPerfil();
+        } else {
+            mostrarAlerta(data.error || 'No se pudo desactivar', 'error');
+        }
+    } catch (e) { mostrarAlerta('Error de conexión', 'error'); }
+}

@@ -62,7 +62,15 @@
                 </form>
 
                 <div class="login-footer">
-                    <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
+                    <a href="#" class="forgot-password" onclick="mostrarRecuperacion(event)">¿Olvidaste tu contraseña?</a>
+                </div>
+                <div id="recuperarBox" style="display:none;margin-top:14px;text-align:left;">
+                    <label for="rec-email" style="display:block;font-size:13px;font-weight:600;color:#4a5568;margin-bottom:5px;">Te enviaremos un enlace a tu correo:</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="email" id="rec-email" placeholder="tu@correo.com" style="flex:1;padding:11px 12px;border:1.5px solid #cbd5e0;border-radius:9px;font-size:14px;">
+                        <button type="button" id="rec-btn" onclick="enviarRecuperacion()" style="padding:11px 16px;background:#2c5282;color:#fff;border:none;border-radius:9px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap;">Enviar</button>
+                    </div>
+                    <div id="rec-msg" style="display:none;margin-top:10px;padding:10px 12px;border-radius:9px;font-size:13px;"></div>
                 </div>
 
                 <div class="login-footer-bottom">

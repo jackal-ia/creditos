@@ -12,7 +12,11 @@ const pool = require('../config/database');
 //   JWT, que puede estar desactualizada)
 // ============================================================
 const verificarToken = async (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // v9.6 — FASE 1 cookies httpOnly: el token se acepta desde la cookie
+    // 'token' (httpOnly, la manda el navegador automáticamente) O desde el
+    // header Authorization (compatibilidad total con el frontend actual).
+    const token = req.header('Authorization')?.replace('Bearer ', '')
+        || (req.cookies && req.cookies.token);
     if (!token) {
         return res.status(401).json({ error: 'Acceso denegado. Token requerido.' });
     }

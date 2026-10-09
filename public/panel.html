@@ -1,14 +1,53 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="rol-pendiente">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+// v9.2.3 — ANTI-FLASH DE AUTENTICACIÓN: si no hay token, no se pinta NI UN
+// PIXEL del panel: se marca html.sin-auth (el body queda oculto por CSS) y
+// se redirige al login inmediatamente. Así /panel sin sesión no muestra el
+// sistema "por milisegundos" como antes.
+(function () {
+    // v9.7 — la sesión la manda la cookie httpOnly; la bandera solo evita
+    // pintar el panel a quien nunca inició sesión.
+    if (localStorage.getItem('sesion_activa') !== '1') {
+        document.documentElement.classList.add('sin-auth');
+        location.replace('/');
+    }
+})();
+</script>
 <title>Panel - Sistema de Creditos</title>
 <link rel="stylesheet" href="css/panel.css">
 <link rel="stylesheet" href="css/tienda-conciliaciones-v672.css">
 <!-- ApexCharts CDN -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
 <style>
+/* ============================================================
+   v9.2.2 — ANTI-FLASH DE ROL: hasta que el JS confirme el rol
+   (JWT primero), se oculta todo lo restringido. Así un vendedor
+   u operador NUNCA ve la pantalla de administrador siquiera un
+   parpadeo: la primera pintura ya viene acotada. Cuando el rol
+   se aplica, se quita la clase .rol-pendiente y todo lo que
+   corresponda queda visible.
+   ============================================================ */
+.rol-pendiente #nav-dashboard,
+.rol-pendiente #nav-actividades-pendientes,
+.rol-pendiente #nav-usuarios,
+.rol-pendiente #nav-incidencias,
+.rol-pendiente #nav-respaldo,
+.rol-pendiente #nav-caracas,
+.rol-pendiente #nav-maracay,
+.rol-pendiente #nav-maracaibo,
+.rol-pendiente #nav-vend-clientes,
+.rol-pendiente #nav-vend-inventario,
+.rol-pendiente #nav-vend-cotizaciones,
+.rol-pendiente #nav-vend-notas,
+.rol-pendiente #contentDashboard { display: none !important; }
+
+/* v9.2.3 — sin sesión no se muestra nada (redirige al login) */
+html.sin-auth body { display: none !important; }
+
 /* ====== ESTILOS RESPONSIVE UNIFICADOS ====== */
 .mobile-menu-btn {
     display: none;
@@ -229,6 +268,41 @@
                 </a>
                 
             </div>
+            <!-- v8.0: FASE VENDEDORES (solo Caracas) -->
+            <div class="nav-section" id="navSeccionVendedores">
+                <span class="nav-title">VENDEDORES</span>
+                <a href="#" class="nav-item" id="nav-vend-clientes" onclick="mostrarSeccion('vend-clientes')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Clientes</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-vend-inventario" onclick="mostrarSeccion('vend-inventario')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    <span>Inventario</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-vend-cotizaciones" onclick="mostrarSeccion('vend-cotizaciones')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <span>Cotización</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-vend-notas" onclick="mostrarSeccion('vend-notas')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 11 12 14 22 4"></polyline>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    </svg>
+                    <span>Nota de Entrega</span>
+                </a>
+            </div>
             <div class="nav-section">
                 <span class="nav-title">CONFIGURACION</span>
                 <a href="#" class="nav-item" id="nav-tasas" onclick="mostrarSeccion('tasas')">
@@ -244,6 +318,22 @@
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
                     <span>Usuarios</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-incidencias" onclick="mostrarSeccion('incidencias')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+                        <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                    </svg>
+                    <span>Incidencias</span>
+                    <span class="nav-badge" id="badgeIncidencias" style="display:none;">0</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-respaldo" onclick="mostrarSeccion('respaldo')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                    </svg>
+                    <span>Respaldo BD</span>
                 </a>
             </div>
         </nav>
@@ -620,6 +710,79 @@
             </div>
         </div>
 
+        <!-- INCIDENCIAS (v7.5: bandeja del administrador) -->
+        <div class="content-area hidden" id="contentIncidencias">
+            <div class="section-header">
+                <h3>Bandeja de Incidencias</h3>
+                <p>Registros que los operarios cargaron aceptando una advertencia del sistema</p>
+            </div>
+            <div class="stats-grid" id="statsIncidencias">
+                <div class="stat-card">
+                    <div class="stat-icon total">&#128229;</div>
+                    <div class="stat-info"><span class="stat-number" id="statIncTotal">0</span><span class="stat-label">Total Incidencias</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon inactivos">&#128308;</div>
+                    <div class="stat-info"><span class="stat-number" id="statIncSinLeer">0</span><span class="stat-label">Sin leer</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon activos">&#9989;</div>
+                    <div class="stat-info"><span class="stat-number" id="statIncLeidas">0</span><span class="stat-label">Revisadas</span></div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <select id="filtroIncidencias" onchange="cargarIncidencias()">
+                            <option value="">Todas</option>
+                            <option value="1">Solo sin leer</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-right">
+                        <button class="btn-secondary" onclick="cargarIncidencias()">Actualizar</button>
+                        <button class="btn-primary" onclick="marcarTodasIncidencias()">Marcar todas como revisadas</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table" id="tablaIncidencias">
+                        <thead><tr><th>Fecha</th><th>Tienda</th><th>Factura</th><th>Cliente</th><th>Monto Facturado</th><th>Inicial Cargado</th><th>Exceso</th><th>Operario</th><th>Estado</th><th>Accion</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="table-empty" id="tablaIncidenciasEmpty" style="display:none;">
+                    <p>No hay incidencias registradas</p>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- RESPALDO BD (solo administrador) -->
+        <div class="content-area hidden" id="contentRespaldo">
+            <div class="section-header">
+                <h3>Respaldo de Base de Datos</h3>
+                <p>Descarga una copia de seguridad o restaura desde un archivo</p>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                <h4 style="color:var(--primary);margin-bottom:10px;">&#8681; Descargar respaldo</h4>
+                <p style="color:#718096;margin-bottom:15px;">Genera un archivo .sql con TODA la base de datos (tablas, funciones y datos). Incluye <code>DROP IF EXISTS</code>, asi que sirve para restaurar directamente.</p>
+                <button class="btn-primary" onclick="descargarRespaldoBD()">Descargar BD (.sql)</button>
+            </div>
+            <div class="card">
+                <h4 style="color:#c0392b;margin-bottom:10px;">&#8680; Restaurar desde archivo</h4>
+                <p style="color:#c0392b;margin-bottom:10px;"><strong>&#9888; ADVERTENCIA:</strong> restaurar reemplaza TODA la base de datos actual con el contenido del archivo. Los datos que no esten en el archivo se perderan. Antes de reemplazar, el sistema guarda un respaldo automatico en <code>/opt/creditos/respaldos_automaticos/</code>.</p>
+                <p style="color:#718096;">Acepta archivos <code>.sql</code> (texto) o <code>.dump</code> (formato custom de pgAdmin/pg_dump).</p>
+                <label style="display:flex;align-items:center;gap:8px;margin:15px 0;font-size:0.9rem;">
+                    <input type="checkbox" id="confirmarRestaurar">
+                    Entiendo que se reemplazara toda la informacion actual de la base de datos
+                </label>
+                <input type="file" id="archivoRespaldo" accept=".sql,.dump" style="display:block;margin-bottom:15px;">
+                <button class="btn-danger" onclick="restaurarRespaldoBD()">Restaurar base de datos</button>
+                <div id="resultadoRestaurar" style="margin-top:15px;font-size:0.9rem;"></div>
+            </div>
+        </div>
+
         <!-- PERFIL -->
         <div class="content-area hidden" id="contentPerfil">
             <div class="section-header">
@@ -652,6 +815,21 @@
                         <button type="submit" class="btn-primary">Actualizar Contrasena</button>
                     </form>
                 </div>
+                <div class="card" style="margin-top:20px;">
+                    <h4 style="margin-bottom:15px;color:var(--primary);">Doble Factor de Autenticación (2FA)</h4>
+                    <div id="mfaEstado" style="margin-bottom:12px;font-size:0.9rem;color:#718096;">Verificando estado...</div>
+                    <div id="mfaSetup" style="display:none;text-align:center;">
+                        <p style="font-size:0.85rem;color:#4a5568;">1. Escanea este código con <strong>Google Authenticator</strong> o <strong>Authy</strong>:</p>
+                        <img id="mfaQr" alt="QR 2FA" style="width:180px;margin:10px auto;display:block;border:1px solid #e2e8f0;border-radius:8px;">
+                        <p style="font-size:0.85rem;color:#4a5568;">2. Ingresa el código de 6 dígitos que genera la app:</p>
+                        <input type="text" id="mfaCodigo" maxlength="6" inputmode="numeric" placeholder="123456" autocomplete="one-time-code"
+                            style="width:140px;text-align:center;padding:10px;border:1.5px solid #cbd5e0;border-radius:8px;font-size:16px;letter-spacing:3px;">
+                        <br>
+                        <button type="button" class="btn-primary" style="margin-top:12px;" onclick="activarMfa()">✔ Activar 2FA</button>
+                    </div>
+                    <button type="button" id="mfaBtnIniciar" class="btn-secondary" onclick="iniciarSetupMfa()">Activar 2FA</button>
+                    <button type="button" id="mfaBtnDesactivar" class="btn-danger" style="display:none;margin-left:8px;" onclick="desactivarMfa()">Desactivar</button>
+                </div>
             </div>
         </div>
 
@@ -670,6 +848,12 @@
         <!-- El contenido lo genera el módulo genérico js/tienda-spa.js -->
         <div class="content-area hidden" id="contentPagos">
         </div>
+
+        <!-- v8.0: VENDEDORES (solo Caracas) — contenido renderizado por js/vendedores.js -->
+        <div class="content-area hidden" id="contentVendClientes"></div>
+        <div class="content-area hidden" id="contentVendInventario"></div>
+        <div class="content-area hidden" id="contentVendCotizaciones"></div>
+        <div class="content-area hidden" id="contentVendNotas"></div>
 
         <!-- REPORTES -->
         <div class="content-area hidden" id="contentReportes">
@@ -995,7 +1179,7 @@
                     <div class="form-group"><label>Nombre completo *</label><input type="text" id="usuarioNombre" required maxlength="100"></div>
                     <div class="form-group"><label>Email *</label><input type="email" id="usuarioEmail" required></div>
                     <div class="form-group" id="grupoPassword"><label>Contrasena *</label><input type="password" id="usuarioPassword" minlength="6"></div>
-                    <div class="form-group"><label>Rol *</label><select id="usuarioRol" required><option value="operador">Operador</option><option value="administrador">Administrador</option></select></div>
+                    <div class="form-group"><label>Rol *</label><select id="usuarioRol" required><option value="operador">Operador</option><option value="vendedor">Vendedor</option><option value="administrador">Administrador</option></select></div>
                     <div class="form-group" id="grupoIp"><label id="ipLabel">IP Asignada <span style="color:#e53e3e;">*</span></label><input type="text" id="usuarioIp" required placeholder="Ej: 192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$"><small id="ipHelp">Obligatorio para operadores</small></div>
                     <div class="form-group" id="grupoTienda"><label>Tienda Asignada <span style="color:#e53e3e;">*</span></label><select id="usuarioTienda" required><option value="">Seleccionar tienda...</option><option value="caracas">Tienda Caracas</option><option value="maracay">Tienda Maracay</option><option value="maracaibo">Tienda Maracaibo</option></select><small id="tiendaHelp">Obligatoria para operadores</small></div>
                     <div class="form-group" id="grupoEstado" style="display:none;"><label>Estado</label><select id="usuarioActivo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
@@ -1067,6 +1251,7 @@
 
 <script src="js/panel.js"></script>
     <script src="js/tienda-spa.js"></script>
+    <script src="js/vendedores.js"></script>
     <script src="js/sesion-inactividad.js"></script>
 
     <!-- jsPDF para exportar PDF -->
@@ -1185,22 +1370,26 @@
 </div>
 
 <script>
-// ====== CONTROL SIDEBAR MÓVIL ======
+// ====== CONTROL SIDEBAR MÓVIL (FIX v9.2) ======
+// ajustarVistaMovil() deja un style.transform INLINE ('translateX(-100%)')
+// en el sidebar; el inline le gana a la clase .sidebar.open del CSS y el
+// menú nunca entraba en pantalla (velo oscuro + pantalla bloqueada).
+// Fix: se fuerza el transform inline aquí también.
 function toggleMobileSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('mobileOverlay');
-    if (sidebar && overlay) {
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('active');
-    }
+    if (!sidebar || !overlay) return;
+    const abierto = sidebar.classList.toggle('open');
+    overlay.classList.toggle('active', abierto);
+    sidebar.style.transform = abierto ? 'translateX(0)' : 'translateX(-100%)';
 }
 function closeMobileSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('mobileOverlay');
-    if (sidebar && overlay) {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-    }
+    if (!sidebar || !overlay) return;
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    sidebar.style.transform = 'translateX(-100%)';
 }
 // Cerrar sidebar al hacer click en un nav-item en móvil
 document.querySelectorAll('.nav-item').forEach(item => {

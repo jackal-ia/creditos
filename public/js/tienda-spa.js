@@ -416,7 +416,7 @@
                     <button class="tm2-qbtn acento" data-action="qa-nuevo-cliente">＋ Nuevo cliente</button>
                     <button class="tm2-qbtn" data-action="show-conciliaciones">Registrar pago</button>
                     <button class="tm2-qbtn" data-action="export-excel">Exportar cartera</button>
-                    <button class="tm2-qbtn" data-action="descargar-respaldo" title="Descarga TODA la data de la tienda (formato Excel plano)">Respaldo Excel</button>
+                    <button class="tm2-qbtn" data-action="descargar-respaldo" title="Descarga la data de la tienda en Excel — puedes elegir abiertas, canceladas o todas">Respaldo Excel</button>
                     <button class="tm2-qbtn" data-action="show-reportes">Ver reportes</button>
                 </div>
 
@@ -2082,6 +2082,40 @@
                     });
                 }
             });
+
+            // v7.6: listeners para la fila de inicial (editable solo para admin)
+            const iniBsInput = body.querySelector('input[data-name="inicial_bs"]');
+            if (iniBsInput && !iniBsInput.readOnly) {
+                const recalcInicial = () => {
+                    const bs = parseFloat(body.querySelector('input[data-name="inicial_bs"]').value) || 0;
+                    const tasa = parseFloat(body.querySelector('input[data-name="tasa_inicial"]').value) || 0;
+                    const usd = (bs > 0 && tasa > 0) ? redondearDecimales(bs / tasa) : 0;
+                    const usdInput = body.querySelector('input[data-name="inicial_usd"]');
+                    if (usdInput) usdInput.value = usd > 0 ? usd.toFixed(2) : '';
+                    if (this.currentEditItem) {
+                        this.currentEditItem.inicial_bs = bs;
+                        this.currentEditItem.tasa_inicial = tasa;
+                        this.currentEditItem.inicial_usd = usd;
+                    }
+                    this.__marcarDirty();
+                    this.__actualizarTotalesModal();
+                };
+                iniBsInput.addEventListener('change', recalcInicial);
+                const iniTasaInput = body.querySelector('input[data-name="tasa_inicial"]');
+                if (iniTasaInput) iniTasaInput.addEventListener('change', recalcInicial);
+                const iniRefInput = body.querySelector('input[data-name="ref_inicial"]');
+                if (iniRefInput) iniRefInput.addEventListener('change', (e) => {
+                    if (this.currentEditItem) this.currentEditItem.ref_inicial = e.target.value;
+                    this.__marcarDirty();
+                });
+                const iniFechaInput = body.querySelector('input[data-name="fecha_inicial"]');
+                if (iniFechaInput) iniFechaInput.addEventListener('change', (e) => {
+                    if (this.currentEditItem) {
+                        this.currentEditItem.fecha_inicial = this._parseFechaInputToISO(e.target.value) || e.target.value || null;
+                    }
+                    this.__marcarDirty();
+                });
+            }
         }
 
         closeModal() {
@@ -2149,6 +2183,20 @@
                 deuda: itemProcesado.deuda,
                 monto_depositados: itemProcesado.monto_depositados
             };
+// v7.6: si la fila de inicial esta editable en el modal, tomar sus valores
+            // directamente de los inputs (respaldo a los listeners de cambio)
+            const iniBsEl = modal.querySelector('input[data-name="inicial_bs"]');
+            if (iniBsEl && !iniBsEl.readOnly) {
+                data.inicial_bs = parseFloat(iniBsEl.value) || 0;
+                const iniTasaEl = modal.querySelector('input[data-name="tasa_inicial"]');
+                if (iniTasaEl) data.tasa_inicial = parseFloat(iniTasaEl.value) || 0;
+                const iniUsdEl = modal.querySelector('input[data-name="inicial_usd"]');
+                if (iniUsdEl) data.inicial_usd = parseFloat(iniUsdEl.value) || 0;
+                const iniRefEl = modal.querySelector('input[data-name="ref_inicial"]');
+                if (iniRefEl) data.ref_inicial = iniRefEl.value;
+                const iniFechaEl = modal.querySelector('input[data-name="fecha_inicial"]');
+                if (iniFechaEl) data.fecha_inicial = this._parseFechaInputToISO(iniFechaEl.value) || iniFechaEl.value || null;
+            }
 // Reconstruir pagos_extra desde los inputs del modal (incluye cambios del admin)
             const pagosExtra = [];
             const modalBody = modal.querySelector('#' + this.cfg.key + '-modal-body-v672');
@@ -3064,8 +3112,26 @@
             if (!payload.inicial_bs || payload.inicial_bs <= 0) {
                 mostrarModalCorporativo('Validación', 'El inicial debe ser mayor a cero', 'warning'); return;
             }
+            // v7.5: inicial MAYOR al monto (cliente pagó de más) — ya no se
+            // bloquea, pero el operario debe ACEPTAR la advertencia y la
+            // incidencia llega a la bandeja del administrador.
             if (payload.inicial_bs > payload.monto_factura) {
-                mostrarModalCorporativo('Validación', 'El inicial no puede superar el monto total', 'warning'); return;
+                const excesoBs = payload.inicial_bs - payload.monto_factura;
+                mostrarModalCorporativo(
+                    '⚠️ Inicial mayor al monto de la factura',
+                    'Está cargando un inicial <strong>MAYOR</strong> que el monto de la factura (el cliente pagó en exceso):\n\n' +
+                    'Monto facturado: <strong>' + formatCurrency(payload.monto_factura) + '</strong>\n' +
+                    'Inicial cargado: <strong>' + formatCurrency(payload.inicial_bs) + '</strong>\n' +
+                    'Exceso: <strong>' + formatCurrency(excesoBs) + '</strong>\n\n' +
+                    'Si continúa, la factura quedará registrada como PAGADA y esta incidencia será notificada a la <strong>bandeja del administrador</strong>.\n\n' +
+                    '¿Desea continuar?',
+                    'warning',
+                    [
+                        { texto: 'Cancelar', estilo: BTN.neutro },
+                        { texto: 'Sí, registrar así', estilo: BTN.warning, accion: () => self._ejecutarGuardarNuevaConciliacion(payload) }
+                    ]
+                );
+                return;
             }
 
             // Validación de cédula duplicada
@@ -3489,13 +3555,21 @@
             html += '<thead><tr>' + (esAdmin ? '<th style="width:30px"><input type="checkbox" id="chk-all-cuotas-' + this.cfg.key + '" title="Seleccionar todas"></th>' : '') + '<th>#</th><th>Monto Bs.</th><th>Referencia</th><th>Fecha</th><th>Tasa BCV</th><th>Monto $</th><th>Estado</th></tr></thead><tbody>';
 
             if (esNuevo) {
+                // v7.6: el admin puede editar la inicial (monto Bs, ref, fecha, tasa).
+                // El $ siempre se recalcula solo (Bs / tasa) → queda readonly.
+                // EXCEPCION: factura CONGELADA (cancelada_fija = 1) → INTOCABLE.
+                const fijaInicial = parseInt(cliente.cancelada_fija) || 0;
+                const iniEditable = esAdmin && fijaInicial !== 1;
+                const roIni = iniEditable ? '' : 'readonly';
+                const disIni = iniEditable ? '' : 'disabled';
+                const clsIni = iniEditable ? '' : 'solo-lectura';
                 html += '<tr class="fila-inicial">';
                 html += (esAdmin ? '<td></td>' : '');
                 html += '<td><span class="badge-inicial">0</span></td>';
-                html += '<td><input type="number" data-name="inicial_bs" value="' + (cliente.inicial_bs || '') + '" readonly step="0.01" class="solo-lectura"></td>';
-                html += '<td><input type="text" data-name="ref_inicial" value="' + (cliente.ref_inicial || '') + '" readonly class="solo-lectura"></td>';
-                html += '<td><input type="text" data-name="fecha_inicial" value="' + this.formatearFechaInput(cliente.fecha_inicial) + '" disabled class="solo-lectura" placeholder="dd-mm-aaaa" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
-                html += '<td><input type="number" data-name="tasa_inicial" value="' + (cliente.tasa_inicial || '') + '" readonly step="0.0001" class="solo-lectura"></td>';
+                html += '<td><input type="number" data-name="inicial_bs" value="' + (cliente.inicial_bs || '') + '" ' + roIni + ' step="0.01" class="' + clsIni + '"></td>';
+                html += '<td><input type="text" data-name="ref_inicial" value="' + (cliente.ref_inicial || '') + '" ' + roIni + ' class="' + clsIni + '"></td>';
+                html += '<td><input type="text" data-name="fecha_inicial" value="' + this.formatearFechaInput(cliente.fecha_inicial) + '" ' + disIni + ' class="' + clsIni + '" placeholder="dd-mm-aaaa" maxlength="10" style="text-align:center;font-family:monospace;font-size:12px;"></td>';
+                html += '<td><input type="number" data-name="tasa_inicial" value="' + (cliente.tasa_inicial || '') + '" ' + roIni + ' step="0.0001" class="' + clsIni + '"></td>';
                 html += '<td><input type="number" data-name="inicial_usd" value="' + (cliente.inicial_usd || '') + '" readonly step="0.01" class="calculado"></td>';
                 html += '<td><span style="color:#38a169;font-weight:700">✓</span></td>';
                 html += '</tr>';
@@ -4670,15 +4744,38 @@
         // EXPORTACION
         // ============================================================
 
-        // v7.3 — Respaldo de contingencia: descarga TODA la data de la
+        // v7.3 — Respaldo de contingencia: descarga la data de la
         // tienda (facturas + pagos, calculados en vivo al momento de la
         // descarga) en el formato Excel plano viejo. Ruta: backend
         // GET /api/tiendas/exportar-respaldo/:tienda
-        async _descargarRespaldoExcel() {
+        // v7.7: al hacer clic abre un modal para elegir QUE facturas
+        // incluir: abiertas (con deuda), canceladas o todas.
+        _descargarRespaldoExcel() {
+            const self = this;
+            mostrarModalCorporativo(
+                'Respaldo Excel — ' + self.nombre,
+                '¿Qué facturas desea incluir en el respaldo?\n\n' +
+                '📗 Abiertas: solo las que tienen deuda pendiente.\n' +
+                '📕 Canceladas: solo las pagadas completas.\n' +
+                '📋 Todas: la data completa de la tienda (como siempre).',
+                'pregunta',
+                [
+                    { texto: 'Cancelar', estilo: BTN.neutro },
+                    { texto: '📗 Abiertas', estilo: BTN.aceptar, accion: () => self._ejecutarDescargaRespaldo('abiertas') },
+                    { texto: '📕 Canceladas', estilo: BTN.warning, accion: () => self._ejecutarDescargaRespaldo('canceladas') },
+                    { texto: '📋 Todas', estilo: BTN.peligro, accion: () => self._ejecutarDescargaRespaldo('todas') }
+                ]
+            );
+        }
+
+        async _ejecutarDescargaRespaldo(estado) {
             try {
                 const token = localStorage.getItem('token');
-                notificar('Generando respaldo Excel de la tienda...', 'info');
-                const response = await fetch('/api/tiendas/exportar-respaldo/' + this.cfg.key, {
+                const etiqueta = estado === 'abiertas' ? 'facturas ABIERTAS'
+                    : estado === 'canceladas' ? 'facturas CANCELADAS'
+                    : 'TODA la data';
+                notificar('Generando respaldo Excel (' + etiqueta + ')...', 'info');
+                const response = await fetch('/api/tiendas/exportar-respaldo/' + this.cfg.key + '?estado=' + estado, {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
                 if (!response.ok) {
@@ -4689,13 +4786,14 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 const hoy = new Date().toISOString().split('T')[0];
+                const sufijo = estado !== 'todas' ? '-' + estado : '';
                 a.href = url;
-                a.download = `respaldo-${this.cfg.key}-${hoy}.xlsx`;
+                a.download = `respaldo-${this.cfg.key}${sufijo}-${hoy}.xlsx`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                notificar('Respaldo Excel descargado (data completa al dia de hoy)', 'success');
+                notificar('Respaldo Excel descargado (' + etiqueta + ', al dia de hoy)', 'success');
             } catch (error) {
                 console.error('[Respaldo Excel] Error:', error);
                 notificar('Error al descargar respaldo: ' + error.message, 'error');
