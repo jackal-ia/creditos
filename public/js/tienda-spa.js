@@ -344,11 +344,10 @@
          * agrega, esto hace al módulo autosuficiente.
          */
         _apiFetch(url, opts) {
-            const token = localStorage.getItem('token');
-            opts = opts || {};
-            opts.headers = Object.assign({}, opts.headers,
-                token ? { 'Authorization': 'Bearer ' + token } : {});
-            return fetch(url, opts);
+            // v9.8 — la cookie httpOnly autentica sola. Ya NO se inyecta
+            // Authorization: localStorage ya no guarda el token y enviar
+            // "Bearer null" hacía fallar la verificación del middleware.
+            return fetch(url, opts || {});
         }
 
         // ====================================================
@@ -1917,7 +1916,7 @@
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
             this.__mostrarSpinner('Cargando cliente...');
-            this._apiFetch(`${this.cfg.api}/${id}`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })
+            this._apiFetch(`${this.cfg.api}/${id}`)
                 .then(r => r.json())
                 .then(async data => {
 // calcular campos faltantes antes de mostrar
@@ -2744,10 +2743,7 @@
                 mensaje.style.color = '#ed8936';
 
                 try {
-                    const tk = localStorage.getItem('token');
-                    const response = await fetch('/api/bcv/actual', {
-                        headers: tk ? { 'Authorization': 'Bearer ' + tk } : {}
-                    });
+                    const response = await fetch('/api/bcv/actual');
                     if (response.ok) {
                         data = await response.json();
                         tasaUsd = extraerTasaValor(data);
@@ -4068,7 +4064,6 @@
             this._mostrarLoadingReportes(true);
 
             try {
-                const token = localStorage.getItem('token');
                 const esConsolidado = state.tiendaSeleccionada === 'todas';
                 const endpoint = esConsolidado ? '/api/reportes/v1/generar-consolidado' : '/api/reportes/v1/generar';
 
@@ -4114,8 +4109,7 @@
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(body)
                 });
@@ -4770,14 +4764,11 @@
 
         async _ejecutarDescargaRespaldo(estado) {
             try {
-                const token = localStorage.getItem('token');
                 const etiqueta = estado === 'abiertas' ? 'facturas ABIERTAS'
                     : estado === 'canceladas' ? 'facturas CANCELADAS'
                     : 'TODA la data';
                 notificar('Generando respaldo Excel (' + etiqueta + ')...', 'info');
-                const response = await fetch('/api/tiendas/exportar-respaldo/' + this.cfg.key + '?estado=' + estado, {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
+                const response = await fetch('/api/tiendas/exportar-respaldo/' + this.cfg.key + '?estado=' + estado);
                 if (!response.ok) {
                     const err = await response.json().catch(() => ({}));
                     throw new Error(err.error || 'Error al generar el respaldo');
@@ -4808,7 +4799,6 @@
             btn.disabled = true;
 
             try {
-                const token = localStorage.getItem('token');
                 const esConsolidado = state.tiendaSeleccionada === 'todas';
                 const endpoint = esConsolidado ? '/api/reportes/v1/generar-consolidado' : '/api/reportes/v1/generar';
 
@@ -4839,8 +4829,7 @@
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(body)
                 });
@@ -4893,7 +4882,6 @@
         this._mostrarLoadingReportes(true);
 
         try {
-            const token = localStorage.getItem('token');
             const esConsolidado = state.tiendaSeleccionada === 'todas';
             const endpoint = esConsolidado ? '/api/reportes/v1/generar-consolidado' : '/api/reportes/v1/generar';
 
@@ -4921,8 +4909,7 @@
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(body)
             });
