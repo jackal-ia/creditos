@@ -92,7 +92,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         // ya la fijó). El frontend guarda solo datos no sensibles + bandera.
         localStorage.removeItem('token');
         localStorage.setItem('sesion_activa', '1');
-                localStorage.setItem('token', data.token);
+        // v9.8 — FIX BUG-04 (FASE 2 completa): el token NO se guarda en
+        // localStorage. Vive solo en la cookie httpOnly; aquí solo se usa
+        // en memoria (data.token) para extraer el rol. XSS ya no lo roba.
                 // Extraer rol del token JWT si no viene en data.usuario
 let userData = data.usuario || data.user || {}; // FIX v6.1: backend devuelve "usuario"
 if (!userData.rol && data.token) {

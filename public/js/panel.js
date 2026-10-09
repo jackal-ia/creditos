@@ -4066,7 +4066,10 @@ function exportToPDF() {
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text('Generado: ' + new Date().toLocaleString('es-VE'), 14, 28);
-    doc.text('Usuario: ' + (usuarioActual?.nombre || 'Administrador'), 14, 33);
+    // v9.8 — FIX: esa variable no existe en ningún script cargado y
+    // lanzaba ReferenceError al exportar PDF; se usa el objeto
+    // `usuario` de panel.js (sincronizado con el backend).
+    doc.text('Usuario: ' + (usuario.nombre || 'Administrador'), 14, 33);
 
     doc.setDrawColor(26, 54, 93);
     doc.setLineWidth(0.5);

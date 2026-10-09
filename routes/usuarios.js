@@ -263,7 +263,7 @@ router.delete('/:id/permanente', verificarToken, soloAdmin, async (req, res) => 
 
         // v9.3.7 — BORRADO TOTAL sin rastro del usuario:
         // 1) Tablas PROPIAS del usuario: se eliminan sus filas.
-        // 2) Tablas COMPARTIDAS (actividades, notificaciones, resúmenes...): se
+        // 2) Tablas COMPARTIDAS (actividades y notificaciones): se
         //    quita su firma (FK a NULL) para no borrar datos del equipo.
         // Cada limpieza es tolerante a fallos (si una tabla/columna difiere,
         // se registra y se continúa).
@@ -276,10 +276,7 @@ router.delete('/:id/permanente', verificarToken, soloAdmin, async (req, res) => 
         await limpiar('DELETE FROM sesiones WHERE usuario_id = $1');
         await limpiar('UPDATE actividades SET creado_por = NULL WHERE creado_por = $1');
         await limpiar('UPDATE actividades SET completado_por = NULL WHERE completado_por = $1');
-        await limpiar('UPDATE alertas_config SET usuario_id = NULL WHERE usuario_id = $1');
-        await limpiar('UPDATE conversaciones_asistente SET usuario_id = NULL WHERE usuario_id = $1');
         await limpiar('UPDATE notificaciones SET usuario_id = NULL WHERE usuario_id = $1');
-        await limpiar('UPDATE resumenes_diarios SET usuario_id = NULL WHERE usuario_id = $1');
 
         // Borrado físico del usuario (la auditoría ya fue eliminada arriba)
         await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
@@ -313,7 +310,7 @@ router.patch('/:id/reactivar', verificarToken, soloAdmin, async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
-        await auditar(req, 'REACTIVAR_USUARIO', parseInt(id), {});
+        await auditar(req, 'REACTIVAR_USUARIO', parseInt(req.params.id), {});
         res.json({ message: 'Usuario reactivado', usuario: result.rows[0] });
     } catch (err) {
         console.error('Error reactivando usuario:', err);
@@ -510,14 +507,37 @@ router.post('/restablecer-password', async (req, res) => {
         }
 
         const hashed = await bcrypt.hash(password_nuevo, 12);
-        await pool.query('BEGIN');
-        await pool.query('UPDATE usuarios SET password = $1, token_version = token_version + 1 WHERE id = $2', [hashed, resetToken.rows[0].usuario_id]);
-        await pool.query('UPDATE reset_tokens SET used = true WHERE token = $1', [token]);
-        await pool.query('COMMIT');
+
+        // v9.8 — FIX BUG-08: transacción REAL sobre un cliente dedicado del
+        // pool (pool.query('BEGIN') podía repartir las queries en conexiones
+        // distintas y no garantizaba atomicidad). Además el token se CONSUME
+        // con UPDATE ... RETURNING dentro de la transacción: dos peticiones
+        // concurrentes con el mismo token no pueden pasar ambas (la segunda
+        // ve used=true y cae en 400).
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const consumo = await client.query(
+                'UPDATE reset_tokens SET used = true WHERE token = $1 AND expires_at > NOW() AND used = false RETURNING usuario_id',
+                [token]
+            );
+            if (consumo.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'Token inválido, expirado o ya utilizado' });
+            }
+
+            await client.query('UPDATE usuarios SET password = $1, token_version = token_version + 1 WHERE id = $2', [hashed, consumo.rows[0].usuario_id]);
+            await client.query('COMMIT');
+        } catch (errTx) {
+            try { await client.query('ROLLBACK'); } catch (e) {}
+            throw errTx;
+        } finally {
+            client.release();
+        }
 
         res.json({ message: 'Password restablecido exitosamente' });
     } catch (err) {
-        await pool.query('ROLLBACK');
         console.error('Error restableciendo password:', err);
         res.status(500).json({ error: 'Error al restablecer password' });
     }

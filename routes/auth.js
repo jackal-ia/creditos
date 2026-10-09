@@ -69,7 +69,10 @@ async function emitirSesion(res, usuario, clientIP, dispositivo) {
     const ins = await pool.query(
         `INSERT INTO sesiones (usuario_id, token, dispositivo, ip_address, expires_at, activa)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [usuario.id, token, dispositivo || 'Navegador Web', clientIP, new Date(Date.now() + 8 * 60 * 60 * 1000), true]
+        // v9.8 — FIX BUG-07: la fila de sesión expira con la MISMA duración
+        // que el JWT y la cookie (antes eran 8h fijas aunque JWT_EXPIRES_IN
+        // dijera otra cosa, y la lógica de sesión activa se desincronizaba).
+        [usuario.id, token, dispositivo || 'Navegador Web', clientIP, new Date(Date.now() + duracionMs(process.env.JWT_EXPIRES_IN)), true]
     );
 
     // v9.8 — ALERTA DE NUEVO DISPOSITIVO/IP: si la IP difiere de la sesión
